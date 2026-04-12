@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BalanceProjectionApp.ApiService/BalanceProjectionApp.ApiService.csproj" />
+    <Project Path="src/BalanceProjectionApp.Application/BalanceProjectionApp.Application.csproj" />
+    <Project Path="src/BalanceProjectionApp.Domain/BalanceProjectionApp.Domain.csproj" />
+    <Project Path="src/BalanceProjectionApp.Infrastructure/BalanceProjectionApp.Infrastructure.csproj" />
+  </Folder>
+  <Project Path="BalanceProjectionApp.AppHost/BalanceProjectionApp.AppHost.csproj" />
+  <Project Path="BalanceProjectionApp.ServiceDefaults/BalanceProjectionApp.ServiceDefaults.csproj" />
+  <Project Path="BalanceProjectionApp.Web/BalanceProjectionApp.Web.csproj" />
+</Solution>
