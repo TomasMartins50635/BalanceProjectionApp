@@ -1,0 +1,43 @@
+name: .NET Aspire CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# Ensures that if you push a new commit, the previous build is cancelled to save minutes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        # Match this to your project's version (e.g., 8.0.x or 9.0.x)
+        dotnet-version: '9.0.x'
+        # Enables caching for NuGet packages automatically
+        cache: true
+
+    - name: Install .NET Aspire Workload
+      run: dotnet workload install aspire --ignore-failed-sources
+
+    - name: Restore Dependencies
+      run: dotnet restore
+
+    - name: Build Solution
+      # Using --no-restore because we did it in the previous step
+      run: dotnet build --no-restore --configuration Release
+
+    - name: Run Tests
+      # This will run unit tests and Aspire integration tests. 
+      # GitHub's ubuntu-latest includes Docker, which Aspire needs for containers.
+       run: dotnet test --no-build --configuration Release --verbosity normal
