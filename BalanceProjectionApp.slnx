@@ -7,5 +7,4 @@
   </Folder>
   <Project Path="BalanceProjectionApp.AppHost/BalanceProjectionApp.AppHost.csproj" />
   <Project Path="BalanceProjectionApp.ServiceDefaults/BalanceProjectionApp.ServiceDefaults.csproj" />
-  <Project Path="BalanceProjectionApp.Web/BalanceProjectionApp.Web.csproj" />
 </Solution>

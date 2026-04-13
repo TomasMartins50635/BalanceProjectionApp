@@ -56,8 +56,8 @@ SQLite, created automatically on first run in Development. To add a migration:
 
 ```bash
 dotnet ef migrations add <MigrationName> \
-  --project BalanceProjectionApp.Infrastructure \
-  --startup-project BalanceProjectionApp.ApiService
+  --project src/BalanceProjectionApp.Infrastructure \
+  --startup-project src/BalanceProjectionApp.ApiService
 ```
 
 ## Key Concepts

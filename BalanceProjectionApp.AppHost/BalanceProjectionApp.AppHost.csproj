@@ -9,8 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BalanceProjectionApp.ApiService\BalanceProjectionApp.ApiService.csproj" />
-    <ProjectReference Include="..\BalanceProjectionApp.Web\BalanceProjectionApp.Web.csproj" />
+    <ProjectReference Include="..\src\BalanceProjectionApp.ApiService\BalanceProjectionApp.ApiService.csproj" />
   </ItemGroup>
 
 </Project>

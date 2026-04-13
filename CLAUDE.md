@@ -88,7 +88,7 @@ DependencyInjection.cs
 - **Provider:** SQLite (ficheiro `BalanceProjection.db`, criado automaticamente em dev)
 - **Connection string:** `ConnectionStrings:DefaultConnection` em `appsettings.json`
 - **Migrações:** aplicadas automaticamente em Development via `db.Database.MigrateAsync()` no `Program.cs`
-- **Gerar migração:** `dotnet ef migrations add NomeDaMigracao --project BalanceProjectionApp.Infrastructure --startup-project BalanceProjectionApp.ApiService`
+- **Gerar migração:** `dotnet ef migrations add NomeDaMigracao --project src/BalanceProjectionApp.Infrastructure --startup-project src/BalanceProjectionApp.ApiService`
 
 ### Índices definidos em `ParcelaConfiguration`
 - `ContaId` — queries de saldo
