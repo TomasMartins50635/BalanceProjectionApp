@@ -1,5 +1,8 @@
 # BalanceProjectionApp
 
+[![CI](https://github.com/TomasMartins50635/BalanceProjectionApp/actions/workflows/build.yml/badge.svg)](https://github.com/TomasMartins50635/BalanceProjectionApp/actions/workflows/build.yml)
+[![Sonar](https://github.com/TomasMartins50635/BalanceProjectionApp/actions/workflows/Sonar.yml/badge.svg)](https://github.com/TomasMartins50635/BalanceProjectionApp/actions/workflows/Sonar.yml)
+
 A financial management system focused on tracking **real and projected bank balances**, invoicing, and expenses. Built with .NET 10, Clean Architecture, and .NET Aspire.
 
 ## Overview
