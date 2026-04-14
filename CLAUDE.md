@@ -150,4 +150,27 @@ dotnet run --project src/BalanceProjectionApp.ApiService
 
 ## Testing
 
-Sem projetos de teste atualmente. Ao adicionar, criar xUnit com referência a `Application` e `Domain`, e registar no `.slnx`.
+Três camadas de testes, todos registados em `.slnx`:
+
+| Projeto | Tipo | O que testa |
+|---|---|---|
+| `tests/BalanceProjectionApp.Domain.Tests` | Unidade | Entidades e regras de domínio (45 testes) |
+| `tests/BalanceProjectionApp.Application.Tests` | Unidade (mocks) | Handlers CQRS, repositórios mockados com NSubstitute (27 testes) |
+| `tests/BalanceProjectionApp.Infrastructure.Tests` | Integração | Repositórios EF Core contra PostgreSQL real via Testcontainers (17 testes) |
+| `tests/BalanceProjectionApp.Api.Tests` | Integração (E2E) | Endpoints HTTP via WebApplicationFactory + Testcontainers (23 testes) |
+
+### Executar todos os testes
+```bash
+dotnet test tests/BalanceProjectionApp.Domain.Tests
+dotnet test tests/BalanceProjectionApp.Application.Tests
+dotnet test tests/BalanceProjectionApp.Infrastructure.Tests   # requer Docker
+dotnet test tests/BalanceProjectionApp.Api.Tests              # requer Docker
+```
+
+### Notas de implementação
+- `xUnit`, `FluentAssertions`, `NSubstitute` (mocks), `Testcontainers.PostgreSql` (container PostgreSQL efémero)
+- Os testes de integração usam `[Collection("Database")]` / `[Collection("Api")]` com fixture partilhada — um container por suite
+- Cada classe de teste chama `ResetDatabaseAsync()` (TRUNCATE + CASCADE) em `IAsyncLifetime.InitializeAsync` para isolamento
+- `WebApplicationFactory<Program>` liga-se ao container via override da connection string em `ConfigureWebHost`
+- `Program.cs` expõe `public partial class Program { }` no fim do ficheiro para permitir o uso de `WebApplicationFactory<Program>` nos testes
+- Não usar `xunit` implicitly — adicionar `using Xunit;` explicitamente nos ficheiros de teste

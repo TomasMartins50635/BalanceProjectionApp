@@ -5,4 +5,10 @@
     <Project Path="src/BalanceProjectionApp.Domain/BalanceProjectionApp.Domain.csproj" />
     <Project Path="src/BalanceProjectionApp.Infrastructure/BalanceProjectionApp.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BalanceProjectionApp.Domain.Tests/BalanceProjectionApp.Domain.Tests.csproj" />
+    <Project Path="tests/BalanceProjectionApp.Application.Tests/BalanceProjectionApp.Application.Tests.csproj" />
+    <Project Path="tests/BalanceProjectionApp.Infrastructure.Tests/BalanceProjectionApp.Infrastructure.Tests.csproj" />
+    <Project Path="tests/BalanceProjectionApp.Api.Tests/BalanceProjectionApp.Api.Tests.csproj" />
+  </Folder>
 </Solution>
