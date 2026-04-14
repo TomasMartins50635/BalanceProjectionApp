@@ -11,6 +11,7 @@ public class ParcelaConfiguration : IEntityTypeConfiguration<Parcela>
         builder.HasKey(p => p.Id);
         builder.Property(p => p.ValorBruto).HasPrecision(18, 2);
         builder.Property(p => p.ValorLiquido).HasPrecision(18, 2);
+        builder.Property(p => p.Percentagem).HasPrecision(5, 2);
 
         // Índices para queries frequentes
         builder.HasIndex(p => p.ContaId);

@@ -21,6 +21,7 @@ public class CriarDespesaCommandHandler(
         foreach (var p in request.Parcelas.OrderBy(p => p.Numero))
             despesa.AdicionarParcela(p.Numero, p.DataVencimento, p.ValorBruto);
 
+
         await despesaRepository.AdicionarAsync(despesa, ct);
         await uow.SaveChangesAsync(ct);
         return despesa.Id;

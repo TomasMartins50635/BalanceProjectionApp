@@ -1,17 +1,59 @@
 import { useMemo, useState } from 'react';
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Plus, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useAsync } from '@/hooks/useAsync';
+import { useToast } from '@/hooks/useToast';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/dates';
 
 export function Dashboard() {
-  const { data: contas, loading: contasLoading, error: contasError } = useAsync(() => api.contas.listar(), []);
+  const toast = useToast();
+  const { data: contas, loading: contasLoading, error: contasError, reload: reloadContas } = useAsync(() => api.contas.listar(), []);
 
   const [selectedContaId, setSelectedContaId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [formNome, setFormNome] = useState('');
+  const [formSaldo, setFormSaldo] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleCriarConta = async () => {
+    if (!formNome.trim()) return;
+    setSaving(true);
+    try {
+      await api.contas.criar({ nome: formNome.trim(), saldoInicial: formSaldo ? parseFloat(formSaldo) : undefined });
+      toast('Conta criada com sucesso');
+      setCreateOpen(false);
+      setFormNome('');
+      setFormSaldo('');
+      reloadContas();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const [deleteContaId, setDeleteContaId] = useState<string | null>(null);
+
+  const handleEliminarConta = async () => {
+    if (!deleteContaId) return;
+    const id = deleteContaId;
+    setDeleteContaId(null);
+    try {
+      await api.contas.eliminar(id);
+      toast('Conta eliminada');
+      if (selectedContaId === id) setSelectedContaId(null);
+      reloadContas();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  };
+
   const [selectedDateStr, setSelectedDateStr] = useState(new Date().toISOString().split('T')[0]);
   const [useCurrentDate, setUseCurrentDate] = useState(true);
 
@@ -67,10 +109,55 @@ export function Dashboard() {
 
   return (
     <div className="p-4 md:p-6">
-      <div className="mb-4 md:mb-6">
-        <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-1">Gestão de Contas</h2>
-        <p className="text-xs md:text-sm text-gray-600">Visão geral das contas bancárias e movimentações</p>
+      <div className="mb-4 md:mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-1">Gestão de Contas</h2>
+          <p className="text-xs md:text-sm text-gray-600">Visão geral das contas bancárias e movimentações</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)} className="shrink-0">
+          <Plus className="w-4 h-4 mr-1" /> Nova Conta
+        </Button>
       </div>
+
+      <Dialog open={createOpen} onOpenChange={open => { setCreateOpen(open); if (!open) { setFormNome(''); setFormSaldo(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nova Conta</DialogTitle>
+            <DialogDescription>Preencha os dados para criar uma conta bancária.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <Label htmlFor="conta-nome">Nome *</Label>
+              <Input
+                id="conta-nome"
+                placeholder="Ex: Conta Principal"
+                value={formNome}
+                onChange={e => setFormNome(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="conta-saldo">Saldo Inicial (€)</Label>
+              <Input
+                id="conta-saldo"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0,00"
+                value={formSaldo}
+                onChange={e => setFormSaldo(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>Cancelar</Button>
+              <Button onClick={handleCriarConta} disabled={saving || !formNome.trim()}>
+                {saving ? 'A guardar…' : 'Criar Conta'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-5 mb-4 md:mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -79,19 +166,32 @@ export function Dashboard() {
             {contasLoading ? (
               <div className="h-11 bg-gray-100 animate-pulse rounded-md" />
             ) : (
-              <Select
-                value={effectiveContaId ?? ''}
-                onValueChange={v => { setSelectedContaId(v); reloadParcelas(); }}
-              >
-                <SelectTrigger className="w-full h-11">
-                  <SelectValue placeholder="Selecione uma conta" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(contas ?? []).map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select
+                  value={effectiveContaId ?? ''}
+                  onValueChange={v => { setSelectedContaId(v); reloadParcelas(); }}
+                >
+                  <SelectTrigger className="flex-1 h-11">
+                    <SelectValue placeholder="Selecione uma conta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(contas ?? []).map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {effectiveContaId && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-11 w-11 shrink-0 text-red-600 border-red-300 hover:bg-red-50"
+                    onClick={() => setDeleteContaId(effectiveContaId)}
+                    aria-label="Eliminar conta"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
             )}
           </div>
           <div>
@@ -219,6 +319,15 @@ export function Dashboard() {
           </Table>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteContaId !== null}
+        onOpenChange={open => { if (!open) setDeleteContaId(null); }}
+        title="Eliminar conta"
+        description="Tem a certeza que deseja eliminar esta conta? Esta ação é irreversível. Contas com receitas, despesas ou financiamentos associados não podem ser eliminadas."
+        confirmLabel="Eliminar"
+        onConfirm={handleEliminarConta}
+      />
     </div>
   );
 }

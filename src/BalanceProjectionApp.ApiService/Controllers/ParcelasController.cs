@@ -14,9 +14,11 @@ public class ParcelasController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new ListarParcelasQuery(contaId, apenasPendentes), ct));
 
     [HttpPost("{id:guid}/liquidar")]
-    public async Task<IActionResult> Liquidar(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Liquidar(Guid id, [FromBody] LiquidarParcelaRequest? body, CancellationToken ct)
     {
-        var result = await mediator.Send(new LiquidarParcelaCommand(id), ct);
+        var result = await mediator.Send(new LiquidarParcelaCommand(id, body?.DataPagamento), ct);
         return Ok(result);
     }
 }
+
+public record LiquidarParcelaRequest(DateOnly? DataPagamento);

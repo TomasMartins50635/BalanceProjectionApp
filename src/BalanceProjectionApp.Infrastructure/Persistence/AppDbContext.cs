@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Parcela> Parcelas => Set<Parcela>();
     public DbSet<Comissao> Comissoes => Set<Comissao>();
     public DbSet<Financiamento> Financiamentos => Set<Financiamento>();
+    public DbSet<Colaborador> Colaboradores => Set<Colaborador>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

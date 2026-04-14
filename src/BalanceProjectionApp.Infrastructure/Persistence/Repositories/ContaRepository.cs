@@ -14,4 +14,12 @@ public class ContaRepository(AppDbContext context) : IContaRepository
 
     public async Task AdicionarAsync(Conta conta, CancellationToken ct = default)
         => await context.Contas.AddAsync(conta, ct);
+
+    public void Remover(Conta conta)
+        => context.Contas.Remove(conta);
+
+    public async Task<bool> TemEntidadesVinculadasAsync(Guid contaId, CancellationToken ct = default)
+        => await context.Receitas.AnyAsync(r => r.ContaId == contaId, ct)
+        || await context.Despesas.AnyAsync(d => d.ContaId == contaId, ct)
+        || await context.Financiamentos.AnyAsync(f => f.ContaId == contaId, ct);
 }

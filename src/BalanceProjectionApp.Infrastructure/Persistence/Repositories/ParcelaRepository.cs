@@ -24,6 +24,7 @@ public class ParcelaRepository(AppDbContext context) : IParcelaRepository
     public async Task<IEnumerable<Parcela>> ListarPorContaAsync(Guid contaId, CancellationToken ct = default)
         => await context.Parcelas
             .Where(p => p.ContaId == contaId)
+            .Where(p => p.ReceitaId == null || p.Receita!.IsDeleted == false)
             .OrderBy(p => p.DataVencimento)
             .ThenBy(p => p.Numero)
             .ToListAsync(ct);

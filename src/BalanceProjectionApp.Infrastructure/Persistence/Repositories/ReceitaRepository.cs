@@ -9,17 +9,20 @@ public class ReceitaRepository(AppDbContext context) : IReceitaRepository
     public Task<Receita?> ObterPorIdAsync(Guid id, CancellationToken ct = default)
         => context.Receitas
             .Include(r => r.Comissao)
+            .Include(r => r.Colaborador)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
     public Task<Receita?> ObterPorIdComParcelasAsync(Guid id, CancellationToken ct = default)
         => context.Receitas
             .Include(r => r.Comissao)
+            .Include(r => r.Colaborador)
             .Include(r => r.Parcelas)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
     public async Task<IEnumerable<Receita>> ListarAsync(CancellationToken ct = default)
         => await context.Receitas
             .Include(r => r.Comissao)
+            .Include(r => r.Colaborador)
             .Include(r => r.Parcelas)
             .ToListAsync(ct);
 

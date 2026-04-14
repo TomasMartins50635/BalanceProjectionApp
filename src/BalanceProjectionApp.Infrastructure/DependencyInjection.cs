@@ -13,10 +13,11 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? "Data Source=BalanceProjection.db";
+            ?? "Host=localhost;Port=5432;Database=balance_projection;Username=postgres;Password=postgres";
 
         services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlite(connectionString));
+            options.UseNpgsql(connectionString,
+                o => o.MigrationsAssembly(typeof(DependencyInjection).Assembly.FullName)));
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IContaRepository, ContaRepository>();
@@ -24,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<IDespesaRepository, DespesaRepository>();
         services.AddScoped<IParcelaRepository, ParcelaRepository>();
         services.AddScoped<IFinanciamentoRepository, FinanciamentoRepository>();
+        services.AddScoped<IColaboradorRepository, ColaboradorRepository>();
 
         return services;
     }

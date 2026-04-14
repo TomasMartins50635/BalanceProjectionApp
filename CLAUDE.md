@@ -51,11 +51,8 @@ ApiService → Infrastructure  (apenas para registo DI em Program.cs)
 |---|---|---|
 | `BalanceProjectionApp.Domain` | Domain | Entidades, exceções, interfaces de repositório |
 | `BalanceProjectionApp.Application` | Application | CQRS (MediatR), validação (FluentValidation), DTOs |
-| `BalanceProjectionApp.Infrastructure` | Infrastructure | EF Core (SQLite), repositórios, UnitOfWork |
+| `BalanceProjectionApp.Infrastructure` | Infrastructure | EF Core (PostgreSQL), repositórios, UnitOfWork |
 | `BalanceProjectionApp.ApiService` | Presentation | Minimal API endpoints, registo DI, middleware |
-| `BalanceProjectionApp.Web` | Presentation | Blazor Server frontend |
-| `BalanceProjectionApp.AppHost` | Orchestration | .NET Aspire orchestration host |
-| `BalanceProjectionApp.ServiceDefaults` | Cross-cutting | OpenTelemetry, service discovery, health checks |
 
 ### Estrutura de ficheiros Application
 
@@ -77,7 +74,7 @@ DependencyInjection.cs
 |---|---|---|
 | `MediatR` | Application | 12.4.1 |
 | `FluentValidation.DependencyInjectionExtensions` | Application | 11.11.0 |
-| `Microsoft.EntityFrameworkCore.Sqlite` | Infrastructure | 10.0.1 |
+| `Npgsql.EntityFrameworkCore.PostgreSQL` | Infrastructure | 10.0.1 |
 | `Microsoft.EntityFrameworkCore.Tools` | Infrastructure | 10.0.1 |
 | `Microsoft.AspNetCore.OpenApi` | ApiService | 10.0.1 |
 
@@ -85,8 +82,9 @@ DependencyInjection.cs
 
 ## Base de Dados
 
-- **Provider:** SQLite (ficheiro `BalanceProjection.db`, criado automaticamente em dev)
-- **Connection string:** `ConnectionStrings:DefaultConnection` em `appsettings.json`
+- **Provider:** PostgreSQL via `Npgsql.EntityFrameworkCore.PostgreSQL`
+- **Dev setup:** `docker compose up -d` na raiz do repositório inicia um container Postgres 17 na porta 5432
+- **Connection string:** `ConnectionStrings:DefaultConnection` em `appsettings.Development.json` (aponta para o container Docker)
 - **Migrações:** aplicadas automaticamente em Development via `db.Database.MigrateAsync()` no `Program.cs`
 - **Gerar migração:** `dotnet ef migrations add NomeDaMigracao --project src/BalanceProjectionApp.Infrastructure --startup-project src/BalanceProjectionApp.ApiService`
 
@@ -104,6 +102,7 @@ DependencyInjection.cs
 | `GET` | `/contas` | Lista todas as contas |
 | `GET` | `/contas/{id}` | Obtém conta com saldo atual |
 | `POST` | `/contas` | Cria conta |
+| `DELETE` | `/contas/{id}` | Elimina conta (falha se tiver receitas/despesas/financiamentos associados) |
 | `GET` | `/receitas` | Lista receitas com parcelas |
 | `POST` | `/receitas` | Cria receita (com parcelas e comissão opcional) |
 | `GET` | `/despesas` | Lista despesas com parcelas |
@@ -126,29 +125,16 @@ DependencyInjection.cs
 ## Running the Application
 
 ```bash
-dotnet run --project BalanceProjectionApp.AppHost
+# Run everything (DB + API) in Docker
+docker compose up --build
+
+# Or run only the DB and the API locally
+docker compose up db -d
+dotnet run --project src/BalanceProjectionApp.ApiService
 ```
 
-Individual services:
-- ApiService: HTTP `5535` / HTTPS `7329`
-- Web: HTTP `5047` / HTTPS `7229`
-- AppHost dashboard: HTTP `15045` / HTTPS `17045`
-
----
-
-## Frontend Pages (Web)
-
-| Route | Component | Render Mode |
-|---|---|---|
-| `/` | `Home.razor` | Static |
-| `/counter` | `Counter.razor` | InteractiveServer |
-| `/weather` | `Weather.razor` | Streaming + output cache |
-
----
-
-## ServiceDefaults
-
-Fornece a todos os serviços via `AddServiceDefaults()` / `MapDefaultEndpoints()`: service discovery, HTTP resilience, health checks, OpenTelemetry. Não duplicar estas preocupações nos projetos individuais.
+- Containerised API: `http://localhost:5535`
+- Local API: HTTP `5535` / HTTPS `7329`
 
 ---
 
@@ -159,7 +145,6 @@ Fornece a todos os serviços via `AddServiceDefaults()` / `MapDefaultEndpoints()
 - Toda a lógica de negócio fica no **Domain**; coordenação de use cases no **Application**; nada de lógica nos endpoints
 - Novos endpoints vão em `ApiService/Controllers/{Entidade}Controller.cs`, herdam de `ControllerBase`, decorados com `[ApiController]` e `[Route("{entidade}")]`
 - Novos use cases seguem a estrutura `Features/{Entidade}/Commands ou Queries/{Nome}/`
-- Infraestrutura partilhada (auth, cache, etc.) vai em `ServiceDefaults`
 
 ---
 

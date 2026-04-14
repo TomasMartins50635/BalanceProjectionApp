@@ -16,11 +16,14 @@ public class ListarReceitasQueryHandler(IReceitaRepository repository)
             r.Nome,
             r.Categoria,
             r.ContaId,
+            r.ValorTotal,
+            r.ColaboradorId,
+            r.Colaborador?.Nome,
             r.Comissao?.Percentagem,
             r.Parcelas.Select(p => new ParcelaDto(
                 p.Id, p.Numero, p.DataVencimento,
                 p.ValorBruto, p.ValorLiquido,
                 p.IsPaid, p.DataPagamento,
-                p.ReceitaId, p.DespesaId))));
+                p.ReceitaId, p.DespesaId, p.Percentagem))));
     }
 }

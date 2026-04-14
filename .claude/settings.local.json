@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet ef:*)",
+      "Bash(sqlite3 BalanceProjection.db \"SELECT MigrationId FROM __EFMigrationsHistory;\")",
+      "Bash(docker compose:*)",
+      "Bash(curl:*)"
     ]
   }
 }

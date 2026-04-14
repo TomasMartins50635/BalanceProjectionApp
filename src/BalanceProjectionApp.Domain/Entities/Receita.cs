@@ -1,5 +1,4 @@
 using BalanceProjectionApp.Domain.Common;
-using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Exceptions;
 
 namespace BalanceProjectionApp.Domain.Entities;
@@ -7,9 +6,13 @@ namespace BalanceProjectionApp.Domain.Entities;
 public class Receita : Entity
 {
     public string Nome { get; private set; } = string.Empty;
-    public CategoriaContrato? Categoria { get; private set; }
+    public string? Categoria { get; private set; }
+    public decimal ValorTotal { get; private set; }
+    public bool IsDeleted { get; private set; }
     public Guid ContaId { get; private set; }
     public Conta Conta { get; private set; } = null!;
+    public Guid? ColaboradorId { get; private set; }
+    public Colaborador? Colaborador { get; private set; }
     public Comissao? Comissao { get; private set; }
 
     private readonly List<Parcela> _parcelas = [];
@@ -17,29 +20,75 @@ public class Receita : Entity
 
     private Receita() { }
 
-    public static Receita Criar(string nome, Guid contaId, CategoriaContrato? categoria = null)
+    public static Receita Criar(string nome, Guid contaId, decimal valorTotal, string? categoria = null)
     {
         if (string.IsNullOrWhiteSpace(nome))
             throw new DomainException("O nome da receita não pode ser vazio.");
 
-        return new Receita { Nome = nome, ContaId = contaId, Categoria = categoria };
+        if (valorTotal <= 0)
+            throw new DomainException("O valor total da receita deve ser positivo.");
+
+        return new Receita { Nome = nome, ContaId = contaId, ValorTotal = valorTotal, Categoria = categoria };
     }
 
-    public void DefinirComissao(decimal percentagem)
+    public void Atualizar(string nome, string? categoria, decimal valorTotal)
     {
-        Comissao = Comissao.Criar(percentagem, Id);
+        if (string.IsNullOrWhiteSpace(nome))
+            throw new DomainException("O nome da receita não pode ser vazio.");
+
+        if (valorTotal <= 0)
+            throw new DomainException("O valor total da receita deve ser positivo.");
+
+        Nome = nome;
+        Categoria = categoria;
+        ValorTotal = valorTotal;
     }
 
-    public Parcela AdicionarParcela(int numero, DateOnly dataVencimento, decimal valorBruto)
+    public void Remover()
     {
+        if (IsDeleted)
+            throw new DomainException("A receita já se encontra removida.");
+
+        IsDeleted = true;
+    }
+
+    public void AssociarColaborador(Colaborador colaborador)
+    {
+        ColaboradorId = colaborador.Id;
+        Colaborador = colaborador;
+        Comissao = Comissao.Criar(colaborador.Percentagem, Id);
+    }
+
+    public void RemoverColaborador()
+    {
+        ColaboradorId = null;
+        Colaborador = null;
+        Comissao = null;
+    }
+
+    public Parcela AdicionarParcela(int numero, DateOnly dataVencimento, decimal percentagem)
+    {
+        if (percentagem <= 0 || percentagem > 100)
+            throw new DomainException($"A percentagem da parcela {numero} deve estar entre 0 e 100.");
+
         if (_parcelas.Any(p => p.Numero == numero))
             throw new DomainException($"Já existe uma parcela com o número {numero} nesta receita.");
 
+        var valorBruto = Math.Round(ValorTotal * percentagem / 100m, 2);
         var valorComissao = Comissao?.Calcular(valorBruto) ?? 0m;
         var valorLiquido = valorBruto - valorComissao;
 
-        var parcela = Parcela.Criar(numero, dataVencimento, valorBruto, valorLiquido, ContaId, Id, null);
+        var parcela = Parcela.Criar(numero, dataVencimento, valorBruto, valorLiquido, ContaId, Id, null, percentagem);
         _parcelas.Add(parcela);
         return parcela;
+    }
+
+    /// <summary>Remove todas as parcelas não liquidadas. Retorna os IDs removidos.</summary>
+    public IReadOnlyList<Guid> RemoverParcelasNaoPagas()
+    {
+        var naoPagas = _parcelas.Where(p => !p.IsPaid).ToList();
+        foreach (var p in naoPagas)
+            _parcelas.Remove(p);
+        return naoPagas.Select(p => p.Id).ToList();
     }
 }

@@ -9,7 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="..\BalanceProjectionApp.Application\BalanceProjectionApp.Application.csproj" />
     <ProjectReference Include="..\BalanceProjectionApp.Infrastructure\BalanceProjectionApp.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\BalanceProjectionApp.ServiceDefaults\BalanceProjectionApp.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>

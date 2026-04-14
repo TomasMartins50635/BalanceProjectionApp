@@ -9,4 +9,5 @@ public record ParcelaDto(
     bool IsPaid,
     DateTime? DataPagamento,
     Guid? ReceitaId,
-    Guid? DespesaId);
+    Guid? DespesaId,
+    decimal? Percentagem);

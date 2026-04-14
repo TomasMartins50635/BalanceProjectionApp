@@ -2,13 +2,16 @@ using BalanceProjectionApp.Application;
 using BalanceProjectionApp.Infrastructure;
 using BalanceProjectionApp.Infrastructure.Persistence;
 using FluentValidation;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -50,13 +53,17 @@ app.UseExceptionHandler(exceptionHandlerApp =>
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapHealthChecks("/health");
+    app.MapHealthChecks("/alive", new HealthCheckOptions
+    {
+        Predicate = r => r.Tags.Contains("live")
+    });
 
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+    await db.Database.EnsureCreatedAsync();
 }
 
 app.MapControllers();
-app.MapDefaultEndpoints();
 
 app.Run();

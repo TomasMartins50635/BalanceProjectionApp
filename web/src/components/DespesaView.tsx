@@ -39,6 +39,7 @@ export function DespesaView() {
   const [selectedDespesa, setSelectedDespesa] = useState<DespesaDto | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [liquidando, setLiquidando] = useState<string | null>(null);
+  const [liquidarDialog, setLiquidarDialog] = useState<{ parcelaId: string; data: string } | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState<CreateForm>(emptyForm());
   const [saving, setSaving] = useState(false);
@@ -64,10 +65,17 @@ export function DespesaView() {
   const valorTotal = (d: DespesaDto) => d.parcelas.reduce((s, p) => s + p.valorBruto, 0);
   const valorPago = (d: DespesaDto) => d.parcelas.filter(p => p.isPaid).reduce((s, p) => s + p.valorLiquido, 0);
 
-  const handleLiquidar = async (parcelaId: string) => {
-    setLiquidando(parcelaId);
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  const openLiquidarDialog = (parcelaId: string) =>
+    setLiquidarDialog({ parcelaId, data: today() });
+
+  const handleLiquidar = async () => {
+    if (!liquidarDialog) return;
+    setLiquidando(liquidarDialog.parcelaId);
+    setLiquidarDialog(null);
     try {
-      await api.parcelas.liquidar(parcelaId);
+      await api.parcelas.liquidar(liquidarDialog.parcelaId, liquidarDialog.data);
       toast('Parcela liquidada com sucesso');
       reload();
     } catch (e) {
@@ -288,7 +296,7 @@ export function DespesaView() {
                                 variant="outline"
                                 className="h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
                                 disabled={liquidando === p.id}
-                                onClick={() => handleLiquidar(p.id)}
+                                onClick={() => openLiquidarDialog(p.id)}
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
                                 {liquidando === p.id ? '...' : 'Liquidar'}
@@ -312,6 +320,38 @@ export function DespesaView() {
           </div>
         )}
       </div>
+
+      {/* ── Liquidar dialog ── */}
+      <Dialog open={!!liquidarDialog} onOpenChange={open => { if (!open) setLiquidarDialog(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Liquidar Parcela</DialogTitle>
+            <DialogDescription>Confirme a data de pagamento</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <Label htmlFor="dp-data" className="text-xs font-medium text-gray-700">DATA DE PAGAMENTO</Label>
+              <input
+                id="dp-data"
+                type="date"
+                value={liquidarDialog?.data ?? ''}
+                onChange={e => setLiquidarDialog(d => d ? { ...d, data: e.target.value } : null)}
+                className="mt-1.5 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setLiquidarDialog(null)}>Cancelar</Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                disabled={!liquidarDialog?.data}
+                onClick={handleLiquidar}
+              >
+                Confirmar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Create dialog ── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

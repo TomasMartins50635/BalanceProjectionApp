@@ -12,6 +12,9 @@ public class Parcela : Entity
     /// <summary>ValorBruto menos a comissão (apenas aplicável a parcelas de Receita).</summary>
     public decimal ValorLiquido { get; private set; }
 
+    /// <summary>Percentagem do ValorTotal da Receita usada para calcular ValorBruto. Nulo em Despesas.</summary>
+    public decimal? Percentagem { get; private set; }
+
     public bool IsPaid { get; private set; }
     public DateTime? DataPagamento { get; private set; }
 
@@ -28,7 +31,7 @@ public class Parcela : Entity
     private Parcela() { }
 
     internal static Parcela Criar(int numero, DateOnly dataVencimento, decimal valorBruto,
-        decimal valorLiquido, Guid contaId, Guid? receitaId, Guid? despesaId)
+        decimal valorLiquido, Guid contaId, Guid? receitaId, Guid? despesaId, decimal? percentagem = null)
     {
         if (valorBruto <= 0)
             throw new DomainException("O valor bruto da parcela deve ser positivo.");
@@ -47,17 +50,19 @@ public class Parcela : Entity
             ValorLiquido = valorLiquido,
             ContaId = contaId,
             ReceitaId = receitaId,
-            DespesaId = despesaId
+            DespesaId = despesaId,
+            Percentagem = percentagem
         };
     }
 
-    public void Liquidar()
+    public void Liquidar(DateOnly? dataPagamento = null)
     {
         if (IsPaid)
             throw new DomainException($"A parcela {Numero} já foi liquidada.");
 
         IsPaid = true;
-        DataPagamento = DateTime.UtcNow;
+        var data = dataPagamento ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        DataPagamento = data.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
     }
 
     public bool EReceita() => ReceitaId.HasValue;

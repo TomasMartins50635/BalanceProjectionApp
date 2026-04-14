@@ -20,7 +20,7 @@ public class LiquidarParcelaCommandHandler(
             ?? throw new EntityNotFoundException(nameof(Conta), parcela.ContaId);
 
         // Regra de negócio: liquidar a parcela (lança DomainException se já paga)
-        parcela.Liquidar();
+        parcela.Liquidar(request.DataPagamento);
 
         // Atualiza saldo: receita credita, despesa debita
         if (parcela.EReceita())

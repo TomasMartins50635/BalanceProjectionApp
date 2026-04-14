@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Search, Plus, Calendar, CheckCircle2 } from 'lucide-react';
+import { Search, Plus, Calendar, CheckCircle2, Pencil, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -7,69 +7,131 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatDate } from '@/lib/dates';
 import { useToast } from '@/hooks/useToast';
 import { useAsync } from '@/hooks/useAsync';
 import { api } from '@/lib/api';
-import { CATEGORIAS, CATEGORIA_LABELS, type CategoriaContrato, type ReceitaDto } from '@/lib/types';
+import type { ColaboradorDto, ReceitaDto } from '@/lib/types';
 
-// ── Create form ────────────────────────────────────────────────────────────────
+// ── Form types ─────────────────────────────────────────────────────────────────
 
-interface CreateForm {
+interface ReceitaForm {
   nome: string;
   contaId: string;
-  categoria: CategoriaContrato | '';
-  percentagemComissao: string;
-  parcelas: { dataVencimento: string; valorBruto: string }[];
+  valorTotal: string;
+  categoria: string;
+  colaboradorId: string;
+  parcelas: { dataVencimento: string; percentagem: string }[];
 }
 
-const emptyForm = (): CreateForm => ({
+const emptyForm = (contaId = ''): ReceitaForm => ({
   nome: '',
-  contaId: '',
+  contaId,
+  valorTotal: '',
   categoria: '',
-  percentagemComissao: '',
-  parcelas: [{ dataVencimento: '', valorBruto: '' }],
+  colaboradorId: '',
+  parcelas: [{ dataVencimento: '', percentagem: '100' }],
 });
 
-// ── Component ──────────────────────────────────────────────────────────────────
+const receitaToForm = (r: ReceitaDto): ReceitaForm => ({
+  nome: r.nome,
+  contaId: r.contaId,
+  valorTotal: String(r.valorTotal),
+  categoria: r.categoria ?? '',
+  colaboradorId: r.colaboradorId ?? '',
+  parcelas: r.parcelas
+    .filter(p => !p.isPaid)
+    .sort((a, b) => a.numero - b.numero)
+    .map(p => ({
+      dataVencimento: p.dataVencimento,
+      percentagem: p.percentagem != null ? String(p.percentagem) : '',
+    })),
+});
+
+// ── Parcela form row ───────────────────────────────────────────────────────────
+
+function parcelaValorBruto(valorTotal: string, pct: string): string {
+  const vt = parseFloat(valorTotal);
+  const p = parseFloat(pct);
+  if (!vt || !p) return '—';
+  return `€${((vt * p) / 100).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`;
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
 
 export function ReceitaView() {
   const toast = useToast();
   const { data: receitas, loading, error, reload } = useAsync(() => api.receitas.listar(), []);
   const { data: contas } = useAsync(() => api.contas.listar(), []);
+  const { data: colaboradores } = useAsync(() => api.colaboradores.listar(), []);
 
   const [selectedReceita, setSelectedReceita] = useState<ReceitaDto | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [liquidando, setLiquidando] = useState<string | null>(null);
+  const [liquidarDialog, setLiquidarDialog] = useState<{ parcelaId: string; data: string } | null>(null);
+
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState<CreateForm>(emptyForm());
+  const [editOpen, setEditOpen] = useState(false);
+  const [removeId, setRemoveId] = useState<string | null>(null);
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
+  const [form, setForm] = useState<ReceitaForm>(emptyForm());
   const [saving, setSaving] = useState(false);
+
+  const liveSelectedReceita = useMemo(
+    () => selectedReceita ? (receitas ?? []).find(r => r.id === selectedReceita.id) ?? null : null,
+    [receitas, selectedReceita],
+  );
+
+  const filtered = useMemo(() =>
+    (receitas ?? [])
+      .filter(r => !removingIds.has(r.id))
+      .filter(r =>
+        r.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (r.categoria?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+      ),
+    [receitas, searchTerm, removingIds],
+  );
 
   const contaNome = useMemo(
     () => (id: string) => contas?.find(c => c.id === id)?.nome ?? id,
     [contas],
   );
 
-  const filtered = useMemo(() =>
-    (receitas ?? []).filter(r =>
-      r.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (r.categoria && CATEGORIA_LABELS[r.categoria].toLowerCase().includes(searchTerm.toLowerCase()))
-    ),
-    [receitas, searchTerm],
+  const totalBruto = (r: ReceitaDto) => r.parcelas.reduce((s, p) => s + p.valorBruto, 0);
+
+  // ── Parcela helpers ──
+  const addParcela = () =>
+    setForm(f => ({ ...f, parcelas: [...f.parcelas, { dataVencimento: '', percentagem: '' }] }));
+
+  const removeParcela = (i: number) =>
+    setForm(f => {
+      const next = f.parcelas.filter((_, idx) => idx !== i);
+      if (next.length === 1) return { ...f, parcelas: [{ ...next[0], percentagem: '100' }] };
+      return { ...f, parcelas: next };
+    });
+
+  const updateParcela = (i: number, field: keyof ReceitaForm['parcelas'][0], value: string) =>
+    setForm(f => ({ ...f, parcelas: f.parcelas.map((p, idx) => idx === i ? { ...p, [field]: value } : p) }));
+
+  const totalPercentagem = useMemo(
+    () => form.parcelas.reduce((s, p) => s + (parseFloat(p.percentagem) || 0), 0),
+    [form.parcelas],
   );
 
-  // Keep selection in sync after reload
-  const liveSelectedReceita = useMemo(
-    () => selectedReceita ? (receitas ?? []).find(r => r.id === selectedReceita.id) ?? null : null,
-    [receitas, selectedReceita],
-  );
+  // ── Actions ──────────────────────────────────────────────────────────────────
 
-  const valorTotal = (r: ReceitaDto) => r.parcelas.reduce((s, p) => s + p.valorBruto, 0);
+  const today = () => new Date().toISOString().slice(0, 10);
 
-  const handleLiquidar = async (parcelaId: string) => {
-    setLiquidando(parcelaId);
+  const openLiquidarDialog = (parcelaId: string) =>
+    setLiquidarDialog({ parcelaId, data: today() });
+
+  const handleLiquidar = async () => {
+    if (!liquidarDialog) return;
+    setLiquidando(liquidarDialog.parcelaId);
+    setLiquidarDialog(null);
     try {
-      await api.parcelas.liquidar(parcelaId);
+      await api.parcelas.liquidar(liquidarDialog.parcelaId, liquidarDialog.data);
       toast('Parcela liquidada com sucesso');
       reload();
     } catch (e) {
@@ -79,22 +141,29 @@ export function ReceitaView() {
     }
   };
 
+  const validateForm = () => {
+    if (!form.nome.trim()) { toast('Nome obrigatório', 'error'); return false; }
+    if (!form.contaId) { toast('Selecione uma conta', 'error'); return false; }
+    if (!form.valorTotal || parseFloat(form.valorTotal) <= 0) { toast('Valor total deve ser positivo', 'error'); return false; }
+    if (form.parcelas.length === 0) { toast('Adicione pelo menos uma parcela', 'error'); return false; }
+    if (form.parcelas.some(p => !p.dataVencimento || !p.percentagem)) { toast('Preencha todas as parcelas', 'error'); return false; }
+    return true;
+  };
+
   const handleCreate = async () => {
-    if (!form.nome.trim() || !form.contaId || form.parcelas.some(p => !p.dataVencimento || !p.valorBruto)) {
-      toast('Preencha todos os campos obrigatórios', 'error');
-      return;
-    }
+    if (!validateForm()) return;
     setSaving(true);
     try {
       await api.receitas.criar({
         nome: form.nome.trim(),
         contaId: form.contaId,
-        categoria: form.categoria || undefined,
-        percentagemComissao: form.percentagemComissao ? parseFloat(form.percentagemComissao) : undefined,
+        valorTotal: parseFloat(form.valorTotal),
+        categoria: form.categoria.trim() || undefined,
+        colaboradorId: form.colaboradorId || undefined,
         parcelas: form.parcelas.map((p, i) => ({
           numero: i + 1,
           dataVencimento: p.dataVencimento,
-          valorBruto: parseFloat(p.valorBruto),
+          percentagem: parseFloat(p.percentagem),
         })),
       });
       toast('Receita criada com sucesso');
@@ -108,35 +177,193 @@ export function ReceitaView() {
     }
   };
 
-  const addParcela = () =>
-    setForm(f => ({ ...f, parcelas: [...f.parcelas, { dataVencimento: '', valorBruto: '' }] }));
+  const handleEdit = async () => {
+    if (!validateForm()) return;
+    setSaving(true);
+    try {
+      await api.receitas.atualizar(selectedReceita!.id, {
+        nome: form.nome.trim(),
+        valorTotal: parseFloat(form.valorTotal),
+        categoria: form.categoria.trim() || undefined,
+        colaboradorId: form.colaboradorId || undefined,
+        parcelas: form.parcelas.map((p, i) => ({
+          numero: i + 1,
+          dataVencimento: p.dataVencimento,
+          percentagem: parseFloat(p.percentagem),
+        })),
+      });
+      toast('Receita atualizada');
+      setEditOpen(false);
+      reload();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  const removeParcela = (i: number) =>
-    setForm(f => ({ ...f, parcelas: f.parcelas.filter((_, idx) => idx !== i) }));
+  const handleRemove = async () => {
+    if (!removeId) return;
+    const id = removeId;
+    // Remoção otimista — desaparece imediatamente da lista
+    setRemovingIds(prev => new Set(prev).add(id));
+    setRemoveId(null);
+    if (selectedReceita?.id === id) setSelectedReceita(null);
+    try {
+      await api.receitas.remover(id);
+      toast('Receita removida');
+      reload();
+    } catch (e) {
+      // Rollback — repõe o item na lista
+      setRemovingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+      toast((e as Error).message, 'error');
+    }
+  };
 
-  const updateParcela = (i: number, field: keyof CreateForm['parcelas'][0], value: string) =>
-    setForm(f => ({ ...f, parcelas: f.parcelas.map((p, idx) => idx === i ? { ...p, [field]: value } : p) }));
+  // ── Form dialog JSX (shared between create and edit) ──────────────────────────
+
+  const renderFormDialog = (mode: 'create' | 'edit') => {
+    const isEdit = mode === 'edit';
+    return (
+      <Dialog open={isEdit ? editOpen : createOpen} onOpenChange={open => {
+        if (!open) { isEdit ? setEditOpen(false) : setCreateOpen(false); setForm(emptyForm()); }
+        else { isEdit ? setEditOpen(true) : setCreateOpen(true); }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{isEdit ? 'Editar Receita' : 'Nova Receita'}</DialogTitle>
+            <DialogDescription>
+              {isEdit
+                ? 'As parcelas não liquidadas serão substituídas pelas novas.'
+                : 'Defina o valor total e distribua-o em parcelas por percentagem.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {/* Nome + Conta */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <Label htmlFor="rf-nome" className="text-xs font-medium text-gray-700">NOME *</Label>
+                <Input id="rf-nome" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className="mt-1.5" placeholder="Ex: Projeto ABC" />
+              </div>
+              {!isEdit && (
+                <div>
+                  <Label htmlFor="rf-conta" className="text-xs font-medium text-gray-700">CONTA *</Label>
+                  <Select value={form.contaId} onValueChange={v => setForm(f => ({ ...f, contaId: v }))}>
+                    <SelectTrigger id="rf-conta" className="mt-1.5"><SelectValue placeholder="Selecionar conta" /></SelectTrigger>
+                    <SelectContent>
+                      {(contas ?? []).map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {/* ValorTotal */}
+              <div>
+                <Label htmlFor="rf-vt" className="text-xs font-medium text-gray-700">VALOR TOTAL (€) *</Label>
+                <div className="relative mt-1.5">
+                  <Input id="rf-vt" type="number" value={form.valorTotal} onChange={e => setForm(f => ({ ...f, valorTotal: e.target.value }))} step="0.01" min="0" placeholder="0.00" className="pl-6" />
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
+                </div>
+              </div>
+              {/* Categoria livre */}
+              <div>
+                <Label htmlFor="rf-cat" className="text-xs font-medium text-gray-700">CATEGORIA</Label>
+                <Input id="rf-cat" value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} className="mt-1.5" placeholder="Ex: Consultoria" />
+              </div>
+              {/* Colaborador */}
+              <div>
+                <Label htmlFor="rf-col" className="text-xs font-medium text-gray-700">COLABORADOR</Label>
+                <Select value={form.colaboradorId || '_none'} onValueChange={v => setForm(f => ({ ...f, colaboradorId: v === '_none' ? '' : v }))}>
+                  <SelectTrigger id="rf-col" className="mt-1.5"><SelectValue placeholder="Sem colaborador" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Sem colaborador</SelectItem>
+                    {(colaboradores ?? []).map((c: ColaboradorDto) => (
+                      <SelectItem key={c.id} value={c.id}>{c.nome} ({c.percentagem}%)</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Parcelas */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <Label className="text-xs font-medium text-gray-700">PARCELAS *</Label>
+                  <span className={`text-xs font-medium ${Math.abs(totalPercentagem - 100) < 0.01 ? 'text-green-600' : totalPercentagem > 100 ? 'text-red-600' : 'text-gray-500'}`}>
+                    {totalPercentagem.toFixed(1)}% / 100%
+                  </span>
+                </div>
+                <Button type="button" size="sm" variant="outline" onClick={addParcela}><Plus className="w-3.5 h-3.5 mr-1" />Adicionar</Button>
+              </div>
+              <div className="space-y-2">
+                {form.parcelas.map((p, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_120px_90px_auto] gap-2 items-end">
+                    <div>
+                      <label className="text-xs text-gray-500">Vencimento</label>
+                      <input type="date" value={p.dataVencimento} onChange={e => updateParcela(i, 'dataVencimento', e.target.value)} className="mt-1 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Percentagem (%)</label>
+                      <div className="relative mt-1">
+                        <Input
+                          type="number"
+                          value={p.percentagem}
+                          onChange={e => updateParcela(i, 'percentagem', e.target.value)}
+                          step="0.1" min="0" max="100" placeholder="0"
+                          className="pr-6"
+                          disabled={form.parcelas.length === 1}
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Valor</label>
+                      <p className="mt-1 h-9 flex items-center text-sm font-medium text-green-600">
+                        {parcelaValorBruto(form.valorTotal, p.percentagem)}
+                      </p>
+                    </div>
+                    {form.parcelas.length > 1 && (
+                      <Button type="button" size="sm" variant="ghost" className="text-red-500 hover:bg-red-50 mb-0.5" onClick={() => removeParcela(i)} aria-label={`Remover parcela ${i + 1}`}>✕</Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {isEdit && liveSelectedReceita && liveSelectedReceita.parcelas.some(p => p.isPaid) && (
+                <p className="text-xs text-amber-600 mt-2 bg-amber-50 border border-amber-200 rounded p-2">
+                  {liveSelectedReceita.parcelas.filter(p => p.isPaid).length} parcela(s) já liquidada(s) serão mantidas e não podem ser editadas.
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => { isEdit ? setEditOpen(false) : setCreateOpen(false); setForm(emptyForm()); }}>Cancelar</Button>
+              <Button onClick={isEdit ? handleEdit : handleCreate} disabled={saving}>
+                {saving ? 'A guardar...' : isEdit ? 'Guardar Alterações' : 'Criar Receita'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col md:flex-row h-full">
-      {/* ── Left panel: list ── */}
+      {/* ── Left panel ── */}
       <div className="w-full md:w-[480px] border-b md:border-b-0 md:border-r border-gray-200 bg-white flex flex-col max-h-[40vh] md:max-h-none">
         <div className="px-4 md:px-5 py-3 md:py-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base md:text-lg font-semibold text-gray-900">Receitas / Faturação</h2>
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Button size="sm" onClick={() => { setForm(emptyForm()); setCreateOpen(true); }}>
               <Plus className="w-4 h-4 md:mr-1" /><span className="hidden md:inline">Nova Receita</span>
             </Button>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-            <Input
-              aria-label="Pesquisar receitas"
-              placeholder="Pesquisar por nome ou categoria..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="pl-9 h-9"
-            />
+            <Input aria-label="Pesquisar receitas" placeholder="Pesquisar por nome ou categoria..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-9" />
           </div>
         </div>
 
@@ -144,9 +371,7 @@ export function ReceitaView() {
           {error ? (
             <div className="p-6 text-center text-red-600 text-sm">{error}</div>
           ) : loading ? (
-            <div className="p-6 space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 animate-pulse rounded" />)}
-            </div>
+            <div className="p-6 space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 animate-pulse rounded" />)}</div>
           ) : (
             <Table>
               <TableHeader className="sticky top-0 bg-gray-50 z-10">
@@ -165,18 +390,14 @@ export function ReceitaView() {
                   </TableRow>
                 ) : (
                   filtered.map(r => (
-                    <TableRow
-                      key={r.id}
-                      className={`cursor-pointer ${liveSelectedReceita?.id === r.id ? 'bg-blue-50' : ''}`}
-                      onClick={() => setSelectedReceita(r)}
-                    >
+                    <TableRow key={r.id} className={`cursor-pointer ${liveSelectedReceita?.id === r.id ? 'bg-blue-50' : ''}`} onClick={() => setSelectedReceita(r)}>
                       <TableCell className="font-medium">{r.nome}</TableCell>
                       <TableCell className="text-right font-semibold text-green-600">
-                        €{valorTotal(r).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+                        €{r.valorTotal.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell>
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                          {r.categoria ? CATEGORIA_LABELS[r.categoria] : '—'}
+                          {r.categoria ?? '—'}
                         </span>
                       </TableCell>
                     </TableRow>
@@ -188,23 +409,31 @@ export function ReceitaView() {
         </div>
       </div>
 
-      {/* ── Right panel: detail ── */}
+      {/* ── Right panel ── */}
       <div className="flex-1 bg-gray-50 overflow-auto">
         {liveSelectedReceita ? (
           <div className="p-6">
-            <div className="mb-6">
-              <h3 className="text-xl font-semibold text-gray-900">{liveSelectedReceita.nome}</h3>
-              {liveSelectedReceita.categoria && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 mt-1">
-                  {CATEGORIA_LABELS[liveSelectedReceita.categoria]}
-                </span>
-              )}
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">{liveSelectedReceita.nome}</h3>
+                {liveSelectedReceita.categoria && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 mt-1">
+                    {liveSelectedReceita.categoria}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button size="sm" variant="outline" onClick={() => { setForm(receitaToForm(liveSelectedReceita)); setEditOpen(true); }}>
+                  <Pencil className="w-3.5 h-3.5 mr-1" />Editar
+                </Button>
+                <Button size="sm" variant="outline" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => setRemoveId(liveSelectedReceita.id)}>
+                  <Trash2 className="w-3.5 h-3.5 mr-1" />Remover
+                </Button>
+              </div>
             </div>
 
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-6">
-              <p className="text-sm text-green-800">
-                Parcelas liquidadas <strong>creditam</strong> o saldo da conta (ValorLíquido após comissão)
-              </p>
+              <p className="text-sm text-green-800">Parcelas liquidadas <strong>creditam</strong> o saldo da conta (ValorLíquido após comissão)</p>
             </div>
 
             <Tabs defaultValue="geral" className="space-y-4">
@@ -222,14 +451,12 @@ export function ReceitaView() {
                     </div>
                     <div>
                       <p className="text-xs font-medium text-gray-500">CATEGORIA</p>
-                      <p className="text-sm font-medium text-gray-900 mt-1">
-                        {liveSelectedReceita.categoria ? CATEGORIA_LABELS[liveSelectedReceita.categoria] : '—'}
-                      </p>
+                      <p className="text-sm font-medium text-gray-900 mt-1">{liveSelectedReceita.categoria ?? '—'}</p>
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-gray-500">VALOR TOTAL (BRUTO)</p>
+                      <p className="text-xs font-medium text-gray-500">VALOR TOTAL</p>
                       <p className="text-sm font-semibold text-green-600 mt-1">
-                        €{valorTotal(liveSelectedReceita).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+                        €{liveSelectedReceita.valorTotal.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
                     <div>
@@ -239,11 +466,17 @@ export function ReceitaView() {
                       </p>
                     </div>
                   </div>
-
-                  {liveSelectedReceita.percentagemComissao != null && (
+                  {liveSelectedReceita.colaboradorNome && (
                     <div className="pt-3 border-t border-gray-100">
-                      <p className="text-xs font-medium text-gray-500 mb-1">COMISSÃO</p>
-                      <p className="text-sm text-gray-700">{liveSelectedReceita.percentagemComissao}% deduzida no ValorLíquido de cada parcela</p>
+                      <p className="text-xs font-medium text-gray-500 mb-1">COLABORADOR</p>
+                      <p className="text-sm text-gray-700">
+                        {liveSelectedReceita.colaboradorNome}
+                        {liveSelectedReceita.percentagemComissao != null && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                            {liveSelectedReceita.percentagemComissao}% comissão
+                          </span>
+                        )}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -260,6 +493,7 @@ export function ReceitaView() {
                       <TableRow>
                         <TableHead className="w-10">#</TableHead>
                         <TableHead className="w-36">Vencimento</TableHead>
+                        <TableHead className="w-20 text-right">%</TableHead>
                         <TableHead className="w-36 text-right">Bruto</TableHead>
                         <TableHead className="w-36 text-right">Líquido</TableHead>
                         <TableHead className="w-24">Status</TableHead>
@@ -276,6 +510,9 @@ export function ReceitaView() {
                               <span className="text-sm">{formatDate(p.dataVencimento)}</span>
                             </div>
                           </TableCell>
+                          <TableCell className="text-right text-sm text-gray-500">
+                            {p.percentagem != null ? `${p.percentagem}%` : '—'}
+                          </TableCell>
                           <TableCell className="text-right text-sm text-gray-600">
                             €{p.valorBruto.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
                           </TableCell>
@@ -289,13 +526,7 @@ export function ReceitaView() {
                           </TableCell>
                           <TableCell>
                             {!p.isPaid && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs text-green-700 border-green-300 hover:bg-green-50"
-                                disabled={liquidando === p.id}
-                                onClick={() => handleLiquidar(p.id)}
-                              >
+                              <Button size="sm" variant="outline" className="h-7 text-xs text-green-700 border-green-300 hover:bg-green-50" disabled={liquidando === p.id} onClick={() => openLiquidarDialog(p.id)}>
                                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
                                 {liquidando === p.id ? '...' : 'Liquidar'}
                               </Button>
@@ -319,78 +550,49 @@ export function ReceitaView() {
         )}
       </div>
 
-      {/* ── Create dialog ── */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* ── Liquidar dialog ── */}
+      <Dialog open={!!liquidarDialog} onOpenChange={open => { if (!open) setLiquidarDialog(null); }}>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Nova Receita</DialogTitle>
-            <DialogDescription>Preencha os dados da receita e as parcelas de pagamento</DialogDescription>
+            <DialogTitle>Liquidar Parcela</DialogTitle>
+            <DialogDescription>Confirme a data de pagamento</DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="cr-nome" className="text-xs font-medium text-gray-700">NOME *</Label>
-                <Input id="cr-nome" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className="mt-1.5" placeholder="Ex: Projeto ABC" />
-              </div>
-              <div>
-                <Label htmlFor="cr-conta" className="text-xs font-medium text-gray-700">CONTA *</Label>
-                <Select value={form.contaId} onValueChange={v => setForm(f => ({ ...f, contaId: v }))}>
-                  <SelectTrigger id="cr-conta" className="mt-1.5"><SelectValue placeholder="Selecionar conta" /></SelectTrigger>
-                  <SelectContent>
-                    {(contas ?? []).map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="cr-cat" className="text-xs font-medium text-gray-700">CATEGORIA</Label>
-                <Select value={form.categoria} onValueChange={v => setForm(f => ({ ...f, categoria: v as CategoriaContrato }))}>
-                  <SelectTrigger id="cr-cat" className="mt-1.5"><SelectValue placeholder="Opcional" /></SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIAS.map(c => <SelectItem key={c} value={c}>{CATEGORIA_LABELS[c]}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="cr-com" className="text-xs font-medium text-gray-700">COMISSÃO (%)</Label>
-                <div className="relative mt-1.5">
-                  <Input id="cr-com" type="number" value={form.percentagemComissao} onChange={e => setForm(f => ({ ...f, percentagemComissao: e.target.value }))} className="pr-8" step="0.1" min="0" max="100" placeholder="0" />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
-                </div>
-              </div>
-            </div>
-
+          <div className="space-y-4 mt-2">
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-xs font-medium text-gray-700">PARCELAS *</Label>
-                <Button type="button" size="sm" variant="outline" onClick={addParcela}><Plus className="w-3.5 h-3.5 mr-1" />Adicionar</Button>
-              </div>
-              <div className="space-y-2">
-                {form.parcelas.map((p, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
-                    <div>
-                      <label className="text-xs text-gray-500">Vencimento</label>
-                      <input type="date" value={p.dataVencimento} onChange={e => updateParcela(i, 'dataVencimento', e.target.value)} className="mt-1 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Valor Bruto (€)</label>
-                      <Input type="number" value={p.valorBruto} onChange={e => updateParcela(i, 'valorBruto', e.target.value)} step="0.01" min="0" placeholder="0.00" className="mt-1" />
-                    </div>
-                    {form.parcelas.length > 1 && (
-                      <Button type="button" size="sm" variant="ghost" className="text-red-500 hover:bg-red-50 mb-0.5" onClick={() => removeParcela(i)} aria-label={`Remover parcela ${i + 1}`}>✕</Button>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <Label htmlFor="rl-data" className="text-xs font-medium text-gray-700">DATA DE PAGAMENTO</Label>
+              <input
+                id="rl-data"
+                type="date"
+                value={liquidarDialog?.data ?? ''}
+                onChange={e => setLiquidarDialog(d => d ? { ...d, data: e.target.value } : null)}
+                className="mt-1.5 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              />
             </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => { setCreateOpen(false); setForm(emptyForm()); }}>Cancelar</Button>
-              <Button onClick={handleCreate} disabled={saving}>{saving ? 'A guardar...' : 'Criar Receita'}</Button>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setLiquidarDialog(null)}>Cancelar</Button>
+              <Button
+                className="bg-green-600 hover:bg-green-700 text-white"
+                disabled={!liquidarDialog?.data}
+                onClick={handleLiquidar}
+              >
+                Confirmar
+              </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      {renderFormDialog('create')}
+      {renderFormDialog('edit')}
+
+      <ConfirmDialog
+        open={removeId !== null}
+        onOpenChange={open => { if (!open) setRemoveId(null); }}
+        title="Remover receita"
+        description="A receita ficará marcada como removida e deixará de aparecer nas listas. Esta ação não reverte pagamentos já efetuados."
+        confirmLabel="Remover"
+        onConfirm={handleRemove}
+      />
     </div>
   );
 }

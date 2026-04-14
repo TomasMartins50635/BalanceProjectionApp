@@ -8,14 +8,13 @@ public class CriarReceitaCommandValidator : AbstractValidator<CriarReceitaComman
     {
         RuleFor(x => x.Nome).NotEmpty().MaximumLength(200);
         RuleFor(x => x.ContaId).NotEmpty();
-        RuleFor(x => x.PercentagemComissao)
-            .InclusiveBetween(0, 100)
-            .When(x => x.PercentagemComissao.HasValue);
+        RuleFor(x => x.ValorTotal).GreaterThan(0);
+        RuleFor(x => x.Categoria).MaximumLength(100).When(x => x.Categoria != null);
         RuleFor(x => x.Parcelas).NotEmpty().WithMessage("A receita deve ter pelo menos uma parcela.");
         RuleForEach(x => x.Parcelas).ChildRules(p =>
         {
             p.RuleFor(x => x.Numero).GreaterThan(0);
-            p.RuleFor(x => x.ValorBruto).GreaterThan(0);
+            p.RuleFor(x => x.Percentagem).GreaterThan(0).LessThanOrEqualTo(100);
         });
     }
 }

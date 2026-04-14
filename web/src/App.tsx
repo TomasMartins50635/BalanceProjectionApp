@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { LayoutDashboard, TrendingDown, TrendingUp, CreditCard, Sparkles, PieChart } from 'lucide-react';
+import { LayoutDashboard, TrendingDown, TrendingUp, CreditCard, Sparkles, PieChart, Users } from 'lucide-react';
 import { OverviewView } from '@/components/OverviewView';
 import { Dashboard } from '@/components/Dashboard';
 import { ReceitaView } from '@/components/ReceitaView';
 import { DespesaView } from '@/components/DespesaView';
 import { FinanciamentoView } from '@/components/FinanciamentoView';
 import { SimulationView } from '@/components/SimulationView';
+import { ColaboradorView } from '@/components/ColaboradorView';
 
-type View = 'overview' | 'dashboard' | 'receitas' | 'despesas' | 'financiamentos' | 'simulation';
+type View = 'overview' | 'dashboard' | 'receitas' | 'despesas' | 'financiamentos' | 'colaboradores' | 'simulation';
 
 const navItems = [
   { id: 'overview' as View, label: 'Visão Geral', icon: PieChart },
@@ -15,6 +16,7 @@ const navItems = [
   { id: 'receitas' as View, label: 'Receitas/Faturação', icon: TrendingUp },
   { id: 'despesas' as View, label: 'Despesas', icon: TrendingDown },
   { id: 'financiamentos' as View, label: 'Financiamentos', icon: CreditCard },
+  { id: 'colaboradores' as View, label: 'Colaboradores', icon: Users },
 ];
 
 export default function App() {
@@ -64,6 +66,7 @@ export default function App() {
         {activeView === 'receitas' && <ReceitaView />}
         {activeView === 'despesas' && <DespesaView />}
         {activeView === 'financiamentos' && <FinanciamentoView />}
+        {activeView === 'colaboradores' && <ColaboradorView />}
         {activeView === 'simulation' && <SimulationView />}
       </main>
     </div>
