@@ -28,7 +28,7 @@ jobs:
       - name: Test
         shell: bash
         run: |
-          if find . -name "*Test*.csproj" -print -quit | grep -q .; then
+          if find . \( -name "*.Test.csproj" -o -name "*.Tests.csproj" \) -print -quit | grep -q .; then
             dotnet test BalanceProjectionApp.slnx --configuration Release --no-build --verbosity normal
           else
             echo "No test projects found. Skipping tests."
