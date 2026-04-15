@@ -10,4 +10,5 @@ public record ParcelaDto(
     DateTime? DataPagamento,
     Guid? ReceitaId,
     Guid? DespesaId,
-    decimal? Percentagem);
+    decimal? Percentagem,
+    string? Nome);

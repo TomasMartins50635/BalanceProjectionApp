@@ -10,6 +10,8 @@ public class DespesaConfiguration : IEntityTypeConfiguration<Despesa>
     {
         builder.HasKey(d => d.Id);
         builder.Property(d => d.Nome).IsRequired().HasMaxLength(200);
+        builder.Property(d => d.TipoDespesa).HasConversion<string>().IsRequired();
+        builder.Property(d => d.Periodicidade).HasConversion<string>();
 
         builder.HasOne(d => d.Conta)
             .WithMany()

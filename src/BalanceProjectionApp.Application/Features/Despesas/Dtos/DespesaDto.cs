@@ -8,4 +8,9 @@ public record DespesaDto(
     string Nome,
     CategoriaContrato? Categoria,
     Guid ContaId,
+    TipoDespesa TipoDespesa,
+    decimal? ValorFixo,
+    Periodicidade? Periodicidade,
+    DateOnly? DataInicio,
+    bool IsActive,
     IEnumerable<ParcelaDto> Parcelas);

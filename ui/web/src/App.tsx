@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { LayoutDashboard, TrendingDown, TrendingUp, CreditCard, Sparkles, PieChart, Users } from 'lucide-react';
 import { OverviewView } from '@/components/OverviewView';
 import { Dashboard } from '@/components/Dashboard';
@@ -21,7 +21,13 @@ const navItems = [
 
 export default function App() {
   const [activeView, setActiveView] = useState<View>('overview');
+  const [highlightId, setHighlightId] = useState<string | undefined>();
   const isSimulation = activeView === 'simulation';
+
+  const handleNavigate = useCallback((view: View, id?: string) => {
+    setHighlightId(id);
+    setActiveView(view);
+  }, []);
 
   return (
     <div className="flex flex-col md:flex-row h-full bg-gray-50">
@@ -62,9 +68,9 @@ export default function App() {
 
       <main className="flex-1 overflow-auto">
         {activeView === 'overview' && <OverviewView />}
-        {activeView === 'dashboard' && <Dashboard />}
-        {activeView === 'receitas' && <ReceitaView />}
-        {activeView === 'despesas' && <DespesaView />}
+        {activeView === 'dashboard' && <Dashboard onNavigate={handleNavigate} />}
+        {activeView === 'receitas' && <ReceitaView highlightId={highlightId} onHighlightConsumed={() => setHighlightId(undefined)} />}
+        {activeView === 'despesas' && <DespesaView highlightId={highlightId} onHighlightConsumed={() => setHighlightId(undefined)} />}
         {activeView === 'financiamentos' && <FinanciamentoView />}
         {activeView === 'colaboradores' && <ColaboradorView />}
         {activeView === 'simulation' && <SimulationView />}

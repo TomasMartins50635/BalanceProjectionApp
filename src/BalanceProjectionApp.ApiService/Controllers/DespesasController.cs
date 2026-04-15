@@ -1,9 +1,14 @@
+using BalanceProjectionApp.Application.Features.Despesas.Commands.AtivarDesativarDespesa;
+using BalanceProjectionApp.Application.Features.Despesas.Commands.AtualizarDespesa;
 using BalanceProjectionApp.Application.Features.Despesas.Commands.CriarDespesa;
+using BalanceProjectionApp.Application.Features.Despesas.Commands.RemoverDespesa;
 using BalanceProjectionApp.Application.Features.Despesas.Queries.ListarDespesas;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BalanceProjectionApp.ApiService.Controllers;
+
+public record AtivarDesativarRequest(bool IsActive);
 
 [ApiController]
 [Route("despesas")]
@@ -18,5 +23,26 @@ public class DespesasController(IMediator mediator) : ControllerBase
     {
         var id = await mediator.Send(command, ct);
         return Created($"/despesas/{id}", new { id });
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Atualizar(Guid id, AtualizarDespesaCommand command, CancellationToken ct)
+    {
+        await mediator.Send(command with { Id = id }, ct);
+        return NoContent();
+    }
+
+    [HttpPatch("{id:guid}/estado")]
+    public async Task<IActionResult> AtivarDesativar(Guid id, [FromBody] AtivarDesativarRequest body, CancellationToken ct)
+    {
+        await mediator.Send(new AtivarDesativarDespesaCommand(id, body.IsActive), ct);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Remover(Guid id, CancellationToken ct)
+    {
+        await mediator.Send(new RemoverDespesaCommand(id), ct);
+        return NoContent();
     }
 }

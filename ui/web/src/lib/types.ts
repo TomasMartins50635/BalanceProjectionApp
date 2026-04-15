@@ -20,6 +20,23 @@ export const CATEGORIA_LABELS: Record<CategoriaContrato, string> = {
 
 export const CATEGORIAS = Object.keys(CATEGORIA_LABELS) as CategoriaContrato[];
 
+export type TipoDespesa = 'Pontual' | 'Fixa' | 'Recorrente';
+
+export const TIPO_DESPESA_LABELS: Record<TipoDespesa, string> = {
+  Pontual: 'Pontual',
+  Fixa: 'Fixa',
+  Recorrente: 'Recorrente',
+};
+
+export type Periodicidade = 'Mensal' | 'Trimestral' | 'Semestral' | 'Anual';
+
+export const PERIODICIDADE_LABELS: Record<Periodicidade, string> = {
+  Mensal: 'Mensal',
+  Trimestral: 'Trimestral',
+  Semestral: 'Semestral',
+  Anual: 'Anual',
+};
+
 // ── Response DTOs ──────────────────────────────────────────────────────────────
 
 export interface ColaboradorDto {
@@ -47,6 +64,7 @@ export interface ParcelaDto {
   receitaId: string | null;
   despesaId: string | null;
   percentagem: number | null;
+  nome: string | null;
 }
 
 export interface ReceitaDto {
@@ -67,6 +85,11 @@ export interface DespesaDto {
   nome: string;
   categoria: CategoriaContrato | null;
   contaId: string;
+  tipoDespesa: TipoDespesa;
+  valorFixo: number | null;
+  periodicidade: Periodicidade | null;
+  dataInicio: string | null;
+  isActive: boolean;
   parcelas: ParcelaDto[];
 }
 
@@ -129,7 +152,22 @@ export interface CriarDespesaRequest {
   nome: string;
   contaId: string;
   categoria?: CategoriaContrato;
-  parcelas: CriarDespesaParcelaRequest[];
+  tipoDespesa: TipoDespesa;
+  // Pontual / Recorrente
+  parcelas?: CriarDespesaParcelaRequest[];
+  // Fixa
+  valorFixo?: number;
+  periodicidade?: Periodicidade;
+  dataInicio?: string;
+}
+
+export interface AtualizarDespesaRequest {
+  nome: string;
+  categoria?: CategoriaContrato;
+  // Pontual / Recorrente
+  parcelas?: CriarDespesaParcelaRequest[];
+  // Fixa
+  valorFixo?: number;
 }
 
 export interface CriarFinanciamentoRequest {

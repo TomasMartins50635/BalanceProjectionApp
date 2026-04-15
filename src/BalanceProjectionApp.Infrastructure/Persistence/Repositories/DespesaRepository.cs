@@ -21,4 +21,7 @@ public class DespesaRepository(AppDbContext context) : IDespesaRepository
 
     public async Task AdicionarAsync(Despesa despesa, CancellationToken ct = default)
         => await context.Despesas.AddAsync(despesa, ct);
+
+    public void Remover(Despesa despesa)
+        => context.Despesas.Remove(despesa);
 }

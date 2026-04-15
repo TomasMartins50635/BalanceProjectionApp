@@ -65,5 +65,23 @@ public class Parcela : Entity
         DataPagamento = data.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
     }
 
+    public void Estornar()
+    {
+        if (!IsPaid)
+            throw new DomainException($"A parcela {Numero} não está liquidada.");
+
+        IsPaid = false;
+        DataPagamento = null;
+    }
+
+    public void AtualizarValor(decimal valorBruto)
+    {
+        if (IsPaid)
+            throw new DomainException("Não é possível alterar o valor de uma parcela já liquidada.");
+
+        ValorBruto = valorBruto;
+        ValorLiquido = valorBruto;
+    }
+
     public bool EReceita() => ReceitaId.HasValue;
 }

@@ -1,4 +1,5 @@
 import type {
+  AtualizarDespesaRequest,
   AtualizarReceitaRequest,
   ColaboradorDto,
   ContaDto,
@@ -65,6 +66,12 @@ export const api = {
     listar: () => request<DespesaDto[]>('/despesas'),
     criar: (body: CriarDespesaRequest) =>
       request<{ id: string }>('/despesas', { method: 'POST', body: JSON.stringify(body) }),
+    atualizar: (id: string, body: AtualizarDespesaRequest) =>
+      request<void>(`/despesas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    toggleEstado: (id: string, isActive: boolean) =>
+      request<void>(`/despesas/${id}/estado`, { method: 'PATCH', body: JSON.stringify({ isActive }) }),
+    remover: (id: string) =>
+      request<void>(`/despesas/${id}`, { method: 'DELETE' }),
   },
 
   parcelas: {
@@ -77,6 +84,10 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ dataPagamento: dataPagamento ?? null }),
       }),
+    estornar: (id: string) =>
+      request<void>(`/parcelas/${id}/estornar`, { method: 'POST' }),
+    remover: (id: string) =>
+      request<void>(`/parcelas/${id}`, { method: 'DELETE' }),
   },
 
   financiamentos: {

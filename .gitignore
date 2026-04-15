@@ -361,3 +361,10 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Tauri — Rust build cache (can be several GB)
+ui/desktop/src-tauri/target/
+
+# Capacitor — generated native projects (run `npx cap add android/ios` to regenerate)
+ui/mobile/android/
+ui/mobile/ios/

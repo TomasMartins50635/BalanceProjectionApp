@@ -1,4 +1,6 @@
+using BalanceProjectionApp.Application.Features.Parcelas.Commands.EstornarParcela;
 using BalanceProjectionApp.Application.Features.Parcelas.Commands.LiquidarParcela;
+using BalanceProjectionApp.Application.Features.Parcelas.Commands.RemoverParcela;
 using BalanceProjectionApp.Application.Features.Parcelas.Queries.ListarParcelas;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +20,20 @@ public class ParcelasController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new LiquidarParcelaCommand(id, body?.DataPagamento), ct);
         return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/estornar")]
+    public async Task<IActionResult> Estornar(Guid id, CancellationToken ct)
+    {
+        await mediator.Send(new EstornarParcelaCommand(id), ct);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Remover(Guid id, CancellationToken ct)
+    {
+        await mediator.Send(new RemoverParcelaCommand(id), ct);
+        return NoContent();
     }
 }
 

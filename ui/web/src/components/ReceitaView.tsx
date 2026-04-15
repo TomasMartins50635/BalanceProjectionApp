@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Search, Plus, Calendar, CheckCircle2, Pencil, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Search, Plus, Calendar, CheckCircle2, Pencil, Trash2, ArrowUp, ArrowDown, ChevronsUpDown, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -60,20 +60,53 @@ function parcelaValorBruto(valorTotal: string, pct: string): string {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function ReceitaView() {
+interface ReceitaViewProps {
+  highlightId?: string;
+  onHighlightConsumed?: () => void;
+}
+
+export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewProps = {}) {
   const toast = useToast();
   const { data: receitas, loading, error, reload } = useAsync(() => api.receitas.listar(), []);
   const { data: contas } = useAsync(() => api.contas.listar(), []);
   const { data: colaboradores } = useAsync(() => api.colaboradores.listar(), []);
 
   const [selectedReceita, setSelectedReceita] = useState<ReceitaDto | null>(null);
+
+  useEffect(() => {
+    if (highlightId && receitas) {
+      const match = receitas.find(r => r.id === highlightId) ?? null;
+      if (match) {
+        setSelectedReceita(match);
+        onHighlightConsumed?.();
+      }
+    }
+  }, [highlightId, receitas]);
   const [searchTerm, setSearchTerm] = useState('');
   const [liquidando, setLiquidando] = useState<string | null>(null);
   const [liquidarDialog, setLiquidarDialog] = useState<{ parcelaId: string; data: string } | null>(null);
+  const [estornando, setEstornando] = useState<string | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [removeId, setRemoveId] = useState<string | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(() => localStorage.getItem('banner_receita') === '1');
+
+  const dismissBanner = () => { localStorage.setItem('banner_receita', '1'); setBannerDismissed(true); };
+
+  type SortField = 'data' | 'valor';
+  type SortDir = 'asc' | 'desc';
+  const [parcelaSort, setParcelaSort] = useState<{ field: SortField; dir: SortDir }>({ field: 'data', dir: 'asc' });
+
+  const toggleSort = (field: SortField) =>
+    setParcelaSort(s => s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'asc' });
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (parcelaSort.field !== field) return <ChevronsUpDown className="inline w-3.5 h-3.5 ml-1 text-gray-400" />;
+    return parcelaSort.dir === 'asc'
+      ? <ArrowUp className="inline w-3.5 h-3.5 ml-1 text-blue-500" />
+      : <ArrowDown className="inline w-3.5 h-3.5 ml-1 text-blue-500" />;
+  };
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<ReceitaForm>(emptyForm());
   const [saving, setSaving] = useState(false);
@@ -120,6 +153,19 @@ export function ReceitaView() {
   );
 
   // ── Actions ──────────────────────────────────────────────────────────────────
+
+  const handleEstornar = async (parcelaId: string) => {
+    setEstornando(parcelaId);
+    try {
+      await api.parcelas.estornar(parcelaId);
+      toast('Liquidação revertida');
+      reload();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setEstornando(null);
+    }
+  };
 
   const today = () => new Date().toISOString().slice(0, 10);
 
@@ -330,9 +376,11 @@ export function ReceitaView() {
                 ))}
               </div>
               {isEdit && liveSelectedReceita && liveSelectedReceita.parcelas.some(p => p.isPaid) && (
-                <p className="text-xs text-amber-600 mt-2 bg-amber-50 border border-amber-200 rounded p-2">
-                  {liveSelectedReceita.parcelas.filter(p => p.isPaid).length} parcela(s) já liquidada(s) serão mantidas e não podem ser editadas.
-                </p>
+                <div className="flex items-start justify-between gap-2 mt-2 bg-amber-50 border border-amber-200 rounded p-2">
+                  <p className="text-xs text-amber-600">
+                    {liveSelectedReceita.parcelas.filter(p => p.isPaid).length} parcela(s) já liquidada(s) serão mantidas e não podem ser editadas.
+                  </p>
+                </div>
               )}
             </div>
 
@@ -432,9 +480,14 @@ export function ReceitaView() {
               </div>
             </div>
 
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-6">
-              <p className="text-sm text-green-800">Parcelas liquidadas <strong>creditam</strong> o saldo da conta (ValorLíquido após comissão)</p>
-            </div>
+            {!bannerDismissed && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-6 flex items-start justify-between gap-2">
+                <p className="text-sm text-green-800">Parcelas liquidadas <strong>creditam</strong> o saldo da conta (ValorLíquido após comissão)</p>
+                <button onClick={dismissBanner} className="shrink-0 text-green-500 hover:text-green-700" aria-label="Fechar aviso">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             <Tabs defaultValue="geral" className="space-y-4">
               <TabsList>
@@ -492,16 +545,26 @@ export function ReceitaView() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-10">#</TableHead>
-                        <TableHead className="w-36">Vencimento</TableHead>
+                        <TableHead className="w-36 cursor-pointer select-none" onClick={() => toggleSort('data')}>
+                          Vencimento<SortIcon field="data" />
+                        </TableHead>
                         <TableHead className="w-20 text-right">%</TableHead>
                         <TableHead className="w-36 text-right">Bruto</TableHead>
-                        <TableHead className="w-36 text-right">Líquido</TableHead>
+                        <TableHead className="w-36 text-right cursor-pointer select-none" onClick={() => toggleSort('valor')}>
+                          Líquido<SortIcon field="valor" />
+                        </TableHead>
                         <TableHead className="w-24">Status</TableHead>
                         <TableHead className="w-28" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {liveSelectedReceita.parcelas.map(p => (
+                      {[...liveSelectedReceita.parcelas]
+                        .sort((a, b) => {
+                          const mul = parcelaSort.dir === 'asc' ? 1 : -1;
+                          if (parcelaSort.field === 'data') return a.dataVencimento.localeCompare(b.dataVencimento) * mul;
+                          return (a.valorLiquido - b.valorLiquido) * mul;
+                        })
+                        .map(p => (
                         <TableRow key={p.id} className={!p.isPaid ? 'opacity-75' : ''}>
                           <TableCell className="text-gray-500 text-sm">{p.numero}</TableCell>
                           <TableCell>
@@ -531,8 +594,19 @@ export function ReceitaView() {
                                 {liquidando === p.id ? '...' : 'Liquidar'}
                               </Button>
                             )}
-                            {p.isPaid && p.dataPagamento && (
-                              <span className="text-xs text-gray-400">{formatDate(p.dataPagamento)}</span>
+                            {p.isPaid && (
+                              <div className="flex items-center gap-2">
+                                {p.dataPagamento && <span className="text-xs text-gray-400">{formatDate(p.dataPagamento)}</span>}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-xs text-gray-500 hover:text-amber-600 hover:bg-amber-50"
+                                  disabled={estornando === p.id}
+                                  onClick={() => handleEstornar(p.id)}
+                                >
+                                  {estornando === p.id ? '...' : 'Estornar'}
+                                </Button>
+                              </div>
                             )}
                           </TableCell>
                         </TableRow>
@@ -541,6 +615,7 @@ export function ReceitaView() {
                   </Table>
                 </div>
               </TabsContent>
+
             </Tabs>
           </div>
         ) : (

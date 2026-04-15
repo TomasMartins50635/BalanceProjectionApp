@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace BalanceProjectionApp.Infrastructure.Migrations
 {
-    [Migration("20260414200000_InitialCreate")]
+    /// <inheritdoc />
     public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
@@ -45,7 +45,12 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Nome = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     Categoria = table.Column<int>(type: "integer", nullable: true),
-                    ContaId = table.Column<Guid>(type: "uuid", nullable: false)
+                    ContaId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TipoDespesa = table.Column<string>(type: "text", nullable: false),
+                    ValorFixo = table.Column<decimal>(type: "numeric", nullable: true),
+                    Periodicidade = table.Column<string>(type: "text", nullable: true),
+                    DataInicio = table.Column<DateOnly>(type: "date", nullable: true),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -65,10 +70,10 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Nome = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     Categoria = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    ColaboradorId = table.Column<Guid>(type: "uuid", nullable: true),
-                    ContaId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ValorTotal = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     IsDeleted = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
-                    ValorTotal = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false)
+                    ContaId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ColaboradorId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -85,25 +90,6 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                         principalTable: "Contas",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Comissoes",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Percentagem = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
-                    ReceitaId = table.Column<Guid>(type: "uuid", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Comissoes", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Comissoes_Receitas_ReceitaId",
-                        column: x => x.ReceitaId,
-                        principalTable: "Receitas",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -132,6 +118,25 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                         principalTable: "Despesas",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Comissoes",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Percentagem = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
+                    ReceitaId = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Comissoes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Comissoes_Receitas_ReceitaId",
+                        column: x => x.ReceitaId,
+                        principalTable: "Receitas",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -227,13 +232,26 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(name: "Comissoes");
-            migrationBuilder.DropTable(name: "Financiamentos");
-            migrationBuilder.DropTable(name: "Parcelas");
-            migrationBuilder.DropTable(name: "Receitas");
-            migrationBuilder.DropTable(name: "Despesas");
-            migrationBuilder.DropTable(name: "Contas");
-            migrationBuilder.DropTable(name: "Colaboradores");
+            migrationBuilder.DropTable(
+                name: "Comissoes");
+
+            migrationBuilder.DropTable(
+                name: "Financiamentos");
+
+            migrationBuilder.DropTable(
+                name: "Parcelas");
+
+            migrationBuilder.DropTable(
+                name: "Despesas");
+
+            migrationBuilder.DropTable(
+                name: "Receitas");
+
+            migrationBuilder.DropTable(
+                name: "Colaboradores");
+
+            migrationBuilder.DropTable(
+                name: "Contas");
         }
     }
 }

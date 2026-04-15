@@ -18,6 +18,7 @@ public class ListarParcelasQueryHandler(IParcelaRepository repository)
             p.Id, p.Numero, p.DataVencimento,
             p.ValorBruto, p.ValorLiquido,
             p.IsPaid, p.DataPagamento,
-            p.ReceitaId, p.DespesaId, p.Percentagem));
+            p.ReceitaId, p.DespesaId, p.Percentagem,
+            p.Receita?.Nome ?? p.Despesa?.Nome));
     }
 }

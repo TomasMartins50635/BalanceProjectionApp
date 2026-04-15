@@ -11,8 +11,13 @@ import { useAsync } from '@/hooks/useAsync';
 import { useToast } from '@/hooks/useToast';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/dates';
+import type { ParcelaDto } from '@/lib/types';
 
-export function Dashboard() {
+interface DashboardProps {
+  onNavigate: (view: 'receitas' | 'despesas', id: string) => void;
+}
+
+export function Dashboard({ onNavigate }: DashboardProps) {
   const toast = useToast();
   const { data: contas, loading: contasLoading, error: contasError, reload: reloadContas } = useAsync(() => api.contas.listar(), []);
 
@@ -80,22 +85,35 @@ export function Dashboard() {
     }, conta.saldo);
   }, [conta, parcelas, useCurrentDate, selectedDateStr]);
 
-  const allTransactions = useMemo(() => {
+  const toRow = (p: ParcelaDto) => ({
+    id: p.id,
+    type: p.receitaId ? 'receita' as const : 'despesa' as const,
+    nome: p.nome,
+    valor: p.valorLiquido,
+    data: p.dataVencimento,
+    dataPagamento: p.dataPagamento,
+    receitaId: p.receitaId,
+    despesaId: p.despesaId,
+  });
+
+  const parcelasPendentes = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const limit = new Date(today);
+    limit.setDate(limit.getDate() + 15);
+    const limitStr = limit.toISOString().split('T')[0];
     return (parcelas ?? [])
-      .map(p => ({
-        id: p.id,
-        type: p.receitaId ? 'receita' as const : 'despesa' as const,
-        valor: p.valorLiquido,
-        data: p.dataVencimento,
-        isPaid: p.isPaid,
-        dataPagamento: p.dataPagamento,
-      }))
-      .sort((a, b) => b.data.localeCompare(a.data));
+      .filter(p => !p.isPaid && p.dataVencimento <= limitStr)
+      .map(toRow)
+      .sort((a, b) => a.data.localeCompare(b.data));
   }, [parcelas]);
 
-  const visibleTransactions = useMemo(
-    () => useCurrentDate ? allTransactions : allTransactions.filter(t => t.data <= selectedDateStr),
-    [allTransactions, useCurrentDate, selectedDateStr],
+  const parcelasLiquidadas = useMemo(() =>
+    (parcelas ?? [])
+      .filter(p => p.isPaid)
+      .map(toRow)
+      .sort((a, b) => b.data.localeCompare(a.data)),
+    [parcelas],
   );
 
   if (contasError) {
@@ -263,61 +281,106 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <div className="px-4 md:px-5 py-3 md:py-4 border-b border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-900">
-            {useCurrentDate ? 'PARCELAS' : `PARCELAS ATÉ ${formatDate(selectedDateStr)}`}
-          </h3>
-          <p className="text-xs text-gray-600 mt-1">Apenas parcelas liquidadas afetam o saldo</p>
-        </div>
-        {parcelasLoading ? (
-          <div className="p-6 space-y-3">
-            {[1, 2, 3, 4].map(i => <div key={i} className="h-10 bg-gray-100 animate-pulse rounded" />)}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Parcelas Pendentes */}
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 md:px-5 py-3 md:py-4 border-b border-orange-100 bg-orange-50">
+            <h3 className="text-sm font-semibold text-orange-700">PARCELAS PENDENTES</h3>
+            <p className="text-xs text-orange-600 mt-0.5">Por liquidar nos próximos 15 dias</p>
           </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-28">Tipo</TableHead>
-                <TableHead className="w-36">Data Vencimento</TableHead>
-                <TableHead className="w-36">Data Pagamento</TableHead>
-                <TableHead className="w-24">Status</TableHead>
-                <TableHead className="w-40 text-right">Valor Líquido</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visibleTransactions.length === 0 ? (
+          {parcelasLoading ? (
+            <div className="p-4 space-y-3">
+              {[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 animate-pulse rounded" />)}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-8">
-                    {effectiveContaId ? 'Nenhuma parcela encontrada' : 'Selecione uma conta'}
-                  </TableCell>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Vencimento</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
                 </TableRow>
-              ) : (
-                visibleTransactions.map(t => (
-                  <TableRow key={t.id} className={!t.isPaid ? 'opacity-60' : ''}>
-                    <TableCell>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${t.type === 'receita' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                        {t.type === 'receita' ? 'Receita' : 'Despesa'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-gray-600">{formatDate(t.data)}</TableCell>
-                    <TableCell className="text-gray-600">
-                      {t.dataPagamento ? formatDate(t.dataPagamento) : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${t.isPaid ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                        {t.isPaid ? 'Liquidada' : 'Pendente'}
-                      </span>
-                    </TableCell>
-                    <TableCell className={`text-right font-semibold ${t.isPaid ? (t.type === 'receita' ? 'text-green-600' : 'text-red-600') : 'text-gray-400'}`}>
-                      {t.type === 'receita' ? '+' : '-'}€{t.valor.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+              </TableHeader>
+              <TableBody>
+                {parcelasPendentes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-sm text-gray-500 py-8">
+                      {effectiveContaId ? 'Nenhuma parcela pendente' : 'Selecione uma conta'}
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        )}
+                ) : (
+                  parcelasPendentes.map(t => (
+                    <TableRow key={t.id} className="cursor-pointer hover:bg-gray-50" onClick={() => onNavigate(t.type === 'receita' ? 'receitas' : 'despesas', t.type === 'receita' ? t.receitaId! : t.despesaId!)}>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${t.type === 'receita' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                          {t.type === 'receita' ? 'Receita' : 'Despesa'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-gray-700 font-medium">{t.nome ?? '—'}</TableCell>
+                      <TableCell className="text-gray-600">{formatDate(t.data)}</TableCell>
+                      <TableCell className="text-right font-semibold text-gray-400">
+                        {t.type === 'receita' ? '+' : '-'}€{t.valor.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+
+        {/* Parcelas Concluídas */}
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 md:px-5 py-3 md:py-4 border-b border-green-100 bg-green-50">
+            <h3 className="text-sm font-semibold text-green-700">PARCELAS CONCLUÍDAS</h3>
+            <p className="text-xs text-green-600 mt-0.5">Já liquidadas</p>
+          </div>
+          {parcelasLoading ? (
+            <div className="p-4 space-y-3">
+              {[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 animate-pulse rounded" />)}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Vencimento</TableHead>
+                  <TableHead>Pagamento</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {parcelasLiquidadas.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-8">
+                      {effectiveContaId ? 'Nenhuma parcela concluída' : 'Selecione uma conta'}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  parcelasLiquidadas.map(t => (
+                    <TableRow key={t.id} className="cursor-pointer hover:bg-gray-50" onClick={() => onNavigate(t.type === 'receita' ? 'receitas' : 'despesas', t.type === 'receita' ? t.receitaId! : t.despesaId!)}>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${t.type === 'receita' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                          {t.type === 'receita' ? 'Receita' : 'Despesa'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-gray-700 font-medium">{t.nome ?? '—'}</TableCell>
+                      <TableCell className="text-gray-600">{formatDate(t.data)}</TableCell>
+                      <TableCell className="text-gray-600">
+                        {t.dataPagamento ? formatDate(t.dataPagamento) : '—'}
+                      </TableCell>
+                      <TableCell className={`text-right font-semibold ${t.type === 'receita' ? 'text-green-600' : 'text-red-600'}`}>
+                        {t.type === 'receita' ? '+' : '-'}€{t.valor.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </div>
       </div>
 
       <ConfirmDialog

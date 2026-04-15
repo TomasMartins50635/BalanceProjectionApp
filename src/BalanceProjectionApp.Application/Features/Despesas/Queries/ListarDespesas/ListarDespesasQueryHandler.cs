@@ -16,10 +16,15 @@ public class ListarDespesasQueryHandler(IDespesaRepository repository)
             d.Nome,
             d.Categoria,
             d.ContaId,
+            d.TipoDespesa,
+            d.ValorFixo,
+            d.Periodicidade,
+            d.DataInicio,
+            d.IsActive,
             d.Parcelas.Select(p => new ParcelaDto(
                 p.Id, p.Numero, p.DataVencimento,
                 p.ValorBruto, p.ValorLiquido,
                 p.IsPaid, p.DataPagamento,
-                p.ReceitaId, p.DespesaId, null))));
+                p.ReceitaId, p.DespesaId, null, d.Nome))));
     }
 }
