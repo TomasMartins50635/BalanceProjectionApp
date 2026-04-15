@@ -122,6 +122,27 @@ DependencyInjection.cs
 
 ---
 
+## Estrutura de UI
+
+Os clientes frontend estão em `ui/`:
+
+| Pasta | Descrição |
+|---|---|
+| `ui/web/` | React + Vite — app web (fonte de verdade para o código frontend) |
+| `ui/desktop/` | Tauri wrapper — app desktop; aponta para `ui/web/` como frontend |
+
+O código React vive **apenas** em `ui/web/`. O `ui/desktop/` contém apenas `src-tauri/` e o `package.json` do Tauri CLI.
+
+```bash
+# Correr app web
+cd ui/web && npm run dev
+
+# Correr app desktop (inicia automaticamente o dev server do web)
+cd ui/desktop && npm run dev
+```
+
+---
+
 ## Running the Application
 
 ```bash
