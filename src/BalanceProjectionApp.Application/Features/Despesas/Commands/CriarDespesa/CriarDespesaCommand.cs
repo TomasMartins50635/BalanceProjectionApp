@@ -8,9 +8,9 @@ public record CriarDespesaCommand(
     Guid ContaId,
     CategoriaContrato? Categoria,
     TipoDespesa TipoDespesa,
-    // Pontual / Recorrente
+    // Pontual / Recorrente (valor base / previsto)
     IEnumerable<CriarDespesaParcelaDto>? Parcelas,
-    // Fixa
+    // Fixa / Recorrente
     decimal? ValorFixo,
     Periodicidade? Periodicidade,
     DateOnly? DataInicio) : IRequest<Guid>;

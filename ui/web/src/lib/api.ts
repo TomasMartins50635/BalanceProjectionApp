@@ -79,10 +79,13 @@ export const api = {
       const qs = apenasPendentes != null ? `?apenasPendentes=${apenasPendentes}` : '';
       return request<ParcelaDto[]>(`/parcelas/conta/${contaId}${qs}`);
     },
-    liquidar: (id: string, dataPagamento?: string) =>
+    liquidar: (id: string, dataPagamento?: string, valorReal?: number) =>
       request<unknown>(`/parcelas/${id}/liquidar`, {
         method: 'POST',
-        body: JSON.stringify({ dataPagamento: dataPagamento ?? null }),
+        body: JSON.stringify({
+          dataPagamento: dataPagamento ?? null,
+          valorReal: valorReal ?? null,
+        }),
       }),
     estornar: (id: string) =>
       request<void>(`/parcelas/${id}/estornar`, { method: 'POST' }),

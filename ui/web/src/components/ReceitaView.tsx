@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { LiquidarDialog } from '@/components/LiquidarDialog';
 import { ParcelasTable } from '@/components/ParcelasTable';
-import { formatDate } from '@/lib/dates';
 import { useToast } from '@/hooks/useToast';
 import { useAsync } from '@/hooks/useAsync';
 import { useParcelaActions } from '@/hooks/useParcelaActions';
@@ -121,8 +120,6 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
     () => (id: string) => contas?.find(c => c.id === id)?.nome ?? id,
     [contas],
   );
-
-  const totalBruto = (r: ReceitaDto) => r.parcelas.reduce((s, p) => s + p.valorBruto, 0);
 
   // ── Parcela helpers ──
   const addParcela = () =>
@@ -525,6 +522,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
         dialog={liquidarDialog}
         onClose={() => setLiquidarDialog(null)}
         onDataChange={data => setLiquidarDialog(d => d ? { ...d, data } : null)}
+        onValorRealChange={() => {}}
         onConfirm={handleLiquidar}
         variant="receita"
       />

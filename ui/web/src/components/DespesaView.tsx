@@ -36,9 +36,9 @@ interface CreateForm {
   contaId: string;
   categoria: CategoriaContrato | '';
   tipoDespesa: TipoDespesa;
-  // Pontual / Recorrente
+  // Pontual
   parcelas: { dataVencimento: string; valorBruto: string }[];
-  // Fixa
+  // Fixa / Recorrente
   valorFixo: string;
   periodicidade: Periodicidade | '';
   dataInicio: string;
@@ -150,6 +150,19 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
           periodicidade: form.periodicidade as Periodicidade,
           dataInicio: form.dataInicio,
         });
+      } else if (form.tipoDespesa === 'Recorrente') {
+        if (!form.nome.trim() || !form.contaId || !form.valorFixo || !form.dataInicio) {
+          toast('Preencha todos os campos obrigatórios', 'error');
+          return;
+        }
+        await api.despesas.criar({
+          nome: form.nome.trim(),
+          contaId: form.contaId,
+          categoria: form.categoria || undefined,
+          tipoDespesa: 'Recorrente',
+          valorFixo: Number.parseFloat(form.valorFixo),
+          dataInicio: form.dataInicio,
+        });
       } else {
         if (!form.nome.trim() || !form.contaId || form.parcelas.some(p => !p.dataVencimento || !p.valorBruto)) {
           toast('Preencha todos os campos obrigatórios', 'error');
@@ -206,7 +219,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
           categoria: form.categoria || undefined,
           valorFixo: parseFloat(form.valorFixo),
         });
-      } else {
+      } else if (liveSelectedDespesa.tipoDespesa === 'Pontual') {
         if (!form.nome.trim() || form.parcelas.some(p => !p.dataVencimento || !p.valorBruto)) {
           toast('Preencha todos os campos obrigatórios', 'error');
           return;
@@ -219,6 +232,16 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
             dataVencimento: p.dataVencimento,
             valorBruto: parseFloat(p.valorBruto),
           })),
+        });
+      } else {
+        if (!form.nome.trim() || !form.valorFixo) {
+          toast('Preencha todos os campos obrigatórios', 'error');
+          return;
+        }
+        await api.despesas.atualizar(liveSelectedDespesa.id, {
+          nome: form.nome.trim(),
+          categoria: form.categoria || undefined,
+          valorFixo: Number.parseFloat(form.valorFixo),
         });
       }
       toast('Despesa atualizada com sucesso');
@@ -323,7 +346,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                     >
                       <TableCell className="font-medium">
                         {d.nome}
-                        {d.tipoDespesa === 'Fixa' && (
+                        {d.tipoDespesa !== 'Pontual' && (
                           <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${d.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                             {d.isActive ? 'Ativa' : 'Inativa'}
                           </span>
@@ -362,7 +385,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                       {CATEGORIA_LABELS[liveSelectedDespesa.categoria]}
                     </span>
                   )}
-                  {liveSelectedDespesa.tipoDespesa === 'Fixa' && (
+                  {liveSelectedDespesa.tipoDespesa !== 'Pontual' && (
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${liveSelectedDespesa.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                       {liveSelectedDespesa.isActive ? 'Ativa' : 'Inativa'}
                     </span>
@@ -370,7 +393,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                 </div>
               </div>
               <div className="flex gap-2 shrink-0">
-                {liveSelectedDespesa.tipoDespesa === 'Fixa' && (
+                {liveSelectedDespesa.tipoDespesa !== 'Pontual' && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -420,20 +443,32 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                         {liveSelectedDespesa.categoria ? CATEGORIA_LABELS[liveSelectedDespesa.categoria] : '—'}
                       </p>
                     </div>
-                    {liveSelectedDespesa.tipoDespesa === 'Fixa' && (
+                    {liveSelectedDespesa.tipoDespesa !== 'Pontual' && (
                       <>
-                        <div>
-                          <p className="text-xs font-medium text-gray-500">VALOR FIXO</p>
-                          <p className="text-sm font-medium text-gray-900 mt-1">
-                            €{liveSelectedDespesa.valorFixo?.toLocaleString('pt-PT', { minimumFractionDigits: 2 }) ?? '—'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-gray-500">PERIODICIDADE</p>
-                          <p className="text-sm font-medium text-gray-900 mt-1">
-                            {liveSelectedDespesa.periodicidade ? PERIODICIDADE_LABELS[liveSelectedDespesa.periodicidade] : '—'}
-                          </p>
-                        </div>
+                        {liveSelectedDespesa.tipoDespesa === 'Fixa' && (
+                          <>
+                            <div>
+                              <p className="text-xs font-medium text-gray-500">VALOR FIXO</p>
+                              <p className="text-sm font-medium text-gray-900 mt-1">
+                                €{liveSelectedDespesa.valorFixo?.toLocaleString('pt-PT', { minimumFractionDigits: 2 }) ?? '—'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-gray-500">PERIODICIDADE</p>
+                              <p className="text-sm font-medium text-gray-900 mt-1">
+                                {liveSelectedDespesa.periodicidade ? PERIODICIDADE_LABELS[liveSelectedDespesa.periodicidade] : '—'}
+                              </p>
+                            </div>
+                          </>
+                        )}
+                        {liveSelectedDespesa.tipoDespesa === 'Recorrente' && (
+                          <div>
+                            <p className="text-xs font-medium text-gray-500">VALOR PREVISTO</p>
+                            <p className="text-sm font-medium text-gray-900 mt-1">
+                              €{liveSelectedDespesa.valorFixo?.toLocaleString('pt-PT', { minimumFractionDigits: 2 }) ?? '—'}
+                            </p>
+                          </div>
+                        )}
                         <div>
                           <p className="text-xs font-medium text-gray-500">DATA DE INÍCIO</p>
                           <p className="text-sm font-medium text-gray-900 mt-1">
@@ -475,6 +510,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                   <ParcelasTable
                     parcelas={liveSelectedDespesa.parcelas}
                     variant="despesa"
+                    despesaTipo={liveSelectedDespesa.tipoDespesa}
                     parcelaSort={parcelaSort}
                     toggleSort={toggleSort}
                     liquidando={liquidando}
@@ -500,6 +536,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
         dialog={liquidarDialog}
         onClose={() => setLiquidarDialog(null)}
         onDataChange={data => setLiquidarDialog(d => d ? { ...d, data } : null)}
+        onValorRealChange={valorReal => setLiquidarDialog(d => d ? { ...d, valorReal } : null)}
         onConfirm={handleLiquidar}
         variant="despesa"
       />
@@ -560,16 +597,18 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
               </div>
               <p className="text-xs text-gray-500 mt-1.5">
                 {form.tipoDespesa === 'Pontual' && 'Uma ou mais parcelas avulsas, sem repetição.'}
-                {form.tipoDespesa === 'Recorrente' && 'Repete-se regularmente mas com valores variáveis — introduza as parcelas manualmente.'}
-                {form.tipoDespesa === 'Fixa' && 'Valor e periodicidade fixos — as parcelas são geradas automaticamente para 12 meses.'}
+                {form.tipoDespesa === 'Recorrente' && 'Repete-se mensalmente com valor variável no momento da liquidação.'}
+                {form.tipoDespesa === 'Fixa' && 'Valor e periodicidade fixos — a próxima parcela é gerada automaticamente.'}
               </p>
             </div>
 
-            {/* Campos específicos de Fixa */}
-            {form.tipoDespesa === 'Fixa' && (
+            {/* Campos específicos de Fixa / Recorrente */}
+            {form.tipoDespesa !== 'Pontual' && (
               <div className="grid grid-cols-2 gap-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div>
-                  <Label htmlFor="cd-valor-fixo" className="text-xs font-medium text-gray-700">VALOR FIXO (€) *</Label>
+                  <Label htmlFor="cd-valor-fixo" className="text-xs font-medium text-gray-700">
+                    {form.tipoDespesa === 'Recorrente' ? 'VALOR PREVISTO (€) *' : 'VALOR FIXO (€) *'}
+                  </Label>
                   <Input
                     id="cd-valor-fixo"
                     type="number"
@@ -581,17 +620,21 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                     className="mt-1.5"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="cd-periodicidade" className="text-xs font-medium text-gray-700">PERIODICIDADE *</Label>
-                  <Select value={form.periodicidade} onValueChange={v => setForm(f => ({ ...f, periodicidade: v as Periodicidade }))}>
-                    <SelectTrigger id="cd-periodicidade" className="mt-1.5"><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(PERIODICIDADE_LABELS) as Periodicidade[]).map(p => (
-                        <SelectItem key={p} value={p}>{PERIODICIDADE_LABELS[p]}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {form.tipoDespesa === 'Fixa' && (
+                  <>
+                    <div>
+                      <Label htmlFor="cd-periodicidade" className="text-xs font-medium text-gray-700">PERIODICIDADE *</Label>
+                      <Select value={form.periodicidade} onValueChange={v => setForm(f => ({ ...f, periodicidade: v as Periodicidade }))}>
+                        <SelectTrigger id="cd-periodicidade" className="mt-1.5"><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                        <SelectContent>
+                          {(Object.keys(PERIODICIDADE_LABELS) as Periodicidade[]).map(p => (
+                            <SelectItem key={p} value={p}>{PERIODICIDADE_LABELS[p]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
                 <div>
                   <Label htmlFor="cd-data-inicio" className="text-xs font-medium text-gray-700">DATA DE INÍCIO *</Label>
                   <input
@@ -605,8 +648,8 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
               </div>
             )}
 
-            {/* Parcelas manuais (Pontual / Recorrente) */}
-            {form.tipoDespesa !== 'Fixa' && (
+            {/* Parcelas manuais (apenas Pontual) */}
+            {form.tipoDespesa === 'Pontual' && (
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-xs font-medium text-gray-700">PARCELAS *</Label>
@@ -646,9 +689,11 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
           <DialogHeader>
             <DialogTitle>Editar Despesa</DialogTitle>
             <DialogDescription>
-              {liveSelectedDespesa?.tipoDespesa !== 'Fixa'
+              {liveSelectedDespesa?.tipoDespesa === 'Pontual'
                 ? 'As parcelas não liquidadas serão substituídas pelas novas.'
-                : 'Pode alterar o nome, categoria e valor fixo. O valor atualiza todas as parcelas pendentes.'}
+                : liveSelectedDespesa?.tipoDespesa === 'Fixa'
+                  ? 'Pode alterar o nome, categoria e valor fixo. O valor atualiza todas as parcelas pendentes.'
+                  : 'Pode alterar o nome, a categoria e o valor previsto. As parcelas recorrentes são geridas automaticamente.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -683,8 +728,21 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
               </div>
             )}
 
-            {/* Pontual / Recorrente: edita parcelas não liquidadas */}
-            {liveSelectedDespesa?.tipoDespesa !== 'Fixa' && (
+            {liveSelectedDespesa?.tipoDespesa === 'Recorrente' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <Label htmlFor="ed-valor-previsto" className="text-xs font-medium text-gray-700">VALOR PREVISTO (€) *</Label>
+                <Input
+                  id="ed-valor-previsto"
+                  type="number" min="0" step="0.01"
+                  value={form.valorFixo}
+                  onChange={e => setForm(f => ({ ...f, valorFixo: e.target.value }))}
+                  className="mt-1.5"
+                />
+              </div>
+            )}
+
+            {/* Pontual: edita parcelas não liquidadas */}
+            {liveSelectedDespesa?.tipoDespesa === 'Pontual' && (
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-xs font-medium text-gray-700">PARCELAS NÃO LIQUIDADAS *</Label>

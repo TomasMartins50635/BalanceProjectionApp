@@ -1,5 +1,6 @@
 using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
+using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
 using MediatR;
@@ -12,10 +13,21 @@ public class AtivarDesativarDespesaCommandHandler(
 {
     public async Task Handle(AtivarDesativarDespesaCommand request, CancellationToken ct)
     {
-        var despesa = await despesaRepository.ObterPorIdAsync(request.Id, ct)
+        var despesa = await despesaRepository.ObterPorIdComParcelasAsync(request.Id, ct)
             ?? throw new EntityNotFoundException(nameof(Despesa), request.Id);
 
-        if (request.IsActive) despesa.Ativar(); else despesa.Desativar();
+        if (request.IsActive)
+        {
+            despesa.Ativar();
+
+            // Ao ativar, gerar próxima parcela se não existir nenhuma pendente
+            if (despesa.TipoDespesa != TipoDespesa.Pontual && !despesa.Parcelas.Any(p => !p.IsPaid))
+                despesa.GerarProximaParcela();
+        }
+        else
+        {
+            despesa.Desativar();
+        }
 
         await uow.SaveChangesAsync(ct);
     }

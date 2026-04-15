@@ -32,6 +32,37 @@ public class DespesaTests
     }
 
     [Fact]
+    public void Criar_Recorrente_ComValorPrevisto_RetornaDespesaComParcelaInicial()
+    {
+        var despesa = Despesa.Criar(
+            "Assinatura",
+            ContaId,
+            tipo: TipoDespesa.Recorrente,
+            valorFixo: 125.50m,
+            dataInicio: new DateOnly(2026, 6, 1));
+
+        despesa.ValorFixo.Should().Be(125.50m);
+        despesa.DataInicio.Should().Be(new DateOnly(2026, 6, 1));
+
+        var parcela = despesa.GerarProximaParcela();
+
+        parcela.ValorBruto.Should().Be(125.50m);
+        parcela.ValorLiquido.Should().Be(125.50m);
+    }
+
+    [Fact]
+    public void Criar_Recorrente_SemValorPrevisto_LancaDomainException()
+    {
+        var act = () => Despesa.Criar(
+            "Assinatura",
+            ContaId,
+            tipo: TipoDespesa.Recorrente,
+            dataInicio: new DateOnly(2026, 6, 1));
+
+        act.Should().Throw<DomainException>();
+    }
+
+    [Fact]
     public void AdicionarParcela_SemComissao_ValorLiquidoIgualAoBruto()
     {
         var despesa = Despesa.Criar("Renda", ContaId);

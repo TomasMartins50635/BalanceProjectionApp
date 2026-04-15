@@ -5,16 +5,28 @@ import { useToast } from './useToast';
 type SortField = 'data' | 'valor';
 type SortDir = 'asc' | 'desc';
 
+type LiquidarDialogState = {
+  parcelaId: string;
+  data: string;
+  isRecorrente: boolean;
+  valorReal: string;
+};
+
 export function useParcelaActions(reload: () => void) {
   const toast = useToast();
 
   const [liquidando, setLiquidando] = useState<string | null>(null);
-  const [liquidarDialog, setLiquidarDialog] = useState<{ parcelaId: string; data: string } | null>(null);
+  const [liquidarDialog, setLiquidarDialog] = useState<LiquidarDialogState | null>(null);
   const [estornando, setEstornando] = useState<string | null>(null);
   const [parcelaSort, setParcelaSort] = useState<{ field: SortField; dir: SortDir }>({ field: 'data', dir: 'asc' });
 
-  const openLiquidarDialog = (parcelaId: string) =>
-    setLiquidarDialog({ parcelaId, data: new Date().toISOString().slice(0, 10) });
+  const openLiquidarDialog = (parcelaId: string, isRecorrente = false) =>
+    setLiquidarDialog({
+      parcelaId,
+      data: new Date().toISOString().slice(0, 10),
+      isRecorrente,
+      valorReal: '',
+    });
 
   const toggleSort = (field: SortField) =>
     setParcelaSort(s => s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'asc' });
@@ -24,7 +36,11 @@ export function useParcelaActions(reload: () => void) {
     setLiquidando(liquidarDialog.parcelaId);
     setLiquidarDialog(null);
     try {
-      await api.parcelas.liquidar(liquidarDialog.parcelaId, liquidarDialog.data);
+      const valorReal = liquidarDialog.isRecorrente && liquidarDialog.valorReal.trim() !== ''
+        ? Number(liquidarDialog.valorReal)
+        : undefined;
+
+      await api.parcelas.liquidar(liquidarDialog.parcelaId, liquidarDialog.data, valorReal);
       toast('Parcela liquidada com sucesso');
       reload();
     } catch (e) {

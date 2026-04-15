@@ -13,7 +13,7 @@ public class Despesa : Entity
 
     public TipoDespesa TipoDespesa { get; private set; } = TipoDespesa.Pontual;
 
-    // Campos exclusivos de despesas Fixas
+    // Campos de despesas Fixas e Recorrentes
     public decimal? ValorFixo { get; private set; }
     public Periodicidade? Periodicidade { get; private set; }
     public DateOnly? DataInicio { get; private set; }
@@ -31,14 +31,17 @@ public class Despesa : Entity
         if (string.IsNullOrWhiteSpace(nome))
             throw new DomainException("O nome da despesa não pode ser vazio.");
 
-        if (tipo == TipoDespesa.Fixa)
+        if (tipo != TipoDespesa.Pontual)
         {
             if (valorFixo is null or <= 0)
-                throw new DomainException("Despesa fixa requer um valor fixo positivo.");
-            if (periodicidade is null)
-                throw new DomainException("Despesa fixa requer uma periodicidade.");
+                throw new DomainException("Despesa fixa ou recorrente requer um valor positivo.");
             if (dataInicio is null)
-                throw new DomainException("Despesa fixa requer uma data de início.");
+                throw new DomainException("Despesa fixa ou recorrente requer uma data de início.");
+        }
+
+        if (tipo == TipoDespesa.Fixa && periodicidade is null)
+        {
+            throw new DomainException("Despesa fixa requer uma periodicidade.");
         }
 
         return new Despesa
@@ -50,7 +53,7 @@ public class Despesa : Entity
             ValorFixo = valorFixo,
             Periodicidade = periodicidade,
             DataInicio = dataInicio,
-            IsActive = tipo == TipoDespesa.Fixa
+            IsActive = tipo != TipoDespesa.Pontual
         };
     }
 
@@ -98,6 +101,62 @@ public class Despesa : Entity
         return geradas.AsReadOnly();
     }
 
+    /// <summary>
+    /// Gera a próxima parcela pendente para despesas Fixas ou Recorrentes.
+    /// Para Fixa usa o ValorFixo e a Periodicidade para calcular a data.
+    /// Para Recorrente usa o ValorFixo e incrementa 1 mês.
+    /// </summary>
+    public Parcela GerarProximaParcela()
+    {
+        if (TipoDespesa == TipoDespesa.Pontual)
+            throw new DomainException("Despesas pontuais não geram parcelas automaticamente.");
+
+        DateOnly dataVencimento;
+
+        if (_parcelas.Count == 0)
+        {
+            if (DataInicio is null)
+                throw new DomainException("DataInicio é obrigatória para gerar a primeira parcela.");
+            dataVencimento = DataInicio.Value;
+        }
+        else
+        {
+            var ultimaData = _parcelas.Max(p => p.DataVencimento);
+
+            if (TipoDespesa == TipoDespesa.Fixa)
+            {
+                var meses = Periodicidade switch
+                {
+                    Enums.Periodicidade.Mensal     => 1,
+                    Enums.Periodicidade.Trimestral  => 3,
+                    Enums.Periodicidade.Semestral   => 6,
+                    Enums.Periodicidade.Anual       => 12,
+                    _ => throw new DomainException("Periodicidade inválida.")
+                };
+                dataVencimento = ultimaData.AddMonths(meses);
+            }
+            else // Recorrente
+            {
+                dataVencimento = ultimaData.AddMonths(1);
+            }
+        }
+
+        decimal valor;
+        if (TipoDespesa == TipoDespesa.Fixa)
+        {
+            valor = ValorFixo ?? throw new DomainException("Valor fixo não definido.");
+        }
+        else // Recorrente
+        {
+            valor = ValorFixo ?? throw new DomainException("Valor previsto não definido.");
+        }
+
+        var numero = _parcelas.Count == 0 ? 1 : _parcelas.Max(p => p.Numero) + 1;
+        var parcela = Parcela.Criar(numero, dataVencimento, valor, valor, ContaId, null, Id);
+        _parcelas.Add(parcela);
+        return parcela;
+    }
+
     public void Atualizar(string nome, CategoriaContrato? categoria)
     {
         if (string.IsNullOrWhiteSpace(nome))
@@ -109,8 +168,8 @@ public class Despesa : Entity
 
     public void AtualizarValorFixo(decimal valorFixo)
     {
-        if (TipoDespesa != TipoDespesa.Fixa)
-            throw new DomainException("Apenas despesas fixas têm valor fixo.");
+        if (TipoDespesa == TipoDespesa.Pontual)
+            throw new DomainException("Apenas despesas fixas ou recorrentes têm valor base.");
 
         if (valorFixo <= 0)
             throw new DomainException("O valor fixo deve ser positivo.");

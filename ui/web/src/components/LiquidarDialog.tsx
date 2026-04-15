@@ -3,14 +3,22 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
 interface LiquidarDialogProps {
-  dialog: { parcelaId: string; data: string } | null;
+  dialog: { parcelaId: string; data: string; isRecorrente: boolean; valorReal: string } | null;
   onClose: () => void;
   onDataChange: (data: string) => void;
+  onValorRealChange: (valor: string) => void;
   onConfirm: () => void;
   variant: 'receita' | 'despesa';
 }
 
-export function LiquidarDialog({ dialog, onClose, onDataChange, onConfirm, variant }: LiquidarDialogProps) {
+export function LiquidarDialog({
+  dialog,
+  onClose,
+  onDataChange,
+  onValorRealChange,
+  onConfirm,
+  variant,
+}: LiquidarDialogProps) {
   const confirmClass = variant === 'receita'
     ? 'bg-green-600 hover:bg-green-700 text-white'
     : 'bg-red-600 hover:bg-red-700 text-white';
@@ -33,6 +41,21 @@ export function LiquidarDialog({ dialog, onClose, onDataChange, onConfirm, varia
               className="mt-1.5 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             />
           </div>
+          {variant === 'despesa' && dialog?.isRecorrente && (
+            <div>
+              <Label htmlFor="ld-valor-real" className="text-xs font-medium text-gray-700">VALOR REAL (€)</Label>
+              <input
+                id="ld-valor-real"
+                type="number"
+                min="0"
+                step="0.01"
+                value={dialog.valorReal}
+                onChange={e => onValorRealChange(e.target.value)}
+                placeholder="Opcional"
+                className="mt-1.5 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              />
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
             <Button className={confirmClass} disabled={!dialog?.data} onClick={onConfirm}>

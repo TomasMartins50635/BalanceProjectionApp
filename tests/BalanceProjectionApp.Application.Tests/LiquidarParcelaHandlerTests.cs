@@ -1,6 +1,7 @@
 using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Application.Features.Parcelas.Commands.LiquidarParcela;
 using BalanceProjectionApp.Domain.Entities;
+using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
 using FluentAssertions;
@@ -13,6 +14,7 @@ public class LiquidarParcelaHandlerTests
 {
     private readonly IParcelaRepository _parcelaRepo = Substitute.For<IParcelaRepository>();
     private readonly IContaRepository _contaRepo = Substitute.For<IContaRepository>();
+    private readonly IDespesaRepository _despesaRepo = Substitute.For<IDespesaRepository>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly LiquidarParcelaCommandHandler _handler;
 
@@ -20,7 +22,7 @@ public class LiquidarParcelaHandlerTests
 
     public LiquidarParcelaHandlerTests()
     {
-        _handler = new LiquidarParcelaCommandHandler(_parcelaRepo, _contaRepo, _uow);
+        _handler = new LiquidarParcelaCommandHandler(_parcelaRepo, _contaRepo, _despesaRepo, _uow);
     }
 
     private static (Parcela parcela, Conta conta) CriarParcelaReceita(decimal valorTotal = 10_000m)
@@ -41,6 +43,15 @@ public class LiquidarParcelaHandlerTests
         return (parcela, conta);
     }
 
+    private static (Despesa despesa, Parcela parcela, Conta conta) CriarParcelaDespesaRecorrente()
+    {
+        var contaId = Guid.NewGuid();
+        var conta = Conta.Criar("Conta", 1000m);
+        var despesa = Despesa.Criar("Subscricao", contaId, tipo: TipoDespesa.Recorrente, valorFixo: 80m, dataInicio: new DateOnly(2026, 6, 1));
+        var parcela = despesa.GerarProximaParcela();
+        return (despesa, parcela, conta);
+    }
+
     [Fact]
     public async Task Handle_ParcelaDeReceita_CreditaSaldoDaConta()
     {
@@ -59,13 +70,33 @@ public class LiquidarParcelaHandlerTests
     public async Task Handle_ParcelaDeDespesa_DebitaSaldoDaConta()
     {
         var (parcela, conta) = CriarParcelaDespesa(500m);
+        var despesa = Despesa.Criar("Renda", parcela.ContaId);
+        despesa.AdicionarParcela(parcela.Numero, parcela.DataVencimento, parcela.ValorBruto);
         _parcelaRepo.ObterPorIdAsync(parcela.Id, Arg.Any<CancellationToken>()).Returns(parcela);
         _contaRepo.ObterPorIdAsync(parcela.ContaId, Arg.Any<CancellationToken>()).Returns(conta);
+        _despesaRepo.ObterPorIdComParcelasAsync(parcela.DespesaId!.Value, Arg.Any<CancellationToken>()).Returns(despesa);
 
         var result = await _handler.Handle(new LiquidarParcelaCommand(parcela.Id, null), CancellationToken.None);
 
         conta.Saldo.Should().Be(500m); // 1000 - 500
         result.NovoSaldoConta.Should().Be(500m);
+    }
+
+    [Fact]
+    public async Task Handle_DespesaRecorrente_ComValorReal_DebitaComValorInformadoEGeraProximaParcela()
+    {
+        var (despesa, parcela, conta) = CriarParcelaDespesaRecorrente();
+        _parcelaRepo.ObterPorIdAsync(parcela.Id, Arg.Any<CancellationToken>()).Returns(parcela);
+        _contaRepo.ObterPorIdAsync(parcela.ContaId, Arg.Any<CancellationToken>()).Returns(conta);
+        _despesaRepo.ObterPorIdComParcelasAsync(parcela.DespesaId!.Value, Arg.Any<CancellationToken>()).Returns(despesa);
+
+        var result = await _handler.Handle(new LiquidarParcelaCommand(parcela.Id, null, 120m), CancellationToken.None);
+
+        parcela.ValorLiquido.Should().Be(120m);
+        conta.Saldo.Should().Be(880m);
+        result.NovoSaldoConta.Should().Be(880m);
+        despesa.Parcelas.Count(p => !p.IsPaid).Should().Be(1);
+        despesa.Parcelas.Should().HaveCount(2);
     }
 
     [Fact]

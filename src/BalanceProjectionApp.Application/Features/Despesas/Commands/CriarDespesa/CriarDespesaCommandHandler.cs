@@ -22,14 +22,14 @@ public class CriarDespesaCommandHandler(
             request.TipoDespesa, request.ValorFixo,
             request.Periodicidade, request.DataInicio);
 
-        if (request.TipoDespesa == TipoDespesa.Fixa)
-        {
-            despesa.GerarParcelasFixas(meses: 12);
-        }
-        else
+        if (request.TipoDespesa == TipoDespesa.Pontual)
         {
             foreach (var p in (request.Parcelas ?? []).OrderBy(p => p.Numero))
                 despesa.AdicionarParcela(p.Numero, p.DataVencimento, p.ValorBruto);
+        }
+        else // Fixa e Recorrente: gera só a primeira parcela automaticamente
+        {
+            despesa.GerarProximaParcela();
         }
 
         await despesaRepository.AdicionarAsync(despesa, ct);

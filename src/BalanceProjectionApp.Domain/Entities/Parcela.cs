@@ -34,7 +34,7 @@ public class Parcela : Entity
         decimal valorLiquido, Guid contaId, Guid? receitaId, Guid? despesaId, decimal? percentagem = null)
     {
         if (valorBruto <= 0)
-            throw new DomainException("O valor bruto da parcela deve ser positivo.");
+            throw new DomainException("O valor bruto da parcela não pode ser negativo.");
 
         if (valorLiquido < 0)
             throw new DomainException("O valor líquido da parcela não pode ser negativo.");

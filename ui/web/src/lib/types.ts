@@ -153,9 +153,9 @@ export interface CriarDespesaRequest {
   contaId: string;
   categoria?: CategoriaContrato;
   tipoDespesa: TipoDespesa;
-  // Pontual / Recorrente
+  // Pontual / Recorrente (valor base / previsto)
   parcelas?: CriarDespesaParcelaRequest[];
-  // Fixa
+  // Fixa / Recorrente
   valorFixo?: number;
   periodicidade?: Periodicidade;
   dataInicio?: string;
@@ -166,7 +166,7 @@ export interface AtualizarDespesaRequest {
   categoria?: CategoriaContrato;
   // Pontual / Recorrente
   parcelas?: CriarDespesaParcelaRequest[];
-  // Fixa
+  // Fixa / Recorrente
   valorFixo?: number;
 }
 

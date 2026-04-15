@@ -10,11 +10,12 @@ type SortDir = 'asc' | 'desc';
 interface ParcelasTableProps {
   parcelas: ParcelaDto[];
   variant: 'receita' | 'despesa';
+  despesaTipo?: 'Pontual' | 'Fixa' | 'Recorrente';
   parcelaSort: { field: SortField; dir: SortDir };
   toggleSort: (field: SortField) => void;
   liquidando: string | null;
   estornando: string | null;
-  onLiquidar: (id: string) => void;
+  onLiquidar: (id: string, isRecorrente?: boolean) => void;
   onEstornar: (id: string) => void;
   // despesa only
   removendoParcela?: string | null;
@@ -29,7 +30,7 @@ function SortIcon({ field, sort }: { field: SortField; sort: { field: SortField;
 }
 
 export function ParcelasTable({
-  parcelas, variant, parcelaSort, toggleSort,
+  parcelas, variant, despesaTipo, parcelaSort, toggleSort,
   liquidando, estornando, onLiquidar, onEstornar,
   removendoParcela, onRemoverParcela,
 }: ParcelasTableProps) {
@@ -94,7 +95,7 @@ export function ParcelasTable({
                     variant="outline"
                     className={`h-7 text-xs ${isReceita ? 'text-green-700 border-green-300 hover:bg-green-50' : 'text-red-700 border-red-300 hover:bg-red-50'}`}
                     disabled={liquidando === p.id}
-                    onClick={() => onLiquidar(p.id)}
+                    onClick={() => onLiquidar(p.id, !isReceita && despesaTipo === 'Recorrente')}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
                     {liquidando === p.id ? '...' : 'Liquidar'}
