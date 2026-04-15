@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Calendar, CheckCircle2, ArrowUp, ArrowDown, ChevronsUpDown, X, Pencil, Trash2 } from 'lucide-react';
+import { Search, Plus, X, Pencil, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -8,9 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { LiquidarDialog } from '@/components/LiquidarDialog';
+import { ParcelasTable } from '@/components/ParcelasTable';
 import { formatDate } from '@/lib/dates';
 import { useToast } from '@/hooks/useToast';
 import { useAsync } from '@/hooks/useAsync';
+import { useParcelaActions } from '@/hooks/useParcelaActions';
 import { api } from '@/lib/api';
 import {
   CATEGORIAS, CATEGORIA_LABELS, type CategoriaContrato, type DespesaDto,
@@ -77,9 +80,10 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
   }, [highlightId, despesas]);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [liquidando, setLiquidando] = useState<string | null>(null);
-  const [liquidarDialog, setLiquidarDialog] = useState<{ parcelaId: string; data: string } | null>(null);
-  const [estornando, setEstornando] = useState<string | null>(null);
+  const {
+    liquidando, liquidarDialog, setLiquidarDialog, estornando,
+    openLiquidarDialog, parcelaSort, toggleSort, handleLiquidar, handleEstornar,
+  } = useParcelaActions(reload);
   const [removendoParcela, setRemovendoParcela] = useState<string | null>(null);
   const [removeParcelaId, setRemoveParcelaId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -91,20 +95,6 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
   const [bannerDismissed, setBannerDismissed] = useState(() => localStorage.getItem('banner_despesa') === '1');
 
   const dismissBanner = () => { localStorage.setItem('banner_despesa', '1'); setBannerDismissed(true); };
-
-  type SortField = 'data' | 'valor';
-  type SortDir = 'asc' | 'desc';
-  const [parcelaSort, setParcelaSort] = useState<{ field: SortField; dir: SortDir }>({ field: 'data', dir: 'asc' });
-
-  const toggleSort = (field: SortField) =>
-    setParcelaSort(s => s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'asc' });
-
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (parcelaSort.field !== field) return <ChevronsUpDown className="inline w-3.5 h-3.5 ml-1 text-gray-400" />;
-    return parcelaSort.dir === 'asc'
-      ? <ArrowUp className="inline w-3.5 h-3.5 ml-1 text-blue-500" />
-      : <ArrowDown className="inline w-3.5 h-3.5 ml-1 text-blue-500" />;
-  };
 
   const contaNome = useMemo(
     () => (id: string) => contas?.find(c => c.id === id)?.nome ?? id,
@@ -126,39 +116,6 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
 
   const valorTotal = (d: DespesaDto) => d.parcelas.reduce((s, p) => s + p.valorBruto, 0);
   const valorPago = (d: DespesaDto) => d.parcelas.filter(p => p.isPaid).reduce((s, p) => s + p.valorLiquido, 0);
-
-  const today = () => new Date().toISOString().slice(0, 10);
-
-  const openLiquidarDialog = (parcelaId: string) =>
-    setLiquidarDialog({ parcelaId, data: today() });
-
-  const handleLiquidar = async () => {
-    if (!liquidarDialog) return;
-    setLiquidando(liquidarDialog.parcelaId);
-    setLiquidarDialog(null);
-    try {
-      await api.parcelas.liquidar(liquidarDialog.parcelaId, liquidarDialog.data);
-      toast('Parcela liquidada com sucesso');
-      reload();
-    } catch (e) {
-      toast((e as Error).message, 'error');
-    } finally {
-      setLiquidando(null);
-    }
-  };
-
-  const handleEstornar = async (parcelaId: string) => {
-    setEstornando(parcelaId);
-    try {
-      await api.parcelas.estornar(parcelaId);
-      toast('Liquidação revertida');
-      reload();
-    } catch (e) {
-      toast((e as Error).message, 'error');
-    } finally {
-      setEstornando(null);
-    }
-  };
 
   const handleRemoverParcela = async () => {
     if (!removeParcelaId) return;
@@ -515,88 +472,18 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                     <h4 className="text-sm font-semibold text-gray-900">PARCELAS</h4>
                     <p className="text-xs text-gray-500 mt-0.5">Liquide cada parcela para debitar o saldo da conta</p>
                   </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10">#</TableHead>
-                        <TableHead className="w-36 cursor-pointer select-none" onClick={() => toggleSort('data')}>
-                          Vencimento<SortIcon field="data" />
-                        </TableHead>
-                        <TableHead className="w-36 text-right cursor-pointer select-none" onClick={() => toggleSort('valor')}>
-                          Valor<SortIcon field="valor" />
-                        </TableHead>
-                        <TableHead className="w-24">Status</TableHead>
-                        <TableHead className="w-28" />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {[...liveSelectedDespesa.parcelas]
-                        .sort((a, b) => {
-                          const mul = parcelaSort.dir === 'asc' ? 1 : -1;
-                          if (parcelaSort.field === 'data') return a.dataVencimento.localeCompare(b.dataVencimento) * mul;
-                          return (a.valorLiquido - b.valorLiquido) * mul;
-                        })
-                        .map(p => (
-                        <TableRow key={p.id} className={!p.isPaid ? 'opacity-75' : ''}>
-                          <TableCell className="text-gray-500 text-sm">{p.numero}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-gray-400" aria-hidden="true" />
-                              <span className="text-sm">{formatDate(p.dataVencimento)}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right font-semibold text-red-600">
-                            €{p.valorLiquido.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
-                          </TableCell>
-                          <TableCell>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${p.isPaid ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                              {p.isPaid ? 'Liquidada' : 'Pendente'}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {!p.isPaid && (
-                              <div className="flex gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
-                                  disabled={liquidando === p.id}
-                                  onClick={() => openLiquidarDialog(p.id)}
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                                  {liquidando === p.id ? '...' : 'Liquidar'}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50"
-                                  disabled={removendoParcela === p.id}
-                                  onClick={() => setRemoveParcelaId(p.id)}
-                                  aria-label="Eliminar parcela"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
-                            )}
-                            {p.isPaid && (
-                              <div className="flex items-center gap-2">
-                                {p.dataPagamento && <span className="text-xs text-gray-400">{formatDate(p.dataPagamento)}</span>}
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 text-xs text-gray-500 hover:text-amber-600 hover:bg-amber-50"
-                                  disabled={estornando === p.id}
-                                  onClick={() => handleEstornar(p.id)}
-                                >
-                                  {estornando === p.id ? '...' : 'Estornar'}
-                                </Button>
-                              </div>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <ParcelasTable
+                    parcelas={liveSelectedDespesa.parcelas}
+                    variant="despesa"
+                    parcelaSort={parcelaSort}
+                    toggleSort={toggleSort}
+                    liquidando={liquidando}
+                    estornando={estornando}
+                    onLiquidar={openLiquidarDialog}
+                    onEstornar={handleEstornar}
+                    removendoParcela={removendoParcela}
+                    onRemoverParcela={setRemoveParcelaId}
+                  />
                 </div>
               </TabsContent>
 
@@ -609,37 +496,13 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
         )}
       </div>
 
-      {/* ── Liquidar dialog ── */}
-      <Dialog open={!!liquidarDialog} onOpenChange={open => { if (!open) setLiquidarDialog(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Liquidar Parcela</DialogTitle>
-            <DialogDescription>Confirme a data de pagamento</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div>
-              <Label htmlFor="dp-data" className="text-xs font-medium text-gray-700">DATA DE PAGAMENTO</Label>
-              <input
-                id="dp-data"
-                type="date"
-                value={liquidarDialog?.data ?? ''}
-                onChange={e => setLiquidarDialog(d => d ? { ...d, data: e.target.value } : null)}
-                className="mt-1.5 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setLiquidarDialog(null)}>Cancelar</Button>
-              <Button
-                className="bg-red-600 hover:bg-red-700 text-white"
-                disabled={!liquidarDialog?.data}
-                onClick={handleLiquidar}
-              >
-                Confirmar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <LiquidarDialog
+        dialog={liquidarDialog}
+        onClose={() => setLiquidarDialog(null)}
+        onDataChange={data => setLiquidarDialog(d => d ? { ...d, data } : null)}
+        onConfirm={handleLiquidar}
+        variant="despesa"
+      />
 
       {/* ── Create dialog ── */}
       <Dialog open={createOpen} onOpenChange={open => { setCreateOpen(open); if (!open) setForm(emptyForm()); }}>
