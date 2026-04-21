@@ -20,18 +20,18 @@ Entidades independentes (sem herança EF Core). Agrupam nome, categoria e ContaI
 **Parcela** — `Domain/Entities/Parcela.cs`
 Core do sistema. Pertence a uma Receita **ou** Despesa (ReceitaId/DespesaId nullable). Tem `ContaId` denormalizado para evitar joins na liquidação. `Liquidar()` lança `DomainException` se `IsPaid` já for true.
 
-**Comissao** — `Domain/Entities/Comissao.cs`
-Configurada na Receita. Deduzida no cálculo do `ValorLiquido` quando `AdicionarParcela` é chamado:
-> `ValorLiquido = ValorBruto − (ValorBruto × Percentagem / 100)`
+**Colaborador** — `Domain/Entities/Colaborador.cs`
+Tem uma `Percentagem` de comissão. Quando associado a uma `Receita`, a sua percentagem é usada em `AdicionarParcela` para calcular o `ValorLiquido`. **Não existe entidade `Comissao` separada** — a percentagem é lida diretamente de `Colaborador.Percentagem`. O repositório deve sempre fazer `Include(r => r.Colaborador)` antes de adicionar parcelas; se `ColaboradorId` estiver definido mas `Colaborador` for null, `AdicionarParcela` lança `InvalidOperationException`.
 
 **Financiamento** — `Domain/Entities/Financiamento.cs`
 Capital externo. Ao ser criado credita imediatamente a Conta. Pode referenciar uma Despesa para rastreabilidade.
 
 ### Regras de Negócio Invioláveis
 1. **Nunca calcular saldo pelo total do contrato** — apenas parcelas com `IsPaid = true` afetam o saldo.
-2. **Comissão deduzida no `AdicionarParcela`**, não na liquidação (o `ValorLiquido` é fixo na criação).
+2. **Comissão deduzida no `AdicionarParcela`**, não na liquidação — `ValorLiquido = ValorBruto − (ValorBruto × Colaborador.Percentagem / 100)`. O `ValorLiquido` é fixo na criação.
 3. **Liquidar uma parcela de Receita → `Conta.Creditar(ValorLiquido)`**; de Despesa → `Conta.Debitar(ValorLiquido)`.
 4. **Relação One-to-Many** entre Receita/Despesa e Parcelas no modelo de dados.
+5. **IVA**: ao criar uma Receita com `TemIva = true`, é gerada automaticamente uma Despesa Pontual com nome `"IVA de {nome}"`, categoria `IVA`, mesma conta, com uma parcela de valor `ValorTotal × 23%` com vencimento no dia 20 do mês corrente.
 
 ---
 
@@ -104,7 +104,7 @@ DependencyInjection.cs
 | `POST` | `/contas` | Cria conta |
 | `DELETE` | `/contas/{id}` | Elimina conta (falha se tiver receitas/despesas/financiamentos associados) |
 | `GET` | `/receitas` | Lista receitas com parcelas |
-| `POST` | `/receitas` | Cria receita (com parcelas e comissão opcional) |
+| `POST` | `/receitas` | Cria receita (com parcelas, colaborador opcional e flag `temIva`) |
 | `GET` | `/despesas` | Lista despesas com parcelas |
 | `POST` | `/despesas` | Cria despesa (com parcelas) |
 | `GET` | `/parcelas/conta/{contaId}` | Lista parcelas da conta (query `?apenasPendentes=true`) |
@@ -175,10 +175,10 @@ Três camadas de testes, todos registados em `.slnx`:
 
 | Projeto | Tipo | O que testa |
 |---|---|---|
-| `tests/BalanceProjectionApp.Domain.Tests` | Unidade | Entidades e regras de domínio (45 testes) |
-| `tests/BalanceProjectionApp.Application.Tests` | Unidade (mocks) | Handlers CQRS, repositórios mockados com NSubstitute (27 testes) |
-| `tests/BalanceProjectionApp.Infrastructure.Tests` | Integração | Repositórios EF Core contra PostgreSQL real via Testcontainers (17 testes) |
-| `tests/BalanceProjectionApp.Api.Tests` | Integração (E2E) | Endpoints HTTP via WebApplicationFactory + Testcontainers (23 testes) |
+| `tests/BalanceProjectionApp.Domain.Tests` | Unidade | Entidades e regras de domínio |
+| `tests/BalanceProjectionApp.Application.Tests` | Unidade (mocks) | Handlers CQRS, repositórios mockados com NSubstitute |
+| `tests/BalanceProjectionApp.Infrastructure.Tests` | Integração | Repositórios EF Core contra PostgreSQL real via Testcontainers |
+| `tests/BalanceProjectionApp.Api.Tests` | Integração (E2E) | Endpoints HTTP via WebApplicationFactory + Testcontainers |
 
 ### Executar todos os testes
 ```bash

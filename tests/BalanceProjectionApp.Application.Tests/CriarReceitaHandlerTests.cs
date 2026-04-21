@@ -14,6 +14,7 @@ public class CriarReceitaHandlerTests
     private readonly IReceitaRepository _receitaRepo = Substitute.For<IReceitaRepository>();
     private readonly IContaRepository _contaRepo = Substitute.For<IContaRepository>();
     private readonly IColaboradorRepository _colaboradorRepo = Substitute.For<IColaboradorRepository>();
+    private readonly IDespesaRepository _despesaRepo = Substitute.For<IDespesaRepository>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly CriarReceitaCommandHandler _handler;
 
@@ -22,7 +23,7 @@ public class CriarReceitaHandlerTests
 
     public CriarReceitaHandlerTests()
     {
-        _handler = new CriarReceitaCommandHandler(_receitaRepo, _contaRepo, _colaboradorRepo, _uow);
+        _handler = new CriarReceitaCommandHandler(_receitaRepo, _contaRepo, _colaboradorRepo, _despesaRepo, _uow);
 
         _contaRepo.ObterPorIdAsync(ContaId, Arg.Any<CancellationToken>())
             .Returns(Conta.Criar("Conta", 0m));
@@ -70,8 +71,7 @@ public class CriarReceitaHandlerTests
             new CriarReceitaCommand("Proj", ContaId, 10_000m, null, colaboradorId, [new(1, Vencimento, 100m)]),
             CancellationToken.None);
 
-        receitaCriada!.Comissao.Should().NotBeNull();
-        receitaCriada.Comissao!.Percentagem.Should().Be(10m);
+        receitaCriada!.Colaborador!.Percentagem.Should().Be(10m);
     }
 
     [Fact]

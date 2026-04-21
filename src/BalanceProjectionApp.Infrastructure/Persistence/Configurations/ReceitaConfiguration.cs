@@ -26,11 +26,6 @@ public class ReceitaConfiguration : IEntityTypeConfiguration<Receita>
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
 
-        builder.HasOne(r => r.Comissao)
-            .WithOne(c => c.Receita)
-            .HasForeignKey<Comissao>(c => c.ReceitaId)
-            .OnDelete(DeleteBehavior.Cascade);
-
         builder.HasMany(r => r.Parcelas)
             .WithOne(p => p.Receita)
             .HasForeignKey(p => p.ReceitaId)

@@ -22,11 +22,12 @@ npm run dev
 
 App runs at **http://localhost:5173**.
 
-The dev server proxies `/api/*` to the ApiService at `http://localhost:5535`. Start the full backend with:
+The dev server proxies `/api/*` to the ApiService at `http://localhost:5535`. Start the backend with:
 
 ```bash
 # from repo root
-dotnet run --project BalanceProjectionApp.AppHost
+docker compose up db -d
+dotnet run --project src/BalanceProjectionApp.ApiService
 ```
 
 ## Views
@@ -35,28 +36,35 @@ dotnet run --project BalanceProjectionApp.AppHost
 |---|---|
 | **Visão Geral** | Consolidated overview — summary cards, 6-month income/expense/balance line chart, accounts table, recent activity feed |
 | **Contas** | Account selector with date-filtered historical balance view and paginated parcelas table |
-| **Receitas/Faturação** | Master-detail — searchable revenue list with detail tabs for general info, comissão configuration, and installment scheduling |
-| **Despesas** | Master-detail — searchable expense list with detail tabs for general info (dynamic tags, recurring flag), payment summary, and installments |
-| **Financiamentos** | Master-detail — financing records with linked expenses junction (dialog picker to associate/dissociate despesas) |
-| **Modo Simulação** | Sandbox mode — add hypothetical revenue entries with installment splitting, visualise projected balance on a future date, compare real vs. simulated trend chart, save/load named scenarios |
+| **Receitas/Faturação** | Master-detail — searchable revenue list; create form includes optional collaborator (commission) and IVA toggle (auto-generates IVA despesa at 23%); installment scheduling by percentage |
+| **Despesas** | Master-detail — supports Pontual, Fixa (with periodicidade), and Recorrente types; next installment auto-generated on settlement for Fixa/Recorrente |
+| **Financiamentos** | Master-detail — financing records with optional linked despesa |
+| **Modo Simulação** | Sandbox mode — add hypothetical revenue entries, visualise projected balance on a future date, compare real vs. simulated trend chart |
 
 ## Project Structure
 
 ```
 src/
   components/
-    ui/             # Reusable primitives (Button, Input, Table, Select, Tabs, Switch, Dialog, Label)
-    OverviewView.tsx
-    Dashboard.tsx
+    ui/                  # Reusable primitives (Button, Input, Table, Select, Tabs, Dialog, ConfirmDialog…)
+    LiquidarDialog.tsx   # Shared dialog for settling installments (date picker)
+    ParcelasTable.tsx    # Shared installments table (receita / despesa variants)
     ReceitaView.tsx
     DespesaView.tsx
     FinanciamentoView.tsx
+    OverviewView.tsx
     SimulationView.tsx
+  hooks/
+    useParcelaActions.ts # liquidar / estornar state + handlers (shared across views)
+    useAsync.ts          # Generic data-fetching hook
+    useToast.ts          # Toast notifications
   lib/
-    utils.ts        # cn() helper (clsx + tailwind-merge)
-  App.tsx           # Shell layout with dark sidebar navigation
+    api.ts               # All API calls
+    types.ts             # TypeScript types matching backend DTOs
+    utils.ts             # cn() helper (clsx + tailwind-merge)
+  App.tsx                # Shell layout with dark sidebar navigation
   main.tsx
-  index.css         # Tailwind base import + html/body/root height reset
+  index.css              # Tailwind base import + html/body/root height reset
 ```
 
 ## Scripts

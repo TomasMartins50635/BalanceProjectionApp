@@ -58,7 +58,7 @@ public class ReceitaRepositoryTests(PostgresFixture db) : IAsyncLifetime
     // ── ListarAsync ──────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ListarAsync_IncluiParcelasEComissao()
+    public async Task ListarAsync_IncluiParcelasEPercentagemComissao()
     {
         var conta = await SeedContaAsync();
         var colaborador = Colaborador.Criar("Ana", 10m);
@@ -77,8 +77,7 @@ public class ReceitaRepositoryTests(PostgresFixture db) : IAsyncLifetime
         var lista = await new ReceitaRepository(readCtx).ListarAsync();
 
         var encontrada = lista.First(r => r.Id == receita.Id);
-        encontrada.Comissao.Should().NotBeNull();
-        encontrada.Comissao!.Percentagem.Should().Be(10m);
+        encontrada.Colaborador!.Percentagem.Should().Be(10m);
         encontrada.Parcelas.Should().HaveCount(1);
         encontrada.Parcelas.Single().ValorLiquido.Should().Be(9_000m); // 10000 - 10%
     }

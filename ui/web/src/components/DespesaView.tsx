@@ -82,6 +82,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
   const [searchTerm, setSearchTerm] = useState('');
   const {
     liquidando, liquidarDialog, setLiquidarDialog, estornando,
+    estornarConfirmId, setEstornarConfirmId,
     openLiquidarDialog, parcelaSort, toggleSort, handleLiquidar, handleEstornar,
   } = useParcelaActions(reload);
   const [removendoParcela, setRemovendoParcela] = useState<string | null>(null);
@@ -516,7 +517,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                     liquidando={liquidando}
                     estornando={estornando}
                     onLiquidar={openLiquidarDialog}
-                    onEstornar={handleEstornar}
+                    onEstornar={setEstornarConfirmId}
                     removendoParcela={removendoParcela}
                     onRemoverParcela={setRemoveParcelaId}
                   />
@@ -799,6 +800,16 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
         description="Tem a certeza que deseja eliminar esta parcela? Esta ação é irreversível."
         confirmLabel="Eliminar"
         onConfirm={handleRemoverParcela}
+      />
+
+      {/* ── Estornar parcela confirm ── */}
+      <ConfirmDialog
+        open={estornarConfirmId !== null}
+        onOpenChange={open => { if (!open) setEstornarConfirmId(null); }}
+        title="Estornar pagamento"
+        description="Tem a certeza que deseja reverter a liquidação desta parcela? O saldo da conta será ajustado."
+        confirmLabel="Estornar"
+        onConfirm={handleEstornar}
       />
     </div>
   );

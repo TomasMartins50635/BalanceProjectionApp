@@ -8,6 +8,7 @@ public record CriarReceitaCommand(
     decimal ValorTotal,
     string? Categoria,
     Guid? ColaboradorId,
-    IEnumerable<CriarParcelaDto> Parcelas) : IRequest<Guid>;
+    IEnumerable<CriarParcelaDto> Parcelas,
+    bool TemIva = false) : IRequest<Guid>;
 
 public record CriarParcelaDto(int Numero, DateOnly DataVencimento, decimal Percentagem);

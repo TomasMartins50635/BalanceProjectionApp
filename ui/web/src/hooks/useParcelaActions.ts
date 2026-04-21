@@ -18,6 +18,7 @@ export function useParcelaActions(reload: () => void) {
   const [liquidando, setLiquidando] = useState<string | null>(null);
   const [liquidarDialog, setLiquidarDialog] = useState<LiquidarDialogState | null>(null);
   const [estornando, setEstornando] = useState<string | null>(null);
+  const [estornarConfirmId, setEstornarConfirmId] = useState<string | null>(null);
   const [parcelaSort, setParcelaSort] = useState<{ field: SortField; dir: SortDir }>({ field: 'data', dir: 'asc' });
 
   const openLiquidarDialog = (parcelaId: string, isRecorrente = false) =>
@@ -50,10 +51,13 @@ export function useParcelaActions(reload: () => void) {
     }
   };
 
-  const handleEstornar = async (parcelaId: string) => {
-    setEstornando(parcelaId);
+  const handleEstornar = async () => {
+    if (!estornarConfirmId) return;
+    const id = estornarConfirmId;
+    setEstornarConfirmId(null);
+    setEstornando(id);
     try {
-      await api.parcelas.estornar(parcelaId);
+      await api.parcelas.estornar(id);
       toast('Liquidação revertida');
       reload();
     } catch (e) {
@@ -68,6 +72,8 @@ export function useParcelaActions(reload: () => void) {
     liquidarDialog,
     setLiquidarDialog,
     estornando,
+    estornarConfirmId,
+    setEstornarConfirmId,
     openLiquidarDialog,
     parcelaSort,
     toggleSort,

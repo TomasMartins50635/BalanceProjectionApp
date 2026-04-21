@@ -9,7 +9,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Receita> Receitas => Set<Receita>();
     public DbSet<Despesa> Despesas => Set<Despesa>();
     public DbSet<Parcela> Parcelas => Set<Parcela>();
-    public DbSet<Comissao> Comissoes => Set<Comissao>();
     public DbSet<Financiamento> Financiamentos => Set<Financiamento>();
     public DbSet<Colaborador> Colaboradores => Set<Colaborador>();
 

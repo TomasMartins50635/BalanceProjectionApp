@@ -13,7 +13,6 @@ public class Receita : Entity
     public Conta Conta { get; private set; } = null!;
     public Guid? ColaboradorId { get; private set; }
     public Colaborador? Colaborador { get; private set; }
-    public Comissao? Comissao { get; private set; }
 
     private readonly List<Parcela> _parcelas = [];
     public IReadOnlyCollection<Parcela> Parcelas => _parcelas.AsReadOnly();
@@ -56,14 +55,12 @@ public class Receita : Entity
     {
         ColaboradorId = colaborador.Id;
         Colaborador = colaborador;
-        Comissao = Comissao.Criar(colaborador.Percentagem, Id);
     }
 
     public void RemoverColaborador()
     {
         ColaboradorId = null;
         Colaborador = null;
-        Comissao = null;
     }
 
     public Parcela AdicionarParcela(int numero, DateOnly dataVencimento, decimal percentagem)
@@ -75,7 +72,13 @@ public class Receita : Entity
             throw new DomainException($"Já existe uma parcela com o número {numero} nesta receita.");
 
         var valorBruto = Math.Round(ValorTotal * percentagem / 100m, 2);
-        var valorComissao = Comissao?.Calcular(valorBruto) ?? 0m;
+        decimal valorComissao = 0m;
+        if (ColaboradorId.HasValue)
+        {
+            if (Colaborador is null)
+                throw new InvalidOperationException("Colaborador navigation property must be loaded before adding parcelas.");
+            valorComissao = Math.Round(valorBruto * Colaborador.Percentagem / 100m, 2);
+        }
         var valorLiquido = valorBruto - valorComissao;
 
         var parcela = Parcela.Criar(numero, dataVencimento, valorBruto, valorLiquido, ContaId, Id, null, percentagem);

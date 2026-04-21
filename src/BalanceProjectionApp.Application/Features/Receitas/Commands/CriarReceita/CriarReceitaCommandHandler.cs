@@ -1,5 +1,6 @@
 using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
+using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
 using MediatR;
@@ -10,6 +11,7 @@ public class CriarReceitaCommandHandler(
     IReceitaRepository receitaRepository,
     IContaRepository contaRepository,
     IColaboradorRepository colaboradorRepository,
+    IDespesaRepository despesaRepository,
     IUnitOfWork uow) : IRequestHandler<CriarReceitaCommand, Guid>
 {
     public async Task<Guid> Handle(CriarReceitaCommand request, CancellationToken ct)
@@ -30,6 +32,23 @@ public class CriarReceitaCommandHandler(
             receita.AdicionarParcela(p.Numero, p.DataVencimento, p.Percentagem);
 
         await receitaRepository.AdicionarAsync(receita, ct);
+
+        if (request.TemIva)
+        {
+            var valorIva = Math.Round(request.ValorTotal * 0.23m, 2);
+            var hoje = DateOnly.FromDateTime(DateTime.UtcNow);
+            var vencimentoIva = new DateOnly(hoje.Year, hoje.Month, 20);
+
+            var despesaIva = Despesa.Criar(
+                $"IVA de {request.Nome}",
+                conta.Id,
+                CategoriaContrato.IVA,
+                TipoDespesa.Pontual);
+
+            despesaIva.AdicionarParcela(1, vencimentoIva, valorIva);
+            await despesaRepository.AdicionarAsync(despesaIva, ct);
+        }
+
         await uow.SaveChangesAsync(ct);
         return receita.Id;
     }

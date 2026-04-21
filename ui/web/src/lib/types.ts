@@ -5,6 +5,7 @@ export type CategoriaContrato =
   | 'Aluguer'
   | 'Salarios'
   | 'Impostos'
+  | 'IVA'
   | 'Financiamento'
   | 'Outro';
 
@@ -14,6 +15,7 @@ export const CATEGORIA_LABELS: Record<CategoriaContrato, string> = {
   Aluguer: 'Aluguer',
   Salarios: 'Salários',
   Impostos: 'Impostos',
+  IVA: 'IVA',
   Financiamento: 'Financiamento',
   Outro: 'Outro',
 };
@@ -138,6 +140,7 @@ export interface CriarReceitaRequest {
   categoria?: string;
   colaboradorId?: string;
   parcelas: CriarReceitaParcelaRequest[];
+  temIva?: boolean;
 }
 
 export interface AtualizarReceitaRequest {

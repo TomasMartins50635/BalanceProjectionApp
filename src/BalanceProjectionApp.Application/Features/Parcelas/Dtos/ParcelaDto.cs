@@ -7,7 +7,7 @@ public record ParcelaDto(
     decimal ValorBruto,
     decimal ValorLiquido,
     bool IsPaid,
-    DateTime? DataPagamento,
+    DateOnly? DataPagamento,
     Guid? ReceitaId,
     Guid? DespesaId,
     decimal? Percentagem,

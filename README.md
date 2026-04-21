@@ -89,11 +89,12 @@ dotnet ef migrations add <MigrationName> \
 ## Key Concepts
 
 - **Parcela (Installment)** — the core unit; only paid installments affect the balance.
-- **Comissão (Commission)** — deducted at installment creation: `ValorLiquido = ValorBruto − (ValorBruto × Percentagem / 100)`.
+- **Comissão (Commission)** — deducted at installment creation via the associated `Colaborador.Percentagem`: `ValorLiquido = ValorBruto − (ValorBruto × Colaborador.Percentagem / 100)`. No separate commission entity exists.
+- **IVA** — when creating a `Receita` with `temIva: true`, a Pontual `Despesa` named `"IVA de {nome}"` is automatically created with a single installment at 23% of the total value, due on the 20th of the current month.
 - **Liquidar** — settling an installment credits (Receita) or debits (Despesa) the account atomically.
-- **Estornar** — reverses a settled installment and restores the account balance.
+- **Estornar** — reverses a settled installment and restores the account balance (requires confirmation).
 - **Financiamento** — external capital that credits the account immediately on registration.
-- **Despesa Fixa** — fixed recurring expense; installments are generated automatically and can be activated/deactivated.
+- **Despesa Fixa / Recorrente** — recurring expense; the next installment is generated automatically after the current one is settled.
 
 ## API Endpoints
 

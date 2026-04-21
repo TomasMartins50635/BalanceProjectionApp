@@ -8,5 +8,6 @@ public interface IParcelaRepository
     Task<IEnumerable<Parcela>> ListarPorReceitaAsync(Guid receitaId, CancellationToken ct = default);
     Task<IEnumerable<Parcela>> ListarPorDespesaAsync(Guid despesaId, CancellationToken ct = default);
     Task<IEnumerable<Parcela>> ListarPorContaAsync(Guid contaId, CancellationToken ct = default);
+    Task AdicionarAsync(Parcela parcela, CancellationToken ct = default);
     void Remover(Parcela parcela);
 }

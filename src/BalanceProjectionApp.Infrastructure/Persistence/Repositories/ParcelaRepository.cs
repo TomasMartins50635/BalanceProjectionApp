@@ -31,6 +31,9 @@ public class ParcelaRepository(AppDbContext context) : IParcelaRepository
             .ThenBy(p => p.Numero)
             .ToListAsync(ct);
 
+    public async Task AdicionarAsync(Parcela parcela, CancellationToken ct = default)
+        => await context.Parcelas.AddAsync(parcela, ct);
+
     public void Remover(Parcela parcela)
         => context.Parcelas.Remove(parcela);
 }

@@ -7,6 +7,7 @@ public enum CategoriaContrato
     Aluguer,
     Salarios,
     Impostos,
+    IVA,
     Financiamento,
     Outro
 }

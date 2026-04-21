@@ -24,6 +24,7 @@ interface ReceitaForm {
   valorTotal: string;
   categoria: string;
   colaboradorId: string;
+  temIva: boolean;
   parcelas: { dataVencimento: string; percentagem: string }[];
 }
 
@@ -33,6 +34,7 @@ const emptyForm = (contaId = ''): ReceitaForm => ({
   valorTotal: '',
   categoria: '',
   colaboradorId: '',
+  temIva: false,
   parcelas: [{ dataVencimento: '', percentagem: '100' }],
 });
 
@@ -87,6 +89,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   const [searchTerm, setSearchTerm] = useState('');
   const {
     liquidando, liquidarDialog, setLiquidarDialog, estornando,
+    estornarConfirmId, setEstornarConfirmId,
     openLiquidarDialog, parcelaSort, toggleSort, handleLiquidar, handleEstornar,
   } = useParcelaActions(reload);
 
@@ -161,6 +164,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
         valorTotal: parseFloat(form.valorTotal),
         categoria: form.categoria.trim() || undefined,
         colaboradorId: form.colaboradorId || undefined,
+        temIva: form.temIva,
         parcelas: form.parcelas.map((p, i) => ({
           numero: i + 1,
           dataVencimento: p.dataVencimento,
@@ -284,6 +288,27 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                   </SelectContent>
                 </Select>
               </div>
+              {/* IVA — only shown on create */}
+              {!isEdit && (
+                <div className="col-span-2">
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={form.temIva}
+                      onChange={e => setForm(f => ({ ...f, temIva: e.target.checked }))}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">
+                      Sujeito a IVA (23%)
+                      {form.temIva && form.valorTotal && parseFloat(form.valorTotal) > 0 && (
+                        <span className="ml-2 text-xs text-gray-500">
+                          — despesa de IVA criada automaticamente: €{(parseFloat(form.valorTotal) * 0.23).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                </div>
+              )}
             </div>
 
             {/* Parcelas */}
@@ -504,7 +529,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                     liquidando={liquidando}
                     estornando={estornando}
                     onLiquidar={openLiquidarDialog}
-                    onEstornar={handleEstornar}
+                    onEstornar={setEstornarConfirmId}
                   />
                 </div>
               </TabsContent>
@@ -537,6 +562,15 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
         description="A receita ficará marcada como removida e deixará de aparecer nas listas. Esta ação não reverte pagamentos já efetuados."
         confirmLabel="Remover"
         onConfirm={handleRemove}
+      />
+
+      <ConfirmDialog
+        open={estornarConfirmId !== null}
+        onOpenChange={open => { if (!open) setEstornarConfirmId(null); }}
+        title="Estornar pagamento"
+        description="Tem a certeza que deseja reverter a liquidação desta parcela? O saldo da conta será ajustado."
+        confirmLabel="Estornar"
+        onConfirm={handleEstornar}
       />
     </div>
   );

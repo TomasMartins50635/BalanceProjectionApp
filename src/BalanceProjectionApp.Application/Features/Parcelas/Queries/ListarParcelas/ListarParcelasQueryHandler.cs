@@ -17,7 +17,7 @@ public class ListarParcelasQueryHandler(IParcelaRepository repository)
         return parcelas.Select(p => new ParcelaDto(
             p.Id, p.Numero, p.DataVencimento,
             p.ValorBruto, p.ValorLiquido,
-            p.IsPaid, p.DataPagamento,
+            p.IsPaid, p.DataPagamento.HasValue ? DateOnly.FromDateTime(p.DataPagamento.Value) : null,
             p.ReceitaId, p.DespesaId, p.Percentagem,
             p.Receita?.Nome ?? p.Despesa?.Nome));
     }

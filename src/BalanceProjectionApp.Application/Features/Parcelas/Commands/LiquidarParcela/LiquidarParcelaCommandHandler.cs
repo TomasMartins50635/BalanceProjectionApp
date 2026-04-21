@@ -40,11 +40,12 @@ public class LiquidarParcelaCommandHandler(
 
             if (despesa.IsActive && despesa.TipoDespesa != TipoDespesa.Pontual)
             {
-                // Só gera se não há parcelas pendentes (EF identity resolution garante que
-                // a parcela recém-liquidada já aparece com IsPaid = true na coleção)
                 var temPendentes = despesa.Parcelas.Any(p => !p.IsPaid);
                 if (!temPendentes)
-                    despesa.GerarProximaParcela();
+                {
+                    var novaParcela = despesa.GerarProximaParcela();
+                    await parcelaRepository.AdicionarAsync(novaParcela, ct);
+                }
             }
         }
 
