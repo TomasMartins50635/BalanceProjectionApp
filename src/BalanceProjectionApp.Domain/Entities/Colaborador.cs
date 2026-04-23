@@ -10,8 +10,6 @@ public class Colaborador : Entity
     /// <summary>Percentagem da comissão, ex: 5 representa 5%.</summary>
     public decimal Percentagem { get; private set; }
 
-    public bool IsDeleted { get; private set; }
-
     private Colaborador() { }
 
     public static Colaborador Criar(string nome, decimal percentagem)

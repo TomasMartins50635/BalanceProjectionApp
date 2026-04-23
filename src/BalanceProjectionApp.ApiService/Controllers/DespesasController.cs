@@ -1,3 +1,4 @@
+using BalanceProjectionApp.Application.Features.Despesas.Commands.AdicionarParcelaDespesa;
 using BalanceProjectionApp.Application.Features.Despesas.Commands.AtivarDesativarDespesa;
 using BalanceProjectionApp.Application.Features.Despesas.Commands.AtualizarDespesa;
 using BalanceProjectionApp.Application.Features.Despesas.Commands.CriarDespesa;
@@ -36,6 +37,13 @@ public class DespesasController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> AtivarDesativar(Guid id, [FromBody] AtivarDesativarRequest body, CancellationToken ct)
     {
         await mediator.Send(new AtivarDesativarDespesaCommand(id, body.IsActive), ct);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/parcelas")]
+    public async Task<IActionResult> AdicionarParcela(Guid id, [FromBody] AdicionarParcelaDespesaCommand command, CancellationToken ct)
+    {
+        await mediator.Send(command with { DespesaId = id }, ct);
         return NoContent();
     }
 

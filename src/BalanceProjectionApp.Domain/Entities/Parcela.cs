@@ -74,6 +74,14 @@ public class Parcela : Entity
         DataPagamento = null;
     }
 
+    public void AlterarConta(Guid novaContaId)
+    {
+        if (IsPaid)
+            throw new DomainException("Não é possível alterar a conta de uma parcela já liquidada.");
+
+        ContaId = novaContaId;
+    }
+
     public void AtualizarValor(decimal valorBruto)
     {
         if (IsPaid)

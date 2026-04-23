@@ -1,4 +1,4 @@
-import { Calendar, CheckCircle2, Trash2, ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react';
+import { Calendar, CheckCircle2, Trash2, ArrowUp, ArrowDown, ChevronsUpDown, ArrowLeftRight } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/dates';
@@ -15,8 +15,9 @@ interface ParcelasTableProps {
   toggleSort: (field: SortField) => void;
   liquidando: string | null;
   estornando: string | null;
-  onLiquidar: (id: string, isRecorrente?: boolean) => void;
+  onLiquidar: (id: string, isRecorrente?: boolean, contaId?: string) => void;
   onEstornar: (id: string) => void;
+  onAlterarConta?: (parcelaId: string, currentContaId: string) => void;
   // despesa only
   removendoParcela?: string | null;
   onRemoverParcela?: (id: string) => void;
@@ -31,7 +32,7 @@ function SortIcon({ field, sort }: { field: SortField; sort: { field: SortField;
 
 export function ParcelasTable({
   parcelas, variant, despesaTipo, parcelaSort, toggleSort,
-  liquidando, estornando, onLiquidar, onEstornar,
+  liquidando, estornando, onLiquidar, onEstornar, onAlterarConta,
   removendoParcela, onRemoverParcela,
 }: ParcelasTableProps) {
   const isReceita = variant === 'receita';
@@ -95,11 +96,23 @@ export function ParcelasTable({
                     variant="outline"
                     className={`h-7 text-xs ${isReceita ? 'text-green-700 border-green-300 hover:bg-green-50' : 'text-red-700 border-red-300 hover:bg-red-50'}`}
                     disabled={liquidando === p.id}
-                    onClick={() => onLiquidar(p.id, !isReceita && despesaTipo === 'Recorrente')}
+                    onClick={() => onLiquidar(p.id, !isReceita && despesaTipo === 'Recorrente', p.contaId)}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
                     {liquidando === p.id ? '...' : 'Liquidar'}
                   </Button>
+                  {onAlterarConta && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                      onClick={() => onAlterarConta(p.id, p.contaId)}
+                      aria-label="Alterar conta"
+                      title="Alterar conta"
+                    >
+                      <ArrowLeftRight className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
                   {!isReceita && onRemoverParcela && (
                     <Button
                       size="sm"

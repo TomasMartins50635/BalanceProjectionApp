@@ -4,3 +4,7 @@ export const parseLocalDate = (dateStr: string): Date => new Date(dateStr + 'T00
 /** Format a YYYY-MM-DD string for pt-PT display. */
 export const formatDate = (dateStr: string): string =>
   parseLocalDate(dateStr).toLocaleDateString('pt-PT');
+
+/** Format an ISO datetime string as a local date for pt-PT display. */
+export const formatDateTime = (isoStr: string): string =>
+  new Date(isoStr).toLocaleDateString('pt-PT');

@@ -1,4 +1,5 @@
 import type {
+  AdicionarParcelaDespesaRequest,
   AtualizarDespesaRequest,
   AtualizarReceitaRequest,
   ColaboradorDto,
@@ -70,6 +71,8 @@ export const api = {
       request<void>(`/despesas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     toggleEstado: (id: string, isActive: boolean) =>
       request<void>(`/despesas/${id}/estado`, { method: 'PATCH', body: JSON.stringify({ isActive }) }),
+    adicionarParcela: (id: string, body: AdicionarParcelaDespesaRequest) =>
+      request<void>(`/despesas/${id}/parcelas`, { method: 'POST', body: JSON.stringify(body) }),
     remover: (id: string) =>
       request<void>(`/despesas/${id}`, { method: 'DELETE' }),
   },
@@ -79,16 +82,19 @@ export const api = {
       const qs = apenasPendentes != null ? `?apenasPendentes=${apenasPendentes}` : '';
       return request<ParcelaDto[]>(`/parcelas/conta/${contaId}${qs}`);
     },
-    liquidar: (id: string, dataPagamento?: string, valorReal?: number) =>
+    liquidar: (id: string, dataPagamento?: string, valorReal?: number, contaId?: string) =>
       request<unknown>(`/parcelas/${id}/liquidar`, {
         method: 'POST',
         body: JSON.stringify({
           dataPagamento: dataPagamento ?? null,
           valorReal: valorReal ?? null,
+          contaId: contaId ?? null,
         }),
       }),
     estornar: (id: string) =>
       request<void>(`/parcelas/${id}/estornar`, { method: 'POST' }),
+    alterarConta: (id: string, contaId: string) =>
+      request<void>(`/parcelas/${id}/conta`, { method: 'PATCH', body: JSON.stringify({ contaId }) }),
     remover: (id: string) =>
       request<void>(`/parcelas/${id}`, { method: 'DELETE' }),
   },

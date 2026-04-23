@@ -367,4 +367,4 @@ ui/desktop/src-tauri/target/
 
 # Capacitor — generated native projects (run `npx cap add android/ios` to regenerate)
 ui/mobile/android/
-ui/mobile/ios/
+ui/mobile/ios/.superpowers/

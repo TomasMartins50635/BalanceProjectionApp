@@ -8,7 +8,6 @@ public class Receita : Entity
     public string Nome { get; private set; } = string.Empty;
     public string? Categoria { get; private set; }
     public decimal ValorTotal { get; private set; }
-    public bool IsDeleted { get; private set; }
     public Guid ContaId { get; private set; }
     public Conta Conta { get; private set; } = null!;
     public Guid? ColaboradorId { get; private set; }

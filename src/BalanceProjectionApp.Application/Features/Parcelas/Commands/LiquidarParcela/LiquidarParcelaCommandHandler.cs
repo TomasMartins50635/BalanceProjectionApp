@@ -18,6 +18,10 @@ public class LiquidarParcelaCommandHandler(
         var parcela = await parcelaRepository.ObterPorIdAsync(request.ParcelaId, ct)
             ?? throw new EntityNotFoundException(nameof(Parcela), request.ParcelaId);
 
+        // Se foi especificada uma conta diferente, redirecionar o movimento
+        if (request.ContaId.HasValue && request.ContaId.Value != parcela.ContaId)
+            parcela.AlterarConta(request.ContaId.Value);
+
         var conta = await contaRepository.ObterPorIdAsync(parcela.ContaId, ct)
             ?? throw new EntityNotFoundException(nameof(Conta), parcela.ContaId);
 

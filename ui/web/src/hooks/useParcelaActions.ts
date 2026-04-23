@@ -10,6 +10,7 @@ type LiquidarDialogState = {
   data: string;
   isRecorrente: boolean;
   valorReal: string;
+  contaId: string;
 };
 
 export function useParcelaActions(reload: () => void) {
@@ -21,12 +22,13 @@ export function useParcelaActions(reload: () => void) {
   const [estornarConfirmId, setEstornarConfirmId] = useState<string | null>(null);
   const [parcelaSort, setParcelaSort] = useState<{ field: SortField; dir: SortDir }>({ field: 'data', dir: 'asc' });
 
-  const openLiquidarDialog = (parcelaId: string, isRecorrente = false) =>
+  const openLiquidarDialog = (parcelaId: string, isRecorrente = false, contaId = '') =>
     setLiquidarDialog({
       parcelaId,
       data: new Date().toISOString().slice(0, 10),
       isRecorrente,
       valorReal: '',
+      contaId,
     });
 
   const toggleSort = (field: SortField) =>
@@ -41,7 +43,12 @@ export function useParcelaActions(reload: () => void) {
         ? Number(liquidarDialog.valorReal)
         : undefined;
 
-      await api.parcelas.liquidar(liquidarDialog.parcelaId, liquidarDialog.data, valorReal);
+      await api.parcelas.liquidar(
+        liquidarDialog.parcelaId,
+        liquidarDialog.data,
+        valorReal,
+        liquidarDialog.contaId || undefined,
+      );
       toast('Parcela liquidada com sucesso');
       reload();
     } catch (e) {

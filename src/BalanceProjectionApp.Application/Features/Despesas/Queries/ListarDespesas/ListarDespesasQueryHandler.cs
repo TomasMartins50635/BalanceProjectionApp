@@ -21,10 +21,11 @@ public class ListarDespesasQueryHandler(IDespesaRepository repository)
             d.Periodicidade,
             d.DataInicio,
             d.IsActive,
+            d.UpdatedAt,
             d.Parcelas.Select(p => new ParcelaDto(
                 p.Id, p.Numero, p.DataVencimento,
                 p.ValorBruto, p.ValorLiquido,
                 p.IsPaid, p.DataPagamento.HasValue ? DateOnly.FromDateTime(p.DataPagamento.Value) : null,
-                p.ReceitaId, p.DespesaId, null, d.Nome))));
+                p.ReceitaId, p.DespesaId, p.ContaId, null, d.Nome))));
     }
 }

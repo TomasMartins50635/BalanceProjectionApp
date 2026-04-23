@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Search, Plus, Pencil, Trash2, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { LiquidarDialog } from '@/components/LiquidarDialog';
 import { ParcelasTable } from '@/components/ParcelasTable';
+import { formatDateTime } from '@/lib/dates';
 import { useToast } from '@/hooks/useToast';
 import { useAsync } from '@/hooks/useAsync';
 import { useParcelaActions } from '@/hooks/useParcelaActions';
@@ -53,8 +53,6 @@ const receitaToForm = (r: ReceitaDto): ReceitaForm => ({
     })),
 });
 
-// ── Parcela form row ───────────────────────────────────────────────────────────
-
 function parcelaValorBruto(valorTotal: string, pct: string): string {
   const vt = parseFloat(valorTotal);
   const p = parseFloat(pct);
@@ -62,7 +60,7 @@ function parcelaValorBruto(valorTotal: string, pct: string): string {
   return `€${((vt * p) / 100).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`;
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// ── Component ──────────────────────────────────────────────────────────────────
 
 interface ReceitaViewProps {
   highlightId?: string;
@@ -75,17 +73,24 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   const { data: contas } = useAsync(() => api.contas.listar(), []);
   const { data: colaboradores } = useAsync(() => api.colaboradores.listar(), []);
 
-  const [selectedReceita, setSelectedReceita] = useState<ReceitaDto | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const editingReceita = useMemo(
+    () => editingId ? (receitas ?? []).find(r => r.id === editingId) ?? null : null,
+    [receitas, editingId],
+  );
 
   useEffect(() => {
     if (highlightId && receitas) {
-      const match = receitas.find(r => r.id === highlightId) ?? null;
+      const match = receitas.find(r => r.id === highlightId);
       if (match) {
-        setSelectedReceita(match);
+        setExpandedId(match.id);
         onHighlightConsumed?.();
       }
     }
   }, [highlightId, receitas]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const {
     liquidando, liquidarDialog, setLiquidarDialog, estornando,
@@ -93,21 +98,14 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
     openLiquidarDialog, parcelaSort, toggleSort, handleLiquidar, handleEstornar,
   } = useParcelaActions(reload);
 
+  const [alterarContaDialog, setAlterarContaDialog] = useState<{ parcelaId: string; contaId: string } | null>(null);
+  const [alterandoConta, setAlterandoConta] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [removeId, setRemoveId] = useState<string | null>(null);
-  const [bannerDismissed, setBannerDismissed] = useState(() => localStorage.getItem('banner_receita') === '1');
-
-  const dismissBanner = () => { localStorage.setItem('banner_receita', '1'); setBannerDismissed(true); };
-
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<ReceitaForm>(emptyForm());
   const [saving, setSaving] = useState(false);
-
-  const liveSelectedReceita = useMemo(
-    () => selectedReceita ? (receitas ?? []).find(r => r.id === selectedReceita.id) ?? null : null,
-    [receitas, selectedReceita],
-  );
 
   const filtered = useMemo(() =>
     (receitas ?? [])
@@ -119,12 +117,8 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
     [receitas, searchTerm, removingIds],
   );
 
-  const contaNome = useMemo(
-    () => (id: string) => contas?.find(c => c.id === id)?.nome ?? id,
-    [contas],
-  );
+  const valorTotal = (r: ReceitaDto) => r.parcelas.reduce((s, p) => s + p.valorBruto, 0);
 
-  // ── Parcela helpers ──
   const addParcela = () =>
     setForm(f => ({ ...f, parcelas: [...f.parcelas, { dataVencimento: '', percentagem: '' }] }));
 
@@ -144,6 +138,29 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   );
 
   // ── Actions ──────────────────────────────────────────────────────────────────
+
+  const handleAlterarConta = async () => {
+    if (!alterarContaDialog) return;
+    const { parcelaId, contaId } = alterarContaDialog;
+    setAlterarContaDialog(null);
+    setAlterandoConta(true);
+    try {
+      await api.parcelas.alterarConta(parcelaId, contaId);
+      toast('Conta alterada');
+      reload();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setAlterandoConta(false);
+    }
+  };
+
+  const openEdit = (r: ReceitaDto, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(r.id);
+    setForm(receitaToForm(r));
+    setEditOpen(true);
+  };
 
   const validateForm = () => {
     if (!form.nome.trim()) { toast('Nome obrigatório', 'error'); return false; }
@@ -183,10 +200,10 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   };
 
   const handleEdit = async () => {
-    if (!validateForm()) return;
+    if (!editingId || !validateForm()) return;
     setSaving(true);
     try {
-      await api.receitas.atualizar(selectedReceita!.id, {
+      await api.receitas.atualizar(editingId, {
         nome: form.nome.trim(),
         valorTotal: parseFloat(form.valorTotal),
         categoria: form.categoria.trim() || undefined,
@@ -210,22 +227,20 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   const handleRemove = async () => {
     if (!removeId) return;
     const id = removeId;
-    // Remoção otimista — desaparece imediatamente da lista
     setRemovingIds(prev => new Set(prev).add(id));
     setRemoveId(null);
-    if (selectedReceita?.id === id) setSelectedReceita(null);
+    if (expandedId === id) setExpandedId(null);
     try {
       await api.receitas.remover(id);
       toast('Receita removida');
       reload();
     } catch (e) {
-      // Rollback — repõe o item na lista
       setRemovingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
       toast((e as Error).message, 'error');
     }
   };
 
-  // ── Form dialog JSX (shared between create and edit) ──────────────────────────
+  // ── Form dialog (shared create / edit) ────────────────────────────────────────
 
   const renderFormDialog = (mode: 'create' | 'edit') => {
     const isEdit = mode === 'edit';
@@ -245,7 +260,6 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
-            {/* Nome + Conta */}
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <Label htmlFor="rf-nome" className="text-xs font-medium text-gray-700">NOME *</Label>
@@ -262,7 +276,6 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                   </Select>
                 </div>
               )}
-              {/* ValorTotal */}
               <div>
                 <Label htmlFor="rf-vt" className="text-xs font-medium text-gray-700">VALOR TOTAL (€) *</Label>
                 <div className="relative mt-1.5">
@@ -270,12 +283,10 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
                 </div>
               </div>
-              {/* Categoria livre */}
               <div>
                 <Label htmlFor="rf-cat" className="text-xs font-medium text-gray-700">CATEGORIA</Label>
                 <Input id="rf-cat" value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} className="mt-1.5" placeholder="Ex: Consultoria" />
               </div>
-              {/* Colaborador */}
               <div>
                 <Label htmlFor="rf-col" className="text-xs font-medium text-gray-700">COLABORADOR</Label>
                 <Select value={form.colaboradorId || '_none'} onValueChange={v => setForm(f => ({ ...f, colaboradorId: v === '_none' ? '' : v }))}>
@@ -288,7 +299,6 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                   </SelectContent>
                 </Select>
               </div>
-              {/* IVA — only shown on create */}
               {!isEdit && (
                 <div className="col-span-2">
                   <label className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -311,7 +321,6 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
               )}
             </div>
 
-            {/* Parcelas */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
@@ -350,15 +359,15 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                       </p>
                     </div>
                     {form.parcelas.length > 1 && (
-                      <Button type="button" size="sm" variant="ghost" className="text-red-500 hover:bg-red-50 mb-0.5" onClick={() => removeParcela(i)} aria-label={`Remover parcela ${i + 1}`}>✕</Button>
+                      <Button type="button" size="sm" variant="ghost" className="text-red-500 hover:bg-red-50 mb-0.5" onClick={() => removeParcela(i)}>✕</Button>
                     )}
                   </div>
                 ))}
               </div>
-              {isEdit && liveSelectedReceita && liveSelectedReceita.parcelas.some(p => p.isPaid) && (
+              {isEdit && editingReceita && editingReceita.parcelas.some(p => p.isPaid) && (
                 <div className="flex items-start justify-between gap-2 mt-2 bg-amber-50 border border-amber-200 rounded p-2">
                   <p className="text-xs text-amber-600">
-                    {liveSelectedReceita.parcelas.filter(p => p.isPaid).length} parcela(s) já liquidada(s) serão mantidas e não podem ser editadas.
+                    {editingReceita.parcelas.filter(p => p.isPaid).length} parcela(s) já liquidada(s) serão mantidas e não podem ser editadas.
                   </p>
                 </div>
               )}
@@ -379,175 +388,136 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col md:flex-row h-full">
-      {/* ── Left panel ── */}
-      <div className="w-full md:w-[480px] border-b md:border-b-0 md:border-r border-gray-200 bg-white flex flex-col max-h-[40vh] md:max-h-none">
-        <div className="px-4 md:px-5 py-3 md:py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base md:text-lg font-semibold text-gray-900">Receitas / Faturação</h2>
-            <Button size="sm" onClick={() => { setForm(emptyForm()); setCreateOpen(true); }}>
-              <Plus className="w-4 h-4 md:mr-1" /><span className="hidden md:inline">Nova Receita</span>
-            </Button>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-            <Input aria-label="Pesquisar receitas" placeholder="Pesquisar por nome ou categoria..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-9" />
-          </div>
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="px-4 md:px-5 py-3 md:py-4 border-b border-gray-200 bg-white shrink-0">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900">Receitas</h2>
+          <Button size="sm" onClick={() => { setForm(emptyForm()); setCreateOpen(true); }}>
+            <Plus className="w-4 h-4 md:mr-1" /><span className="hidden md:inline">Nova Receita</span>
+          </Button>
         </div>
-
-        <div className="flex-1 overflow-auto">
-          {error ? (
-            <div className="p-6 text-center text-red-600 text-sm">{error}</div>
-          ) : loading ? (
-            <div className="p-6 space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 animate-pulse rounded" />)}</div>
-          ) : (
-            <Table>
-              <TableHeader className="sticky top-0 bg-gray-50 z-10">
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead className="w-32 text-right">Valor Total</TableHead>
-                  <TableHead className="w-28">Categoria</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center text-sm text-gray-500 py-8">
-                      {(receitas ?? []).length === 0 ? 'Nenhuma receita registada' : 'Nenhum resultado'}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filtered.map(r => (
-                    <TableRow key={r.id} className={`cursor-pointer ${liveSelectedReceita?.id === r.id ? 'bg-blue-50' : ''}`} onClick={() => setSelectedReceita(r)}>
-                      <TableCell className="font-medium">{r.nome}</TableCell>
-                      <TableCell className="text-right font-semibold text-green-600">
-                        €{r.valorTotal.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                          {r.categoria ?? '—'}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+          <Input aria-label="Pesquisar receitas" placeholder="Pesquisar por nome ou categoria..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-9" />
         </div>
       </div>
 
-      {/* ── Right panel ── */}
-      <div className="flex-1 bg-gray-50 overflow-auto">
-        {liveSelectedReceita ? (
-          <div className="p-6">
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900">{liveSelectedReceita.nome}</h3>
-                {liveSelectedReceita.categoria && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 mt-1">
-                    {liveSelectedReceita.categoria}
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <Button size="sm" variant="outline" onClick={() => { setForm(receitaToForm(liveSelectedReceita)); setEditOpen(true); }}>
-                  <Pencil className="w-3.5 h-3.5 mr-1" />Editar
-                </Button>
-                <Button size="sm" variant="outline" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => setRemoveId(liveSelectedReceita.id)}>
-                  <Trash2 className="w-3.5 h-3.5 mr-1" />Remover
-                </Button>
-              </div>
-            </div>
-
-            {!bannerDismissed && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-6 flex items-start justify-between gap-2">
-                <p className="text-sm text-green-800">Parcelas liquidadas <strong>creditam</strong> o saldo da conta (ValorLíquido após comissão)</p>
-                <button onClick={dismissBanner} className="shrink-0 text-green-500 hover:text-green-700" aria-label="Fechar aviso">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-
-            <Tabs defaultValue="geral" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="geral">Informação Geral</TabsTrigger>
-                <TabsTrigger value="parcelas">Parcelas ({liveSelectedReceita.parcelas.length})</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="geral" className="space-y-4">
-                <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs font-medium text-gray-500">CONTA</p>
-                      <p className="text-sm font-medium text-gray-900 mt-1">{contaNome(liveSelectedReceita.contaId)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-500">CATEGORIA</p>
-                      <p className="text-sm font-medium text-gray-900 mt-1">{liveSelectedReceita.categoria ?? '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-500">VALOR TOTAL</p>
-                      <p className="text-sm font-semibold text-green-600 mt-1">
-                        €{liveSelectedReceita.valorTotal.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-500">VALOR LÍQUIDO TOTAL</p>
-                      <p className="text-sm font-semibold text-green-600 mt-1">
-                        €{liveSelectedReceita.parcelas.reduce((s, p) => s + p.valorLiquido, 0).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                  </div>
-                  {liveSelectedReceita.colaboradorNome && (
-                    <div className="pt-3 border-t border-gray-100">
-                      <p className="text-xs font-medium text-gray-500 mb-1">COLABORADOR</p>
-                      <p className="text-sm text-gray-700">
-                        {liveSelectedReceita.colaboradorNome}
-                        {liveSelectedReceita.percentagemComissao != null && (
-                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
-                            {liveSelectedReceita.percentagemComissao}% comissão
+      {/* Table */}
+      <div className="flex-1 overflow-auto bg-white">
+        {error ? (
+          <div className="p-6 text-center text-red-600 text-sm">{error}</div>
+        ) : loading ? (
+          <div className="p-6 space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 animate-pulse rounded" />)}</div>
+        ) : (
+          <Table>
+            <TableHeader className="sticky top-0 bg-gray-50 z-10">
+              <TableRow>
+                <TableHead className="w-10" />
+                <TableHead>Nome</TableHead>
+                <TableHead className="w-36">Categoria</TableHead>
+                <TableHead className="w-28 text-right">Valor Total</TableHead>
+                <TableHead className="w-28">Atualizado</TableHead>
+                <TableHead className="w-20" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-sm text-gray-500 py-8">
+                    {(receitas ?? []).length === 0 ? 'Nenhuma receita registada' : 'Nenhum resultado'}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filtered.map(r => (
+                  <Fragment key={r.id}>
+                    <TableRow
+                      className={`cursor-pointer select-none transition-colors ${expandedId === r.id ? 'bg-blue-50 hover:bg-blue-50' : 'hover:bg-gray-50'}`}
+                      onClick={() => setExpandedId(id => id === r.id ? null : r.id)}
+                    >
+                      <TableCell className="px-3">
+                        <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-150 ${expandedId === r.id ? 'rotate-90' : ''}`} />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {r.nome}
+                        {r.colaboradorNome && (
+                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600">
+                            {r.colaboradorNome}
                           </span>
                         )}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">
+                        {r.categoria
+                          ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">{r.categoria}</span>
+                          : <span className="text-gray-400">—</span>}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-green-600">
+                        €{valorTotal(r).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {formatDateTime(r.updatedAt)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1 justify-end" onClick={e => e.stopPropagation()}>
+                          <Button
+                            size="sm" variant="ghost"
+                            className="h-7 w-7 p-0 text-gray-500 hover:text-gray-700"
+                            title="Editar"
+                            onClick={e => openEdit(r, e)}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            size="sm" variant="ghost"
+                            className="h-7 w-7 p-0 text-red-400 hover:bg-red-50 hover:text-red-700"
+                            title="Remover"
+                            onClick={e => { e.stopPropagation(); setRemoveId(r.id); }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
 
-              <TabsContent value="parcelas">
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                  <div className="px-5 py-4 border-b border-gray-200">
-                    <h4 className="text-sm font-semibold text-gray-900">PARCELAS</h4>
-                    <p className="text-xs text-gray-500 mt-0.5">Liquide cada parcela para creditar o saldo da conta</p>
-                  </div>
-                  <ParcelasTable
-                    parcelas={liveSelectedReceita.parcelas}
-                    variant="receita"
-                    parcelaSort={parcelaSort}
-                    toggleSort={toggleSort}
-                    liquidando={liquidando}
-                    estornando={estornando}
-                    onLiquidar={openLiquidarDialog}
-                    onEstornar={setEstornarConfirmId}
-                  />
-                </div>
-              </TabsContent>
-
-            </Tabs>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            <p className="text-sm">Selecione uma receita para ver os detalhes</p>
-          </div>
+                    {expandedId === r.id && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="p-0">
+                          <div className="px-8 py-4 bg-gray-50 border-t border-gray-200">
+                            <p className="text-xs font-semibold text-gray-500 tracking-wide mb-3">
+                              PARCELAS ({r.parcelas.length})
+                            </p>
+                            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                              <ParcelasTable
+                                parcelas={r.parcelas}
+                                variant="receita"
+                                parcelaSort={parcelaSort}
+                                toggleSort={toggleSort}
+                                liquidando={liquidando}
+                                estornando={estornando}
+                                onLiquidar={(id, isRecorrente, contaId) => openLiquidarDialog(id, isRecorrente, contaId)}
+                                onEstornar={setEstornarConfirmId}
+                                onAlterarConta={(parcelaId, currentContaId) => setAlterarContaDialog({ parcelaId, contaId: currentContaId })}
+                              />
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                ))
+              )}
+            </TableBody>
+          </Table>
         )}
       </div>
 
       <LiquidarDialog
         dialog={liquidarDialog}
+        contas={contas ?? []}
         onClose={() => setLiquidarDialog(null)}
         onDataChange={data => setLiquidarDialog(d => d ? { ...d, data } : null)}
         onValorRealChange={() => {}}
+        onContaChange={contaId => setLiquidarDialog(d => d ? { ...d, contaId } : null)}
         onConfirm={handleLiquidar}
         variant="receita"
       />
@@ -572,6 +542,48 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
         confirmLabel="Estornar"
         onConfirm={handleEstornar}
       />
+
+      {/* ── Alterar conta dialog ── */}
+      <Dialog open={alterarContaDialog !== null} onOpenChange={open => { if (!open) setAlterarContaDialog(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Alterar Conta</DialogTitle>
+            <DialogDescription>Selecione a conta para esta parcela</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <Label htmlFor="ac-conta-r" className="text-xs font-medium text-gray-700">CONTA</Label>
+              <Select
+                value={alterarContaDialog?.contaId ?? ''}
+                onValueChange={v => setAlterarContaDialog(d => d ? { ...d, contaId: v } : null)}
+              >
+                <SelectTrigger id="ac-conta-r" className="mt-1.5">
+                  <SelectValue placeholder="Selecionar conta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(contas ?? []).map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome}
+                      <span className="ml-2 text-xs text-gray-400">
+                        €{c.saldo.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setAlterarContaDialog(null)}>Cancelar</Button>
+              <Button
+                disabled={!alterarContaDialog?.contaId || alterandoConta}
+                onClick={handleAlterarConta}
+              >
+                {alterandoConta ? 'A guardar...' : 'Confirmar'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

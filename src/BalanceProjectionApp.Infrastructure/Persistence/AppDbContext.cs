@@ -1,3 +1,4 @@
+using BalanceProjectionApp.Domain.Common;
 using BalanceProjectionApp.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,9 +13,30 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Financiamento> Financiamentos => Set<Financiamento>();
     public DbSet<Colaborador> Colaboradores => Set<Colaborador>();
 
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        foreach (var entry in ChangeTracker.Entries<Entity>()
+            .Where(e => e.State == EntityState.Modified))
+        {
+            entry.Property(e => e.UpdatedAt).CurrentValue = now;
+        }
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes()
+            .Where(t => typeof(Entity).IsAssignableFrom(t.ClrType)))
+        {
+            var builder = modelBuilder.Entity(entityType.ClrType);
+            builder.Property<DateTime>("CreatedAt").HasDefaultValueSql("NOW()");
+            builder.Property<DateTime>("UpdatedAt").HasDefaultValueSql("NOW()");
+            builder.Property<bool>("IsDeleted").HasDefaultValue(false);
+        }
+
         base.OnModelCreating(modelBuilder);
     }
 }

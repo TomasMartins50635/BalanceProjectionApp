@@ -11,4 +11,5 @@ public record ReceitaDto(
     Guid? ColaboradorId,
     string? ColaboradorNome,
     decimal? PercentagemComissao,
+    DateTime UpdatedAt,
     IEnumerable<ParcelaDto> Parcelas);

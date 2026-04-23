@@ -18,7 +18,7 @@ public class ListarParcelasQueryHandler(IParcelaRepository repository)
             p.Id, p.Numero, p.DataVencimento,
             p.ValorBruto, p.ValorLiquido,
             p.IsPaid, p.DataPagamento.HasValue ? DateOnly.FromDateTime(p.DataPagamento.Value) : null,
-            p.ReceitaId, p.DespesaId, p.Percentagem,
+            p.ReceitaId, p.DespesaId, p.ContaId, p.Percentagem,
             p.Receita?.Nome ?? p.Despesa?.Nome));
     }
 }

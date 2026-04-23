@@ -65,6 +65,7 @@ export interface ParcelaDto {
   dataPagamento: string | null;
   receitaId: string | null;
   despesaId: string | null;
+  contaId: string;
   percentagem: number | null;
   nome: string | null;
 }
@@ -79,6 +80,8 @@ export interface ReceitaDto {
   colaboradorId: string | null;
   colaboradorNome: string | null;
   percentagemComissao: number | null;
+  /** ISO datetime string */
+  updatedAt: string;
   parcelas: ParcelaDto[];
 }
 
@@ -92,6 +95,8 @@ export interface DespesaDto {
   periodicidade: Periodicidade | null;
   dataInicio: string | null;
   isActive: boolean;
+  /** ISO datetime string */
+  updatedAt: string;
   parcelas: ParcelaDto[];
 }
 
@@ -167,10 +172,12 @@ export interface CriarDespesaRequest {
 export interface AtualizarDespesaRequest {
   nome: string;
   categoria?: CategoriaContrato;
-  // Pontual / Recorrente
-  parcelas?: CriarDespesaParcelaRequest[];
-  // Fixa / Recorrente
-  valorFixo?: number;
+}
+
+export interface AdicionarParcelaDespesaRequest {
+  /** YYYY-MM-DD */
+  dataVencimento: string;
+  valorBruto: number;
 }
 
 export interface CriarFinanciamentoRequest {

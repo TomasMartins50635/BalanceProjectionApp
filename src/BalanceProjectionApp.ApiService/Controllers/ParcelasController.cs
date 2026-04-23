@@ -1,3 +1,4 @@
+using BalanceProjectionApp.Application.Features.Parcelas.Commands.AlterarContaParcela;
 using BalanceProjectionApp.Application.Features.Parcelas.Commands.EstornarParcela;
 using BalanceProjectionApp.Application.Features.Parcelas.Commands.LiquidarParcela;
 using BalanceProjectionApp.Application.Features.Parcelas.Commands.RemoverParcela;
@@ -18,8 +19,15 @@ public class ParcelasController(IMediator mediator) : ControllerBase
     [HttpPost("{id:guid}/liquidar")]
     public async Task<IActionResult> Liquidar(Guid id, [FromBody] LiquidarParcelaRequest? body, CancellationToken ct)
     {
-        var result = await mediator.Send(new LiquidarParcelaCommand(id, body?.DataPagamento, body?.ValorReal), ct);
+        var result = await mediator.Send(new LiquidarParcelaCommand(id, body?.DataPagamento, body?.ValorReal, body?.ContaId), ct);
         return Ok(result);
+    }
+
+    [HttpPatch("{id:guid}/conta")]
+    public async Task<IActionResult> AlterarConta(Guid id, [FromBody] AlterarContaRequest body, CancellationToken ct)
+    {
+        await mediator.Send(new AlterarContaParcelaCommand(id, body.ContaId), ct);
+        return NoContent();
     }
 
     [HttpPost("{id:guid}/estornar")]
@@ -37,4 +45,5 @@ public class ParcelasController(IMediator mediator) : ControllerBase
     }
 }
 
-public record LiquidarParcelaRequest(DateOnly? DataPagamento, decimal? ValorReal);
+public record LiquidarParcelaRequest(DateOnly? DataPagamento, decimal? ValorReal, Guid? ContaId);
+public record AlterarContaRequest(Guid ContaId);

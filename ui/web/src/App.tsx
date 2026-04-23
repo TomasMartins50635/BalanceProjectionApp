@@ -13,7 +13,7 @@ type View = 'overview' | 'dashboard' | 'receitas' | 'despesas' | 'financiamentos
 const navItems = [
   { id: 'overview' as View, label: 'Visão Geral', icon: PieChart },
   { id: 'dashboard' as View, label: 'Contas', icon: LayoutDashboard },
-  { id: 'receitas' as View, label: 'Receitas/Faturação', icon: TrendingUp },
+  { id: 'receitas' as View, label: 'Receitas', icon: TrendingUp },
   { id: 'despesas' as View, label: 'Despesas', icon: TrendingDown },
   { id: 'financiamentos' as View, label: 'Financiamentos', icon: CreditCard },
   { id: 'colaboradores' as View, label: 'Colaboradores', icon: Users },
