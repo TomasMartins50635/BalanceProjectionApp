@@ -30,6 +30,98 @@ const TIPO_BADGE: Record<TipoDespesa, { label: string; className: string }> = {
   Recorrente: { label: 'Recorrente', className: 'bg-purple-50 text-purple-700' },
 };
 
+type ToastFn = (message: string, type?: 'error' | 'success' | 'info') => void;
+
+async function removerParcelaAction(params: {
+  removeParcelaId: string | null;
+  setRemoveParcelaId: React.Dispatch<React.SetStateAction<string | null>>;
+  setRemovendoParcela: React.Dispatch<React.SetStateAction<string | null>>;
+  toast: ToastFn;
+  reload: () => void;
+}) {
+  const { removeParcelaId, setRemoveParcelaId, setRemovendoParcela, toast, reload } = params;
+  if (!removeParcelaId) return;
+
+  const id = removeParcelaId;
+  setRemoveParcelaId(null);
+  setRemovendoParcela(id);
+  try {
+    await api.parcelas.remover(id);
+    toast('Parcela eliminada');
+    reload();
+  } catch (e) {
+    toast((e as Error).message, 'error');
+  } finally {
+    setRemovendoParcela(null);
+  }
+}
+
+async function removerDespesaAction(params: {
+  removeId: string | null;
+  setRemoveId: React.Dispatch<React.SetStateAction<string | null>>;
+  expandedId: string | null;
+  setExpandedId: React.Dispatch<React.SetStateAction<string | null>>;
+  toast: ToastFn;
+  reload: () => void;
+}) {
+  const { removeId, setRemoveId, expandedId, setExpandedId, toast, reload } = params;
+  if (!removeId) return;
+
+  const id = removeId;
+  setRemoveId(null);
+  if (expandedId === id) setExpandedId(null);
+
+  try {
+    await api.despesas.remover(id);
+    toast('Despesa removida');
+    reload();
+  } catch (e) {
+    toast((e as Error).message, 'error');
+  }
+}
+
+async function adicionarParcelaAction(params: {
+  expandedDespesa: DespesaDto | null;
+  addParcelaForm: { dataVencimento: string; valorBruto: string };
+  setAddParcelaSaving: React.Dispatch<React.SetStateAction<boolean>>;
+  setAddParcelaOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setAddParcelaForm: React.Dispatch<React.SetStateAction<{ dataVencimento: string; valorBruto: string }>>;
+  toast: ToastFn;
+  reload: () => void;
+}) {
+  const {
+    expandedDespesa,
+    addParcelaForm,
+    setAddParcelaSaving,
+    setAddParcelaOpen,
+    setAddParcelaForm,
+    toast,
+    reload,
+  } = params;
+
+  if (!expandedDespesa) return;
+  if (!addParcelaForm.dataVencimento || !addParcelaForm.valorBruto) {
+    toast('Preencha a data de vencimento e o valor', 'error');
+    return;
+  }
+
+  setAddParcelaSaving(true);
+  try {
+    await api.despesas.adicionarParcela(expandedDespesa.id, {
+      dataVencimento: addParcelaForm.dataVencimento,
+      valorBruto: parseFloat(addParcelaForm.valorBruto),
+    });
+    toast('Parcela adicionada');
+    setAddParcelaOpen(false);
+    setAddParcelaForm({ dataVencimento: '', valorBruto: '' });
+    reload();
+  } catch (e) {
+    toast((e as Error).message, 'error');
+  } finally {
+    setAddParcelaSaving(false);
+  }
+}
+
 // ── Create form ────────────────────────────────────────────────────────────────
 
 interface CreateForm {
@@ -169,21 +261,13 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
-  const handleRemoverParcela = async () => {
-    if (!removeParcelaId) return;
-    const id = removeParcelaId;
-    setRemoveParcelaId(null);
-    setRemovendoParcela(id);
-    try {
-      await api.parcelas.remover(id);
-      toast('Parcela eliminada');
-      reload();
-    } catch (e) {
-      toast((e as Error).message, 'error');
-    } finally {
-      setRemovendoParcela(null);
-    }
-  };
+  const handleRemoverParcela = async () => removerParcelaAction({
+    removeParcelaId,
+    setRemoveParcelaId,
+    setRemovendoParcela,
+    toast,
+    reload,
+  });
 
   const handleCreate = async () => {
     const payload = buildCriarPayload(form);
@@ -225,19 +309,14 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
     }
   };
 
-  const handleRemove = async () => {
-    if (!removeId) return;
-    const id = removeId;
-    setRemoveId(null);
-    if (expandedId === id) setExpandedId(null);
-    try {
-      await api.despesas.remover(id);
-      toast('Despesa removida');
-      reload();
-    } catch (e) {
-      toast((e as Error).message, 'error');
-    }
-  };
+  const handleRemove = async () => removerDespesaAction({
+    removeId,
+    setRemoveId,
+    expandedId,
+    setExpandedId,
+    toast,
+    reload,
+  });
 
   const handleToggleEstado = async () => {
     if (!expandedDespesa) return;
@@ -252,28 +331,15 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
     }
   };
 
-  const handleAddParcela = async () => {
-    if (!expandedDespesa) return;
-    if (!addParcelaForm.dataVencimento || !addParcelaForm.valorBruto) {
-      toast('Preencha a data de vencimento e o valor', 'error');
-      return;
-    }
-    setAddParcelaSaving(true);
-    try {
-      await api.despesas.adicionarParcela(expandedDespesa.id, {
-        dataVencimento: addParcelaForm.dataVencimento,
-        valorBruto: parseFloat(addParcelaForm.valorBruto),
-      });
-      toast('Parcela adicionada');
-      setAddParcelaOpen(false);
-      setAddParcelaForm({ dataVencimento: '', valorBruto: '' });
-      reload();
-    } catch (e) {
-      toast((e as Error).message, 'error');
-    } finally {
-      setAddParcelaSaving(false);
-    }
-  };
+  const handleAddParcela = async () => adicionarParcelaAction({
+    expandedDespesa,
+    addParcelaForm,
+    setAddParcelaSaving,
+    setAddParcelaOpen,
+    setAddParcelaForm,
+    toast,
+    reload,
+  });
 
   const addParcela = () =>
     setForm(f => ({ ...f, parcelas: [...f.parcelas, { dataVencimento: '', valorBruto: '' }] }));
@@ -373,7 +439,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                         {formatDateTime(d.updatedAt)}
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1 justify-end" onClick={e => e.stopPropagation()}>
+                        <div className="flex gap-1 justify-end">
                           {d.categoria !== 'IVA' && (
                             <Button
                               size="sm" variant="ghost"

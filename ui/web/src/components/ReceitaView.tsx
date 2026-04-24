@@ -449,7 +449,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                         {formatDateTime(r.updatedAt)}
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1 justify-end" onClick={e => e.stopPropagation()}>
+                        <div className="flex gap-1 justify-end">
                           <Button
                             size="sm" variant="ghost"
                             className="h-7 w-7 p-0 text-gray-500 hover:text-gray-700"
