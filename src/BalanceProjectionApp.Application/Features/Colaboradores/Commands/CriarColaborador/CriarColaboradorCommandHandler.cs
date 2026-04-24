@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Common.Interfaces;
+﻿using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Interfaces;
 using MediatR;
@@ -9,11 +9,11 @@ public class CriarColaboradorCommandHandler(
     IColaboradorRepository colaboradorRepository,
     IUnitOfWork uow) : IRequestHandler<CriarColaboradorCommand, Guid>
 {
-    public async Task<Guid> Handle(CriarColaboradorCommand request, CancellationToken ct)
+    public async Task<Guid> Handle(CriarColaboradorCommand request, CancellationToken cancellationToken)
     {
         var colaborador = Colaborador.Criar(request.Nome, request.Percentagem);
-        await colaboradorRepository.AdicionarAsync(colaborador, ct);
-        await uow.SaveChangesAsync(ct);
+        await colaboradorRepository.AdicionarAsync(colaborador, cancellationToken);
+        await uow.SaveChangesAsync(cancellationToken);
         return colaborador.Id;
     }
 }

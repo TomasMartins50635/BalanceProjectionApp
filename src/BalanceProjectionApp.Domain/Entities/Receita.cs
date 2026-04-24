@@ -42,14 +42,6 @@ public class Receita : Entity
         ValorTotal = valorTotal;
     }
 
-    public void Remover()
-    {
-        if (IsDeleted)
-            throw new DomainException("A receita já se encontra removida.");
-
-        IsDeleted = true;
-    }
-
     public void AssociarColaborador(Colaborador colaborador)
     {
         ColaboradorId = colaborador.Id;
@@ -67,7 +59,7 @@ public class Receita : Entity
         if (percentagem <= 0 || percentagem > 100)
             throw new DomainException($"A percentagem da parcela {numero} deve estar entre 0 e 100.");
 
-        if (_parcelas.Any(p => p.Numero == numero))
+        if (_parcelas.Any(p => p.Numero == numero && !p.IsDeleted))
             throw new DomainException($"Já existe uma parcela com o número {numero} nesta receita.");
 
         var valorBruto = Math.Round(ValorTotal * percentagem / 100m, 2);
@@ -85,12 +77,11 @@ public class Receita : Entity
         return parcela;
     }
 
-    /// <summary>Remove todas as parcelas não liquidadas. Retorna os IDs removidos.</summary>
     public IReadOnlyList<Guid> RemoverParcelasNaoPagas()
     {
-        var naoPagas = _parcelas.Where(p => !p.IsPaid).ToList();
+        var naoPagas = _parcelas.Where(p => !p.IsPaid && !p.IsDeleted).ToList();
         foreach (var p in naoPagas)
-            _parcelas.Remove(p);
+            p.Deletar();
         return naoPagas.Select(p => p.Id).ToList();
     }
 }

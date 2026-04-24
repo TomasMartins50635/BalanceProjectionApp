@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Common.Interfaces;
+﻿using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
@@ -10,15 +10,15 @@ public class EliminarContaCommandHandler(
     IContaRepository contaRepository,
     IUnitOfWork uow) : IRequestHandler<EliminarContaCommand>
 {
-    public async Task Handle(EliminarContaCommand request, CancellationToken ct)
+    public async Task Handle(EliminarContaCommand request, CancellationToken cancellationToken)
     {
-        var conta = await contaRepository.ObterPorIdAsync(request.ContaId, ct)
+        var conta = await contaRepository.ObterPorIdAsync(request.ContaId, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Conta), request.ContaId);
 
-        if (await contaRepository.TemEntidadesVinculadasAsync(request.ContaId, ct))
+        if (await contaRepository.TemEntidadesVinculadasAsync(request.ContaId, cancellationToken))
             throw new DomainException("Não é possível eliminar uma conta com receitas, despesas ou financiamentos associados.");
 
-        contaRepository.Remover(conta);
-        await uow.SaveChangesAsync(ct);
+        conta.Deletar();
+        await uow.SaveChangesAsync(cancellationToken);
     }
 }

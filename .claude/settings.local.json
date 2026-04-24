@@ -9,5 +9,8 @@
       "Bash(curl:*)",
       "Bash(npx tsc *)"
     ]
+  },
+  "enabledPlugins": {
+    "codex@openai-codex": true
   }
 }

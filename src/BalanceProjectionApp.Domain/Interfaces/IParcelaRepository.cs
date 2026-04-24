@@ -1,13 +1,13 @@
-using BalanceProjectionApp.Domain.Entities;
+﻿using BalanceProjectionApp.Domain.Entities;
 
 namespace BalanceProjectionApp.Domain.Interfaces;
 
 public interface IParcelaRepository
 {
-    Task<Parcela?> ObterPorIdAsync(Guid id, CancellationToken ct = default);
-    Task<IEnumerable<Parcela>> ListarPorReceitaAsync(Guid receitaId, CancellationToken ct = default);
-    Task<IEnumerable<Parcela>> ListarPorDespesaAsync(Guid despesaId, CancellationToken ct = default);
-    Task<IEnumerable<Parcela>> ListarPorContaAsync(Guid contaId, CancellationToken ct = default);
-    Task AdicionarAsync(Parcela parcela, CancellationToken ct = default);
+    Task<Parcela?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Parcela>> ListarPorReceitaAsync(Guid receitaId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Parcela>> ListarPorDespesaAsync(Guid despesaId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Parcela>> ListarPorContaAsync(Guid contaId, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(Parcela parcela, CancellationToken cancellationToken = default);
     void Remover(Parcela parcela);
 }

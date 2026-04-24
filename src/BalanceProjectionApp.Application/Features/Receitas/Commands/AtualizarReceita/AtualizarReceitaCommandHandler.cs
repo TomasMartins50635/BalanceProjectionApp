@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Common.Interfaces;
+﻿using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
@@ -11,9 +11,9 @@ public class AtualizarReceitaCommandHandler(
     IColaboradorRepository colaboradorRepository,
     IUnitOfWork uow) : IRequestHandler<AtualizarReceitaCommand>
 {
-    public async Task Handle(AtualizarReceitaCommand request, CancellationToken ct)
+    public async Task Handle(AtualizarReceitaCommand request, CancellationToken cancellationToken)
     {
-        var receita = await receitaRepository.ObterPorIdComParcelasAsync(request.Id, ct)
+        var receita = await receitaRepository.ObterPorIdComParcelasAsync(request.Id, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Receita), request.Id);
 
         receita.Atualizar(request.Nome, request.Categoria, request.ValorTotal);
@@ -22,7 +22,7 @@ public class AtualizarReceitaCommandHandler(
         {
             if (request.ColaboradorId.HasValue)
             {
-                var colaborador = await colaboradorRepository.ObterPorIdAsync(request.ColaboradorId.Value, ct)
+                var colaborador = await colaboradorRepository.ObterPorIdAsync(request.ColaboradorId.Value, cancellationToken)
                     ?? throw new EntityNotFoundException(nameof(Colaborador), request.ColaboradorId.Value);
                 receita.AssociarColaborador(colaborador);
             }
@@ -37,6 +37,6 @@ public class AtualizarReceitaCommandHandler(
         foreach (var p in request.Parcelas.OrderBy(p => p.Numero))
             receita.AdicionarParcela(p.Numero, p.DataVencimento, p.Percentagem);
 
-        await uow.SaveChangesAsync(ct);
+        await uow.SaveChangesAsync(cancellationToken);
     }
 }

@@ -11,6 +11,7 @@ public class FinanciamentoConfiguration : IEntityTypeConfiguration<Financiamento
         builder.HasKey(f => f.Id);
         builder.Property(f => f.Nome).IsRequired().HasMaxLength(200);
         builder.Property(f => f.Valor).HasPrecision(18, 2);
+        builder.HasQueryFilter(f => !f.IsDeleted);
 
         builder.HasOne(f => f.Conta)
             .WithMany()

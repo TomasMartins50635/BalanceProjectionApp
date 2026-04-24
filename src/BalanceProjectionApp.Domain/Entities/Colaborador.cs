@@ -22,12 +22,4 @@ public class Colaborador : Entity
 
         return new Colaborador { Nome = nome, Percentagem = percentagem };
     }
-
-    public void Desativar()
-    {
-        if (IsDeleted)
-            throw new DomainException("O colaborador já se encontra removido.");
-
-        IsDeleted = true;
-    }
 }

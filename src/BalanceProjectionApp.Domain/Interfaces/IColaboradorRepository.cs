@@ -1,10 +1,10 @@
-using BalanceProjectionApp.Domain.Entities;
+﻿using BalanceProjectionApp.Domain.Entities;
 
 namespace BalanceProjectionApp.Domain.Interfaces;
 
 public interface IColaboradorRepository
 {
-    Task<Colaborador?> ObterPorIdAsync(Guid id, CancellationToken ct = default);
-    Task<IEnumerable<Colaborador>> ListarAsync(CancellationToken ct = default);
-    Task AdicionarAsync(Colaborador colaborador, CancellationToken ct = default);
+    Task<Colaborador?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Colaborador>> ListarAsync(CancellationToken cancellationToken = default);
+    Task AdicionarAsync(Colaborador colaborador, CancellationToken cancellationToken = default);
 }

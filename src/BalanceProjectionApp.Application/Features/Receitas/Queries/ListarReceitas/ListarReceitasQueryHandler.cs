@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Features.Parcelas.Dtos;
+﻿using BalanceProjectionApp.Application.Features.Parcelas.Dtos;
 using BalanceProjectionApp.Application.Features.Receitas.Dtos;
 using BalanceProjectionApp.Domain.Interfaces;
 using MediatR;
@@ -8,9 +8,9 @@ namespace BalanceProjectionApp.Application.Features.Receitas.Queries.ListarRecei
 public class ListarReceitasQueryHandler(IReceitaRepository repository)
     : IRequestHandler<ListarReceitasQuery, IEnumerable<ReceitaDto>>
 {
-    public async Task<IEnumerable<ReceitaDto>> Handle(ListarReceitasQuery request, CancellationToken ct)
+    public async Task<IEnumerable<ReceitaDto>> Handle(ListarReceitasQuery request, CancellationToken cancellationToken)
     {
-        var receitas = await repository.ListarAsync(ct);
+        var receitas = await repository.ListarAsync(cancellationToken);
         return receitas.Select(r => new ReceitaDto(
             r.Id,
             r.Nome,

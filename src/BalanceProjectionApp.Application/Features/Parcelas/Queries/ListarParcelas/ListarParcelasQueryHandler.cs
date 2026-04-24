@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Features.Parcelas.Dtos;
+﻿using BalanceProjectionApp.Application.Features.Parcelas.Dtos;
 using BalanceProjectionApp.Domain.Interfaces;
 using MediatR;
 
@@ -7,9 +7,9 @@ namespace BalanceProjectionApp.Application.Features.Parcelas.Queries.ListarParce
 public class ListarParcelasQueryHandler(IParcelaRepository repository)
     : IRequestHandler<ListarParcelasQuery, IEnumerable<ParcelaDto>>
 {
-    public async Task<IEnumerable<ParcelaDto>> Handle(ListarParcelasQuery request, CancellationToken ct)
+    public async Task<IEnumerable<ParcelaDto>> Handle(ListarParcelasQuery request, CancellationToken cancellationToken)
     {
-        var parcelas = await repository.ListarPorContaAsync(request.ContaId, ct);
+        var parcelas = await repository.ListarPorContaAsync(request.ContaId, cancellationToken);
 
         if (request.ApenasPendentes == true)
             parcelas = parcelas.Where(p => !p.IsPaid);

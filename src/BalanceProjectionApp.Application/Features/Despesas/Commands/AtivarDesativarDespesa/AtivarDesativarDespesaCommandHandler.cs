@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Common.Interfaces;
+﻿using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Exceptions;
@@ -11,9 +11,9 @@ public class AtivarDesativarDespesaCommandHandler(
     IDespesaRepository despesaRepository,
     IUnitOfWork uow) : IRequestHandler<AtivarDesativarDespesaCommand>
 {
-    public async Task Handle(AtivarDesativarDespesaCommand request, CancellationToken ct)
+    public async Task Handle(AtivarDesativarDespesaCommand request, CancellationToken cancellationToken)
     {
-        var despesa = await despesaRepository.ObterPorIdComParcelasAsync(request.Id, ct)
+        var despesa = await despesaRepository.ObterPorIdComParcelasAsync(request.Id, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Despesa), request.Id);
 
         if (request.IsActive)
@@ -29,6 +29,6 @@ public class AtivarDesativarDespesaCommandHandler(
             despesa.Desativar();
         }
 
-        await uow.SaveChangesAsync(ct);
+        await uow.SaveChangesAsync(cancellationToken);
     }
 }

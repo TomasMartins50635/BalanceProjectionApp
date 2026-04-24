@@ -54,6 +54,31 @@ const emptyForm = (): CreateForm => ({
   dataInicio: '',
 });
 
+function buildCriarPayload(form: CreateForm) {
+  const nome = form.nome.trim();
+  const base = { nome, contaId: form.contaId, categoria: form.categoria || undefined };
+
+  if (form.tipoDespesa === 'Fixa') {
+    if (!nome || !form.contaId || !form.valorFixo || !form.periodicidade || !form.dataInicio)
+      return null;
+    return { ...base, tipoDespesa: 'Fixa' as const, valorFixo: parseFloat(form.valorFixo), periodicidade: form.periodicidade as Periodicidade, dataInicio: form.dataInicio };
+  }
+
+  if (form.tipoDespesa === 'Recorrente') {
+    if (!nome || !form.contaId || !form.valorFixo || !form.dataInicio)
+      return null;
+    return { ...base, tipoDespesa: 'Recorrente' as const, valorFixo: parseFloat(form.valorFixo), dataInicio: form.dataInicio };
+  }
+
+  if (!nome || !form.contaId || form.parcelas.some(p => !p.dataVencimento || !p.valorBruto))
+    return null;
+  return {
+    ...base,
+    tipoDespesa: form.tipoDespesa,
+    parcelas: form.parcelas.map((p, i) => ({ numero: i + 1, dataVencimento: p.dataVencimento, valorBruto: parseFloat(p.valorBruto) })),
+  };
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 interface DespesaViewProps {
@@ -161,52 +186,14 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
   };
 
   const handleCreate = async () => {
+    const payload = buildCriarPayload(form);
+    if (!payload) {
+      toast('Preencha todos os campos obrigatórios', 'error');
+      return;
+    }
     setSaving(true);
     try {
-      if (form.tipoDespesa === 'Fixa') {
-        if (!form.nome.trim() || !form.contaId || !form.valorFixo || !form.periodicidade || !form.dataInicio) {
-          toast('Preencha todos os campos obrigatórios', 'error');
-          return;
-        }
-        await api.despesas.criar({
-          nome: form.nome.trim(),
-          contaId: form.contaId,
-          categoria: form.categoria || undefined,
-          tipoDespesa: 'Fixa',
-          valorFixo: parseFloat(form.valorFixo),
-          periodicidade: form.periodicidade as Periodicidade,
-          dataInicio: form.dataInicio,
-        });
-      } else if (form.tipoDespesa === 'Recorrente') {
-        if (!form.nome.trim() || !form.contaId || !form.valorFixo || !form.dataInicio) {
-          toast('Preencha todos os campos obrigatórios', 'error');
-          return;
-        }
-        await api.despesas.criar({
-          nome: form.nome.trim(),
-          contaId: form.contaId,
-          categoria: form.categoria || undefined,
-          tipoDespesa: 'Recorrente',
-          valorFixo: Number.parseFloat(form.valorFixo),
-          dataInicio: form.dataInicio,
-        });
-      } else {
-        if (!form.nome.trim() || !form.contaId || form.parcelas.some(p => !p.dataVencimento || !p.valorBruto)) {
-          toast('Preencha todos os campos obrigatórios', 'error');
-          return;
-        }
-        await api.despesas.criar({
-          nome: form.nome.trim(),
-          contaId: form.contaId,
-          categoria: form.categoria || undefined,
-          tipoDespesa: form.tipoDespesa,
-          parcelas: form.parcelas.map((p, i) => ({
-            numero: i + 1,
-            dataVencimento: p.dataVencimento,
-            valorBruto: parseFloat(p.valorBruto),
-          })),
-        });
-      }
+      await api.despesas.criar(payload);
       toast('Despesa criada com sucesso');
       setCreateOpen(false);
       setForm(emptyForm());

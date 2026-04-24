@@ -11,5 +11,6 @@ public class ContaConfiguration : IEntityTypeConfiguration<Conta>
         builder.HasKey(c => c.Id);
         builder.Property(c => c.Nome).IsRequired().HasMaxLength(200);
         builder.Property(c => c.Saldo).HasPrecision(18, 2);
+        builder.HasQueryFilter(c => !c.IsDeleted);
     }
 }

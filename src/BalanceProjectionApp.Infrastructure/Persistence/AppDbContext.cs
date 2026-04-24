@@ -16,10 +16,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
-        foreach (var entry in ChangeTracker.Entries<Entity>()
-            .Where(e => e.State == EntityState.Modified))
+        foreach (var entry in ChangeTracker.Entries<Entity>())
         {
-            entry.Property(e => e.UpdatedAt).CurrentValue = now;
+            switch (entry.State)
+            {
+                case EntityState.Added:
+                    entry.Property(e => e.CreatedAt).CurrentValue = now;
+                    entry.Property(e => e.UpdatedAt).CurrentValue = now;
+                    break;
+                case EntityState.Modified:
+                    entry.Property(e => e.UpdatedAt).CurrentValue = now;
+                    break;
+            }
         }
         return base.SaveChangesAsync(cancellationToken);
     }
@@ -32,8 +40,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .Where(t => typeof(Entity).IsAssignableFrom(t.ClrType)))
         {
             var builder = modelBuilder.Entity(entityType.ClrType);
+            // CreatedAt: gerado pelo DB no INSERT via DEFAULT NOW(), nunca alterado
             builder.Property<DateTime>("CreatedAt").HasDefaultValueSql("NOW()");
-            builder.Property<DateTime>("UpdatedAt").HasDefaultValueSql("NOW()");
+            // UpdatedAt: sempre enviado pelo C# — sem ValueGeneratedOnAdd, sem ambiguidade
+            builder.Property<DateTime>("UpdatedAt").HasColumnType("timestamp with time zone");
             builder.Property<bool>("IsDeleted").HasDefaultValue(false);
         }
 

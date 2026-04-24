@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Common.Interfaces;
+﻿using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
@@ -10,12 +10,12 @@ public class EliminarColaboradorCommandHandler(
     IColaboradorRepository colaboradorRepository,
     IUnitOfWork uow) : IRequestHandler<EliminarColaboradorCommand>
 {
-    public async Task Handle(EliminarColaboradorCommand request, CancellationToken ct)
+    public async Task Handle(EliminarColaboradorCommand request, CancellationToken cancellationToken)
     {
-        var colaborador = await colaboradorRepository.ObterPorIdAsync(request.Id, ct)
+        var colaborador = await colaboradorRepository.ObterPorIdAsync(request.Id, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Colaborador), request.Id);
 
-        colaborador.Desativar();
-        await uow.SaveChangesAsync(ct);
+        colaborador.Deletar();
+        await uow.SaveChangesAsync(cancellationToken);
     }
 }

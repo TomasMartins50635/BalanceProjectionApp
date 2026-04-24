@@ -59,7 +59,7 @@ public class Despesa : Entity
 
     public Parcela AdicionarParcela(int numero, DateOnly dataVencimento, decimal valorBruto)
     {
-        if (_parcelas.Any(p => p.Numero == numero))
+        if (_parcelas.Any(p => p.Numero == numero && !p.IsDeleted))
             throw new DomainException($"Já existe uma parcela com o número {numero} nesta despesa.");
 
         var parcela = Parcela.Criar(numero, dataVencimento, valorBruto, valorBruto, ContaId, null, Id);
@@ -87,7 +87,8 @@ public class Despesa : Entity
 
         var dataFim = DataInicio!.Value.AddMonths(meses);
         var data = DataInicio!.Value;
-        var numero = _parcelas.Count == 0 ? 1 : _parcelas.Max(p => p.Numero) + 1;
+        var ativas = _parcelas.Where(p => !p.IsDeleted).ToList();
+        var numero = ativas.Count == 0 ? 1 : ativas.Max(p => p.Numero) + 1;
         var geradas = new List<Parcela>();
 
         while (data < dataFim)
@@ -113,7 +114,8 @@ public class Despesa : Entity
 
         DateOnly dataVencimento;
 
-        if (_parcelas.Count == 0)
+        var parcelasAtivas = _parcelas.Where(p => !p.IsDeleted).ToList();
+        if (parcelasAtivas.Count == 0)
         {
             if (DataInicio is null)
                 throw new DomainException("DataInicio é obrigatória para gerar a primeira parcela.");
@@ -121,7 +123,7 @@ public class Despesa : Entity
         }
         else
         {
-            var ultimaData = _parcelas.Max(p => p.DataVencimento);
+            var ultimaData = parcelasAtivas.Max(p => p.DataVencimento);
 
             if (TipoDespesa == TipoDespesa.Fixa)
             {
@@ -151,7 +153,7 @@ public class Despesa : Entity
             valor = ValorFixo ?? throw new DomainException("Valor previsto não definido.");
         }
 
-        var numero = _parcelas.Count == 0 ? 1 : _parcelas.Max(p => p.Numero) + 1;
+        var numero = parcelasAtivas.Count == 0 ? 1 : parcelasAtivas.Max(p => p.Numero) + 1;
         var parcela = Parcela.Criar(numero, dataVencimento, valor, valor, ContaId, null, Id);
         _parcelas.Add(parcela);
         return parcela;
@@ -182,7 +184,8 @@ public class Despesa : Entity
 
     public void RemoverParcelasNaoLiquidadas()
     {
-        _parcelas.RemoveAll(p => !p.IsPaid);
+        foreach (var p in _parcelas.Where(p => !p.IsPaid && !p.IsDeleted))
+            p.Deletar();
     }
 
     public void Desativar() => IsActive = false;

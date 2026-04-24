@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Features.Despesas.Dtos;
+﻿using BalanceProjectionApp.Application.Features.Despesas.Dtos;
 using BalanceProjectionApp.Application.Features.Parcelas.Dtos;
 using BalanceProjectionApp.Domain.Interfaces;
 using MediatR;
@@ -8,9 +8,9 @@ namespace BalanceProjectionApp.Application.Features.Despesas.Queries.ListarDespe
 public class ListarDespesasQueryHandler(IDespesaRepository repository)
     : IRequestHandler<ListarDespesasQuery, IEnumerable<DespesaDto>>
 {
-    public async Task<IEnumerable<DespesaDto>> Handle(ListarDespesasQuery request, CancellationToken ct)
+    public async Task<IEnumerable<DespesaDto>> Handle(ListarDespesasQuery request, CancellationToken cancellationToken)
     {
-        var despesas = await repository.ListarAsync(ct);
+        var despesas = await repository.ListarAsync(cancellationToken);
         return despesas.Select(d => new DespesaDto(
             d.Id,
             d.Nome,

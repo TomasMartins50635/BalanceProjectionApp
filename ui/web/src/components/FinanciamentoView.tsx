@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Search, Plus, Building2, TrendingDown } from 'lucide-react';
+import { Search, Plus, Building2, TrendingDown, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatDate } from '@/lib/dates';
 import { useToast } from '@/hooks/useToast';
 import { useAsync } from '@/hooks/useAsync';
@@ -20,7 +21,7 @@ interface CreateForm {
 
 const emptyForm = (): CreateForm => ({ nome: '', valor: '', valorMensalidade: '', contaId: '' });
 
-function FinanciamentoCard({ f, contaNome }: { f: FinanciamentoDto; contaNome: string }) {
+function FinanciamentoCard({ f, contaNome, onEliminar }: { f: FinanciamentoDto; contaNome: string; onEliminar: () => void }) {
   const pct = Math.max(0, Math.min(100, f.progressoPercentagem));
   const mesesRestantes = f.valorRestante > 0 && f.valorMensalidade > 0
     ? Math.ceil(f.valorRestante / f.valorMensalidade)
@@ -87,14 +88,25 @@ function FinanciamentoCard({ f, contaNome }: { f: FinanciamentoDto; contaNome: s
       <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs text-slate-500">
         <span className="flex items-center gap-1.5">
           <TrendingDown className="w-3.5 h-3.5" />
-          {f.parcelasPagas} de {f.totalParcelas} parcelas pagas
+          {f.parcelasPagas} parcelas pagas
         </span>
-        {mesesRestantes > 0 && (
-          <span className="tabular-nums">~{mesesRestantes} meses restantes</span>
-        )}
-        {f.valorRestante <= 0 && (
-          <span className="text-emerald-600 font-medium">Liquidado</span>
-        )}
+        <div className="flex items-center gap-2">
+          {mesesRestantes > 0 && (
+            <span className="tabular-nums">~{mesesRestantes} meses restantes</span>
+          )}
+          {f.valorRestante <= 0 && (
+            <span className="text-emerald-600 font-medium">Liquidado</span>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 w-6 p-0 text-slate-300 hover:text-red-500 hover:bg-red-50"
+            onClick={onEliminar}
+            aria-label="Eliminar financiamento"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -113,6 +125,7 @@ export function FinanciamentoView() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<CreateForm>(emptyForm());
   const [saving, setSaving] = useState(false);
 
@@ -134,6 +147,19 @@ export function FinanciamentoView() {
     ),
     [financiamentos, searchTerm, contaNome],
   );
+
+  const handleEliminar = async () => {
+    if (!deleteId) return;
+    const id = deleteId;
+    setDeleteId(null);
+    try {
+      await api.financiamentos.eliminar(id);
+      toast('Financiamento eliminado');
+      reload();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  };
 
   const handleCreate = async () => {
     if (!form.nome.trim() || !form.valor || !form.valorMensalidade || !form.contaId) {
@@ -215,11 +241,20 @@ export function FinanciamentoView() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtered.map(f => (
-              <FinanciamentoCard key={f.id} f={f} contaNome={contaNome(f.contaId)} />
+              <FinanciamentoCard key={f.id} f={f} contaNome={contaNome(f.contaId)} onEliminar={() => setDeleteId(f.id)} />
             ))}
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteId !== null}
+        onOpenChange={open => { if (!open) setDeleteId(null); }}
+        title="Eliminar financiamento"
+        description="Tem a certeza que deseja eliminar este financiamento? Esta ação é irreversível."
+        confirmLabel="Eliminar"
+        onConfirm={handleEliminar}
+      />
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={open => { setCreateOpen(open); if (!open) setForm(emptyForm()); }}>

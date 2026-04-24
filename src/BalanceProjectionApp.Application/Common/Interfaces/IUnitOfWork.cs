@@ -1,6 +1,6 @@
-namespace BalanceProjectionApp.Application.Common.Interfaces;
+﻿namespace BalanceProjectionApp.Application.Common.Interfaces;
 
 public interface IUnitOfWork
 {
-    Task<int> SaveChangesAsync(CancellationToken ct = default);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

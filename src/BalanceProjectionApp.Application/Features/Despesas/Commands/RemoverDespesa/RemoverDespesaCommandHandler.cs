@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Common.Interfaces;
+﻿using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
@@ -10,12 +10,15 @@ public class RemoverDespesaCommandHandler(
     IDespesaRepository despesaRepository,
     IUnitOfWork uow) : IRequestHandler<RemoverDespesaCommand>
 {
-    public async Task Handle(RemoverDespesaCommand request, CancellationToken ct)
+    public async Task Handle(RemoverDespesaCommand request, CancellationToken cancellationToken)
     {
-        var despesa = await despesaRepository.ObterPorIdAsync(request.Id, ct)
+        var despesa = await despesaRepository.ObterPorIdComParcelasAsync(request.Id, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Despesa), request.Id);
 
-        despesaRepository.Remover(despesa);
-        await uow.SaveChangesAsync(ct);
+        foreach (var parcela in despesa.Parcelas.Where(p => !p.IsDeleted))
+            parcela.Deletar();
+
+        despesa.Deletar();
+        await uow.SaveChangesAsync(cancellationToken);
     }
 }

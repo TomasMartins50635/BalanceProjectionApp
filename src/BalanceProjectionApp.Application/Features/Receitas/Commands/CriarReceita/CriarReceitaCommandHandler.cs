@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Common.Interfaces;
+﻿using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Exceptions;
@@ -14,16 +14,16 @@ public class CriarReceitaCommandHandler(
     IDespesaRepository despesaRepository,
     IUnitOfWork uow) : IRequestHandler<CriarReceitaCommand, Guid>
 {
-    public async Task<Guid> Handle(CriarReceitaCommand request, CancellationToken ct)
+    public async Task<Guid> Handle(CriarReceitaCommand request, CancellationToken cancellationToken)
     {
-        var conta = await contaRepository.ObterPorIdAsync(request.ContaId, ct)
+        var conta = await contaRepository.ObterPorIdAsync(request.ContaId, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Conta), request.ContaId);
 
         var receita = Receita.Criar(request.Nome, conta.Id, request.ValorTotal, request.Categoria);
 
         if (request.ColaboradorId.HasValue)
         {
-            var colaborador = await colaboradorRepository.ObterPorIdAsync(request.ColaboradorId.Value, ct)
+            var colaborador = await colaboradorRepository.ObterPorIdAsync(request.ColaboradorId.Value, cancellationToken)
                 ?? throw new EntityNotFoundException(nameof(Colaborador), request.ColaboradorId.Value);
             receita.AssociarColaborador(colaborador);
         }
@@ -31,7 +31,7 @@ public class CriarReceitaCommandHandler(
         foreach (var p in request.Parcelas.OrderBy(p => p.Numero))
             receita.AdicionarParcela(p.Numero, p.DataVencimento, p.Percentagem);
 
-        await receitaRepository.AdicionarAsync(receita, ct);
+        await receitaRepository.AdicionarAsync(receita, cancellationToken);
 
         if (request.TemIva)
         {
@@ -46,10 +46,10 @@ public class CriarReceitaCommandHandler(
                 TipoDespesa.Pontual);
 
             despesaIva.AdicionarParcela(1, vencimentoIva, valorIva);
-            await despesaRepository.AdicionarAsync(despesaIva, ct);
+            await despesaRepository.AdicionarAsync(despesaIva, cancellationToken);
         }
 
-        await uow.SaveChangesAsync(ct);
+        await uow.SaveChangesAsync(cancellationToken);
         return receita.Id;
     }
 }

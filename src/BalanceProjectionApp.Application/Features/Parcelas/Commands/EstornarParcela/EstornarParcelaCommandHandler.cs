@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Common.Interfaces;
+﻿using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
@@ -11,12 +11,12 @@ public class EstornarParcelaCommandHandler(
     IContaRepository contaRepository,
     IUnitOfWork uow) : IRequestHandler<EstornarParcelaCommand>
 {
-    public async Task Handle(EstornarParcelaCommand request, CancellationToken ct)
+    public async Task Handle(EstornarParcelaCommand request, CancellationToken cancellationToken)
     {
-        var parcela = await parcelaRepository.ObterPorIdAsync(request.ParcelaId, ct)
+        var parcela = await parcelaRepository.ObterPorIdAsync(request.ParcelaId, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Parcela), request.ParcelaId);
 
-        var conta = await contaRepository.ObterPorIdAsync(parcela.ContaId, ct)
+        var conta = await contaRepository.ObterPorIdAsync(parcela.ContaId, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Conta), parcela.ContaId);
 
         // Inverso da liquidação: receita debitava, despesa creditava
@@ -27,6 +27,6 @@ public class EstornarParcelaCommandHandler(
 
         parcela.Estornar();
 
-        await uow.SaveChangesAsync(ct);
+        await uow.SaveChangesAsync(cancellationToken);
     }
 }

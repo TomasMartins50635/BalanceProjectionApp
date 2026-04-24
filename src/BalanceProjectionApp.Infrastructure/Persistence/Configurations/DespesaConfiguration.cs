@@ -12,6 +12,7 @@ public class DespesaConfiguration : IEntityTypeConfiguration<Despesa>
         builder.Property(d => d.Nome).IsRequired().HasMaxLength(200);
         builder.Property(d => d.TipoDespesa).HasConversion<string>().IsRequired();
         builder.Property(d => d.Periodicidade).HasConversion<string>();
+        builder.HasQueryFilter(d => !d.IsDeleted);
 
         builder.HasOne(d => d.Conta)
             .WithMany()
@@ -21,6 +22,6 @@ public class DespesaConfiguration : IEntityTypeConfiguration<Despesa>
         builder.HasMany(d => d.Parcelas)
             .WithOne(p => p.Despesa)
             .HasForeignKey(p => p.DespesaId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

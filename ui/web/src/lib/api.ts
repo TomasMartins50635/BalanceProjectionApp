@@ -104,5 +104,7 @@ export const api = {
       request<FinanciamentoDto[]>(`/financiamentos/conta/${contaId}`),
     criar: (body: CriarFinanciamentoRequest) =>
       request<{ id: string }>('/financiamentos', { method: 'POST', body: JSON.stringify(body) }),
+    eliminar: (id: string) =>
+      request<void>(`/financiamentos/${id}`, { method: 'DELETE' }),
   },
 };

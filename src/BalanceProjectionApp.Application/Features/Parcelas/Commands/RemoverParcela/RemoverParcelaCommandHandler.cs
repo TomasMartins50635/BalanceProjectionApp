@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Common.Interfaces;
+﻿using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
@@ -10,15 +10,12 @@ public class RemoverParcelaCommandHandler(
     IParcelaRepository parcelaRepository,
     IUnitOfWork uow) : IRequestHandler<RemoverParcelaCommand>
 {
-    public async Task Handle(RemoverParcelaCommand request, CancellationToken ct)
+    public async Task Handle(RemoverParcelaCommand request, CancellationToken cancellationToken)
     {
-        var parcela = await parcelaRepository.ObterPorIdAsync(request.Id, ct)
+        var parcela = await parcelaRepository.ObterPorIdAsync(request.Id, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Parcela), request.Id);
 
-        if (parcela.IsPaid)
-            throw new DomainException("Não é possível eliminar uma parcela já liquidada.");
-
-        parcelaRepository.Remover(parcela);
-        await uow.SaveChangesAsync(ct);
+        parcela.Deletar();
+        await uow.SaveChangesAsync(cancellationToken);
     }
 }

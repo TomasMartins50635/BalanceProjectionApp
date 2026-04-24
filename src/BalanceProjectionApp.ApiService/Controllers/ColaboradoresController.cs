@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Features.Colaboradores.Commands.CriarColaborador;
+﻿using BalanceProjectionApp.Application.Features.Colaboradores.Commands.CriarColaborador;
 using BalanceProjectionApp.Application.Features.Colaboradores.Commands.EliminarColaborador;
 using BalanceProjectionApp.Application.Features.Colaboradores.Queries.ListarColaboradores;
 using MediatR;
@@ -11,20 +11,20 @@ namespace BalanceProjectionApp.ApiService.Controllers;
 public class ColaboradoresController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> Listar(CancellationToken ct)
-        => Ok(await mediator.Send(new ListarColaboradoresQuery(), ct));
+    public async Task<IActionResult> Listar(CancellationToken cancellationToken)
+        => Ok(await mediator.Send(new ListarColaboradoresQuery(), cancellationToken));
 
     [HttpPost]
-    public async Task<IActionResult> Criar(CriarColaboradorCommand command, CancellationToken ct)
+    public async Task<IActionResult> Criar(CriarColaboradorCommand command, CancellationToken cancellationToken)
     {
-        var id = await mediator.Send(command, ct);
+        var id = await mediator.Send(command, cancellationToken);
         return Created($"/colaboradores/{id}", new { id });
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Eliminar(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Eliminar(Guid id, CancellationToken cancellationToken)
     {
-        await mediator.Send(new EliminarColaboradorCommand(id), ct);
+        await mediator.Send(new EliminarColaboradorCommand(id), cancellationToken);
         return NoContent();
     }
 }

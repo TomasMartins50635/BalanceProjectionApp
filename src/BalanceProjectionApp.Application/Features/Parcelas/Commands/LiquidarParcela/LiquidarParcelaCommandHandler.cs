@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Common.Interfaces;
+﻿using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Exceptions;
@@ -14,16 +14,16 @@ public class LiquidarParcelaCommandHandler(
     IFinanciamentoRepository financiamentoRepository,
     IUnitOfWork uow) : IRequestHandler<LiquidarParcelaCommand, LiquidarParcelaResult>
 {
-    public async Task<LiquidarParcelaResult> Handle(LiquidarParcelaCommand request, CancellationToken ct)
+    public async Task<LiquidarParcelaResult> Handle(LiquidarParcelaCommand request, CancellationToken cancellationToken)
     {
-        var parcela = await parcelaRepository.ObterPorIdAsync(request.ParcelaId, ct)
+        var parcela = await parcelaRepository.ObterPorIdAsync(request.ParcelaId, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Parcela), request.ParcelaId);
 
         // Se foi especificada uma conta diferente, redirecionar o movimento
         if (request.ContaId.HasValue && request.ContaId.Value != parcela.ContaId)
             parcela.AlterarConta(request.ContaId.Value);
 
-        var conta = await contaRepository.ObterPorIdAsync(parcela.ContaId, ct)
+        var conta = await contaRepository.ObterPorIdAsync(parcela.ContaId, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Conta), parcela.ContaId);
 
         // Para despesas Recorrentes, o utilizador pode definir o valor real no momento da liquidação
@@ -40,11 +40,11 @@ public class LiquidarParcelaCommandHandler(
         // Gerar próxima parcela automaticamente para Fixas e Recorrentes ativas
         if (parcela.DespesaId.HasValue)
         {
-            var despesa = await despesaRepository.ObterPorIdComParcelasAsync(parcela.DespesaId.Value, ct)
+            var despesa = await despesaRepository.ObterPorIdComParcelasAsync(parcela.DespesaId.Value, cancellationToken)
                 ?? throw new EntityNotFoundException(nameof(Despesa), parcela.DespesaId.Value);
 
             decimal? valorRestanteFinanciamento = null;
-            var financiamento = await financiamentoRepository.ObterPorDespesaIdAsync(despesa.Id, ct);
+            var financiamento = await financiamentoRepository.ObterPorDespesaIdAsync(despesa.Id, cancellationToken);
 
             if (financiamento is not null)
             {
@@ -70,13 +70,13 @@ public class LiquidarParcelaCommandHandler(
                     if (valorRestanteFinanciamento.HasValue && novaParcela.ValorLiquido > valorRestanteFinanciamento.Value)
                         novaParcela.AtualizarValor(valorRestanteFinanciamento.Value);
 
-                    await parcelaRepository.AdicionarAsync(novaParcela, ct);
+                    await parcelaRepository.AdicionarAsync(novaParcela, cancellationToken);
                     }
                 }
             }
         }
 
-        await uow.SaveChangesAsync(ct);
+        await uow.SaveChangesAsync(cancellationToken);
 
         return new LiquidarParcelaResult(parcela.Id, parcela.ValorLiquido, conta.Saldo);
     }

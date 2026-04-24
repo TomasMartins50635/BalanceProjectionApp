@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Features.Colaboradores.Dtos;
+﻿using BalanceProjectionApp.Application.Features.Colaboradores.Dtos;
 using BalanceProjectionApp.Domain.Interfaces;
 using MediatR;
 
@@ -7,9 +7,9 @@ namespace BalanceProjectionApp.Application.Features.Colaboradores.Queries.Listar
 public class ListarColaboradoresQueryHandler(IColaboradorRepository repository)
     : IRequestHandler<ListarColaboradoresQuery, IEnumerable<ColaboradorDto>>
 {
-    public async Task<IEnumerable<ColaboradorDto>> Handle(ListarColaboradoresQuery request, CancellationToken ct)
+    public async Task<IEnumerable<ColaboradorDto>> Handle(ListarColaboradoresQuery request, CancellationToken cancellationToken)
     {
-        var colaboradores = await repository.ListarAsync(ct);
+        var colaboradores = await repository.ListarAsync(cancellationToken);
         return colaboradores.Select(c => new ColaboradorDto(c.Id, c.Nome, c.Percentagem));
     }
 }

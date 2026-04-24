@@ -1,4 +1,4 @@
-using BalanceProjectionApp.Application.Features.Contas.Dtos;
+﻿using BalanceProjectionApp.Application.Features.Contas.Dtos;
 using BalanceProjectionApp.Domain.Interfaces;
 using MediatR;
 
@@ -7,9 +7,9 @@ namespace BalanceProjectionApp.Application.Features.Contas.Queries.ObterConta;
 public class ObterContaQueryHandler(IContaRepository repository)
     : IRequestHandler<ObterContaQuery, ContaDto?>
 {
-    public async Task<ContaDto?> Handle(ObterContaQuery request, CancellationToken ct)
+    public async Task<ContaDto?> Handle(ObterContaQuery request, CancellationToken cancellationToken)
     {
-        var conta = await repository.ObterPorIdAsync(request.Id, ct);
+        var conta = await repository.ObterPorIdAsync(request.Id, cancellationToken);
         if (conta is null) return null;
         return new ContaDto(conta.Id, conta.Nome, conta.Saldo);
     }
