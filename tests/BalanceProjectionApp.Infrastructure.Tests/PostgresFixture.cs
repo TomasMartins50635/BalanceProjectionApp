@@ -44,7 +44,7 @@ public class PostgresFixture : IAsyncLifetime
     {
         await using var ctx = CreateContext();
         await ctx.Database.ExecuteSqlRawAsync("""
-            TRUNCATE TABLE "Parcelas", "Comissoes", "Financiamentos",
+            TRUNCATE TABLE "Parcelas", "Financiamentos",
                            "Receitas", "Despesas", "Colaboradores", "Contas"
             CASCADE
             """);

@@ -30,7 +30,7 @@ public class EliminarContaHandlerTests
 
         await _handler.Handle(new EliminarContaCommand(contaId), CancellationToken.None);
 
-        _repo.Received(1).Remover(conta);
+        conta.IsDeleted.Should().BeTrue();
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -43,7 +43,6 @@ public class EliminarContaHandlerTests
             new EliminarContaCommand(Guid.NewGuid()), CancellationToken.None);
 
         await act.Should().ThrowAsync<EntityNotFoundException>();
-        _repo.DidNotReceive().Remover(Arg.Any<Conta>());
         await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -60,7 +59,7 @@ public class EliminarContaHandlerTests
 
         await act.Should().ThrowAsync<DomainException>()
             .WithMessage("*receitas*");
-        _repo.DidNotReceive().Remover(Arg.Any<Conta>());
+        conta.IsDeleted.Should().BeFalse();
         await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

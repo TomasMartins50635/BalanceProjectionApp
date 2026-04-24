@@ -42,7 +42,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         using var scope = Services.CreateScope();
         var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await ctx.Database.ExecuteSqlRawAsync("""
-            TRUNCATE TABLE "Parcelas", "Comissoes", "Financiamentos",
+            TRUNCATE TABLE "Parcelas", "Financiamentos",
                            "Receitas", "Despesas", "Colaboradores", "Contas"
             CASCADE
             """);

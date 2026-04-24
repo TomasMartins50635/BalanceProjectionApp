@@ -132,7 +132,7 @@ public class ReceitaTests
         var removidos = receita.RemoverParcelasNaoPagas();
 
         removidos.Should().HaveCount(1);
-        receita.Parcelas.Should().HaveCount(1);
-        receita.Parcelas.Single().Numero.Should().Be(1);
+        receita.Parcelas.Count(p => !p.IsDeleted).Should().Be(1);
+        receita.Parcelas.Single(p => !p.IsDeleted).Numero.Should().Be(1);
     }
 }
