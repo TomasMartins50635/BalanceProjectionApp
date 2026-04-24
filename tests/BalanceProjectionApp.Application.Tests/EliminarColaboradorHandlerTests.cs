@@ -46,17 +46,15 @@ public class EliminarColaboradorHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ColaboradorJaDesativado_LancaDomainException()
+    public async Task Handle_ColaboradorJaDesativado_NaoLancaExcecaoEGuarda()
     {
         var colaboradorId = Guid.NewGuid();
         var colaborador = Colaborador.Criar("Ana", 10m);
-        colaborador.Desativar(); // já desativado
+        colaborador.Deletar(); // já desativado
         _repo.ObterPorIdAsync(colaboradorId, Arg.Any<CancellationToken>()).Returns(colaborador);
 
-        var act = async () => await _handler.Handle(
-            new EliminarColaboradorCommand(colaboradorId), CancellationToken.None);
+        await _handler.Handle(new EliminarColaboradorCommand(colaboradorId), CancellationToken.None);
 
-        await act.Should().ThrowAsync<DomainException>();
-        await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

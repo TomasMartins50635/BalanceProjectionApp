@@ -119,7 +119,7 @@ public class ParcelaRepositoryTests(PostgresFixture db) : IAsyncLifetime
         await using (var ctx = db.CreateContext())
         {
             var r = await new ReceitaRepository(ctx).ObterPorIdAsync(receitaRemovida.Id);
-            r!.Remover();
+            r!.Deletar();
             await ctx.SaveChangesAsync();
         }
 

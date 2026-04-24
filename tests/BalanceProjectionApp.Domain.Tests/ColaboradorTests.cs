@@ -48,23 +48,23 @@ public class ColaboradorTests
     }
 
     [Fact]
-    public void Desativar_ColaboradorAtivo_MarcaComoRemovido()
+    public void Deletar_ColaboradorAtivo_MarcaComoRemovido()
     {
         var colaborador = Colaborador.Criar("Ana", 10m);
 
-        colaborador.Desativar();
+        colaborador.Deletar();
 
         colaborador.IsDeleted.Should().BeTrue();
     }
 
     [Fact]
-    public void Desativar_ColaboradorJaRemovido_LancaDomainException()
+    public void Deletar_ColaboradorJaRemovido_NaoLancaExcecao()
     {
         var colaborador = Colaborador.Criar("Ana", 10m);
-        colaborador.Desativar();
+        colaborador.Deletar();
 
-        var act = () => colaborador.Desativar();
+        var act = () => colaborador.Deletar();
 
-        act.Should().Throw<DomainException>();
+        act.Should().NotThrow();
     }
 }

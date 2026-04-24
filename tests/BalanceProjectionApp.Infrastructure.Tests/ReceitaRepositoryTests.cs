@@ -102,7 +102,7 @@ public class ReceitaRepositoryTests(PostgresFixture db) : IAsyncLifetime
         await using (var ctx = db.CreateContext())
         {
             var r = await new ReceitaRepository(ctx).ObterPorIdAsync(removida.Id);
-            r!.Remover();
+            r!.Deletar();
             await ctx.SaveChangesAsync();
         }
 

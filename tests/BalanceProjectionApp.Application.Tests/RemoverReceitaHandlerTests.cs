@@ -46,17 +46,15 @@ public class RemoverReceitaHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReceitaJaRemovida_LancaDomainException()
+    public async Task Handle_ReceitaJaRemovida_NaoLancaExcecaoEGuarda()
     {
         var receitaId = Guid.NewGuid();
         var receita = Receita.Criar("Proj", Guid.NewGuid(), 1000m);
-        receita.Remover(); // já removida
+        receita.Deletar(); // já removida
         _repo.ObterPorIdAsync(receitaId, Arg.Any<CancellationToken>()).Returns(receita);
 
-        var act = async () => await _handler.Handle(
-            new RemoverReceitaCommand(receitaId), CancellationToken.None);
+        await _handler.Handle(new RemoverReceitaCommand(receitaId), CancellationToken.None);
 
-        await act.Should().ThrowAsync<DomainException>();
-        await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

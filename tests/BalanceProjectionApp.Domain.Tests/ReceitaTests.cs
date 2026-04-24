@@ -47,24 +47,24 @@ public class ReceitaTests
     // ── Remover ────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Remover_ReceitaAtiva_MarcaComoRemovida()
+    public void Deletar_ReceitaAtiva_MarcaComoRemovida()
     {
         var receita = Receita.Criar("Projeto", ContaId, 1000m);
 
-        receita.Remover();
+        receita.Deletar();
 
         receita.IsDeleted.Should().BeTrue();
     }
 
     [Fact]
-    public void Remover_ReceitaJaRemovida_LancaDomainException()
+    public void Deletar_ReceitaJaRemovida_NaoLancaExcecao()
     {
         var receita = Receita.Criar("Projeto", ContaId, 1000m);
-        receita.Remover();
+        receita.Deletar();
 
-        var act = () => receita.Remover();
+        var act = () => receita.Deletar();
 
-        act.Should().Throw<DomainException>();
+        act.Should().NotThrow();
     }
 
     // ── AdicionarParcela ───────────────────────────────────────────────────────
