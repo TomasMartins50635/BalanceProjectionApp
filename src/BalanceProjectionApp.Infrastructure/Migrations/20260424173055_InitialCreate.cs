@@ -18,6 +18,8 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Nome = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     Percentagem = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsDeleted = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false)
                 },
                 constraints: table =>
@@ -31,7 +33,10 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Nome = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Saldo = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false)
+                    Saldo = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false)
                 },
                 constraints: table =>
                 {
@@ -50,7 +55,10 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                     ValorFixo = table.Column<decimal>(type: "numeric", nullable: true),
                     Periodicidade = table.Column<string>(type: "text", nullable: true),
                     DataInicio = table.Column<DateOnly>(type: "date", nullable: true),
-                    IsActive = table.Column<bool>(type: "boolean", nullable: false)
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false)
                 },
                 constraints: table =>
                 {
@@ -71,9 +79,11 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                     Nome = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     Categoria = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     ValorTotal = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
                     ContaId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ColaboradorId = table.Column<Guid>(type: "uuid", nullable: true)
+                    ColaboradorId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false)
                 },
                 constraints: table =>
                 {
@@ -101,7 +111,10 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                     Valor = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     Data = table.Column<DateOnly>(type: "date", nullable: false),
                     ContaId = table.Column<Guid>(type: "uuid", nullable: false),
-                    DespesaId = table.Column<Guid>(type: "uuid", nullable: true)
+                    DespesaId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false)
                 },
                 constraints: table =>
                 {
@@ -121,25 +134,6 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Comissoes",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Percentagem = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
-                    ReceitaId = table.Column<Guid>(type: "uuid", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Comissoes", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Comissoes_Receitas_ReceitaId",
-                        column: x => x.ReceitaId,
-                        principalTable: "Receitas",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Parcelas",
                 columns: table => new
                 {
@@ -153,7 +147,10 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                     DataPagamento = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     ContaId = table.Column<Guid>(type: "uuid", nullable: false),
                     ReceitaId = table.Column<Guid>(type: "uuid", nullable: true),
-                    DespesaId = table.Column<Guid>(type: "uuid", nullable: true)
+                    DespesaId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false)
                 },
                 constraints: table =>
                 {
@@ -163,7 +160,7 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                         column: x => x.DespesaId,
                         principalTable: "Despesas",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_Parcelas_Receitas_ReceitaId",
                         column: x => x.ReceitaId,
@@ -171,12 +168,6 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Comissoes_ReceitaId",
-                table: "Comissoes",
-                column: "ReceitaId",
-                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Despesas_ContaId",
@@ -232,9 +223,6 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "Comissoes");
-
             migrationBuilder.DropTable(
                 name: "Financiamentos");
 
