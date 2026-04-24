@@ -53,47 +53,47 @@ export function ColaboradorView() {
   };
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="p-4 md:p-6 bg-slate-50 min-h-full">
       <div className="mb-4 md:mb-6 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-1">Colaboradores</h2>
-          <p className="text-xs md:text-sm text-gray-600">Gestão de colaboradores e respetivas comissões</p>
+          <h2 className="text-xl font-semibold text-slate-900 mb-1">Colaboradores</h2>
+          <p className="text-sm text-slate-500">Gestão de colaboradores e respetivas comissões</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} className="shrink-0">
+        <Button onClick={() => setCreateOpen(true)} className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white">
           <Plus className="w-4 h-4 mr-1" /> Novo Colaborador
         </Button>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         {error ? (
           <div className="p-6 text-center text-red-600 text-sm">{error}</div>
         ) : loading ? (
           <div className="p-6 space-y-3">
-            {[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 animate-pulse rounded" />)}
+            {[1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 animate-pulse rounded-lg" />)}
           </div>
         ) : (
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-slate-50">
               <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead className="w-40 text-right">Comissão (%)</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nome</TableHead>
+                <TableHead className="w-40 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Comissão (%)</TableHead>
                 <TableHead className="w-16" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {(colaboradores ?? []).length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-sm text-gray-500 py-12">
-                    <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <TableCell colSpan={3} className="text-center text-sm text-slate-500 py-12">
+                    <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                     Nenhum colaborador registado
                   </TableCell>
                 </TableRow>
               ) : (
                 (colaboradores ?? []).map(c => (
                   <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.nome}</TableCell>
+                    <TableCell className="font-medium text-slate-800">{c.nome}</TableCell>
                     <TableCell className="text-right">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 tabular-nums">
                         {c.percentagem}%
                       </span>
                     </TableCell>
@@ -101,7 +101,7 @@ export function ColaboradorView() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                        className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
                         onClick={() => setEliminando(c.id)}
                         aria-label={`Remover ${c.nome}`}
                       >
@@ -117,25 +117,25 @@ export function ColaboradorView() {
       </div>
 
       <Dialog open={createOpen} onOpenChange={open => { setCreateOpen(open); if (!open) { setFormNome(''); setFormPercentagem(''); } }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md shadow-xl">
           <DialogHeader>
             <DialogTitle>Novo Colaborador</DialogTitle>
             <DialogDescription>Defina o nome e a percentagem de comissão do colaborador.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <Label htmlFor="col-nome">Nome *</Label>
+              <Label htmlFor="col-nome" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nome *</Label>
               <Input
                 id="col-nome"
                 placeholder="Ex: João Silva"
                 value={formNome}
                 onChange={e => setFormNome(e.target.value)}
-                className="mt-1"
+                className="mt-1.5 border-slate-200 focus-visible:ring-indigo-400"
               />
             </div>
             <div>
-              <Label htmlFor="col-perc">Comissão (%) *</Label>
-              <div className="relative mt-1">
+              <Label htmlFor="col-perc" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Comissão (%) *</Label>
+              <div className="relative mt-1.5">
                 <Input
                   id="col-perc"
                   type="number"
@@ -145,14 +145,14 @@ export function ColaboradorView() {
                   placeholder="0"
                   value={formPercentagem}
                   onChange={e => setFormPercentagem(e.target.value)}
-                  className="pr-8"
+                  className="pr-8 border-slate-200 focus-visible:ring-indigo-400 tabular-nums"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>Cancelar</Button>
-              <Button onClick={handleCriar} disabled={saving || !formNome.trim() || formPercentagem === ''}>
+              <Button variant="outline" className="rounded-lg" onClick={() => setCreateOpen(false)} disabled={saving}>Cancelar</Button>
+              <Button className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleCriar} disabled={saving || !formNome.trim() || formPercentagem === ''}>
                 {saving ? 'A guardar…' : 'Criar Colaborador'}
               </Button>
             </div>

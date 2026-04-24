@@ -1,5 +1,7 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Pencil, Trash2, ChevronRight } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { Pagination } from '@/components/ui/pagination';
+import { Search, Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -92,14 +94,18 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   }, [highlightId, receitas]);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isAtTop, setIsAtTop] = useState(true);
+  const handleScroll = useCallback(() => {
+    setIsAtTop((scrollRef.current?.scrollTop ?? 0) < 50);
+  }, []);
+
   const {
     liquidando, liquidarDialog, setLiquidarDialog, estornando,
     estornarConfirmId, setEstornarConfirmId,
     openLiquidarDialog, parcelaSort, toggleSort, handleLiquidar, handleEstornar,
   } = useParcelaActions(reload);
 
-  const [alterarContaDialog, setAlterarContaDialog] = useState<{ parcelaId: string; contaId: string } | null>(null);
-  const [alterandoConta, setAlterandoConta] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [removeId, setRemoveId] = useState<string | null>(null);
@@ -116,6 +122,9 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
       ),
     [receitas, searchTerm, removingIds],
   );
+
+  const { page, totalPages, pageItems, setPage, reset: resetPage } = usePagination(filtered, 15);
+  useEffect(() => { resetPage(); }, [searchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const valorTotal = (r: ReceitaDto) => r.parcelas.reduce((s, p) => s + p.valorBruto, 0);
 
@@ -138,22 +147,6 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   );
 
   // ── Actions ──────────────────────────────────────────────────────────────────
-
-  const handleAlterarConta = async () => {
-    if (!alterarContaDialog) return;
-    const { parcelaId, contaId } = alterarContaDialog;
-    setAlterarContaDialog(null);
-    setAlterandoConta(true);
-    try {
-      await api.parcelas.alterarConta(parcelaId, contaId);
-      toast('Conta alterada');
-      reload();
-    } catch (e) {
-      toast((e as Error).message, 'error');
-    } finally {
-      setAlterandoConta(false);
-    }
-  };
 
   const openEdit = (r: ReceitaDto, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -262,12 +255,12 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
           <div className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <Label htmlFor="rf-nome" className="text-xs font-medium text-gray-700">NOME *</Label>
+                <Label htmlFor="rf-nome" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">NOME *</Label>
                 <Input id="rf-nome" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className="mt-1.5" placeholder="Ex: Projeto ABC" />
               </div>
               {!isEdit && (
                 <div>
-                  <Label htmlFor="rf-conta" className="text-xs font-medium text-gray-700">CONTA *</Label>
+                  <Label htmlFor="rf-conta" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">CONTA *</Label>
                   <Select value={form.contaId} onValueChange={v => setForm(f => ({ ...f, contaId: v }))}>
                     <SelectTrigger id="rf-conta" className="mt-1.5"><SelectValue placeholder="Selecionar conta" /></SelectTrigger>
                     <SelectContent>
@@ -277,18 +270,18 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                 </div>
               )}
               <div>
-                <Label htmlFor="rf-vt" className="text-xs font-medium text-gray-700">VALOR TOTAL (€) *</Label>
+                <Label htmlFor="rf-vt" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">VALOR TOTAL (€) *</Label>
                 <div className="relative mt-1.5">
                   <Input id="rf-vt" type="number" value={form.valorTotal} onChange={e => setForm(f => ({ ...f, valorTotal: e.target.value }))} step="0.01" min="0" placeholder="0.00" className="pl-6" />
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
                 </div>
               </div>
               <div>
-                <Label htmlFor="rf-cat" className="text-xs font-medium text-gray-700">CATEGORIA</Label>
+                <Label htmlFor="rf-cat" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">CATEGORIA</Label>
                 <Input id="rf-cat" value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} className="mt-1.5" placeholder="Ex: Consultoria" />
               </div>
               <div>
-                <Label htmlFor="rf-col" className="text-xs font-medium text-gray-700">COLABORADOR</Label>
+                <Label htmlFor="rf-col" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">COLABORADOR</Label>
                 <Select value={form.colaboradorId || '_none'} onValueChange={v => setForm(f => ({ ...f, colaboradorId: v === '_none' ? '' : v }))}>
                   <SelectTrigger id="rf-col" className="mt-1.5"><SelectValue placeholder="Sem colaborador" /></SelectTrigger>
                   <SelectContent>
@@ -324,7 +317,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
-                  <Label className="text-xs font-medium text-gray-700">PARCELAS *</Label>
+                  <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">PARCELAS *</Label>
                   <span className={`text-xs font-medium ${Math.abs(totalPercentagem - 100) < 0.01 ? 'text-green-600' : totalPercentagem > 100 ? 'text-red-600' : 'text-gray-500'}`}>
                     {totalPercentagem.toFixed(1)}% / 100%
                   </span>
@@ -336,7 +329,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                   <div key={i} className="grid grid-cols-[1fr_120px_90px_auto] gap-2 items-end">
                     <div>
                       <label className="text-xs text-gray-500">Vencimento</label>
-                      <input type="date" value={p.dataVencimento} onChange={e => updateParcela(i, 'dataVencimento', e.target.value)} className="mt-1 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" />
+                      <input type="date" value={p.dataVencimento} onChange={e => updateParcela(i, 'dataVencimento', e.target.value)} className="mt-1 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" />
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">Percentagem (%)</label>
@@ -390,71 +383,69 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 md:px-5 py-3 md:py-4 border-b border-gray-200 bg-white shrink-0">
+      <div className="px-4 md:px-5 pt-3.5 border-b border-slate-100 bg-white shrink-0">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base md:text-lg font-semibold text-gray-900">Receitas</h2>
-          <Button size="sm" onClick={() => { setForm(emptyForm()); setCreateOpen(true); }}>
+          <h2 className="text-base md:text-lg font-semibold text-slate-900">Receitas</h2>
+          <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={() => { setForm(emptyForm()); setCreateOpen(true); }}>
             <Plus className="w-4 h-4 md:mr-1" /><span className="hidden md:inline">Nova Receita</span>
           </Button>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-          <Input aria-label="Pesquisar receitas" placeholder="Pesquisar por nome ou categoria..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-9" />
+        <div className={`overflow-hidden transition-all duration-200 ${isAtTop ? 'max-h-16 opacity-100 pb-3.5' : 'max-h-0 opacity-0 pb-0'}`}>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" aria-hidden="true" />
+            <Input aria-label="Pesquisar receitas" placeholder="Pesquisar por nome ou categoria..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-9 border-slate-200" />
+          </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto bg-white">
+      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto bg-white">
         {error ? (
           <div className="p-6 text-center text-red-600 text-sm">{error}</div>
         ) : loading ? (
-          <div className="p-6 space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 animate-pulse rounded" />)}</div>
+          <div className="p-6 space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 animate-pulse rounded-lg" />)}</div>
         ) : (
           <Table>
-            <TableHeader className="sticky top-0 bg-gray-50 z-10">
+            <TableHeader className="sticky top-0 bg-slate-50 z-10">
               <TableRow>
-                <TableHead className="w-10" />
-                <TableHead>Nome</TableHead>
-                <TableHead className="w-36">Categoria</TableHead>
-                <TableHead className="w-28 text-right">Valor Total</TableHead>
-                <TableHead className="w-28">Atualizado</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nome</TableHead>
+                <TableHead className="w-36 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Categoria</TableHead>
+                <TableHead className="w-28 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Valor Total</TableHead>
+                <TableHead className="w-28 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Atualizado</TableHead>
                 <TableHead className="w-20" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-sm text-gray-500 py-8">
+                  <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-8">
                     {(receitas ?? []).length === 0 ? 'Nenhuma receita registada' : 'Nenhum resultado'}
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map(r => (
+                pageItems.map(r => (
                   <Fragment key={r.id}>
                     <TableRow
-                      className={`cursor-pointer select-none transition-colors ${expandedId === r.id ? 'bg-blue-50 hover:bg-blue-50' : 'hover:bg-gray-50'}`}
+                      className={`cursor-pointer select-none transition-colors ${expandedId === r.id ? 'bg-indigo-50/50 hover:bg-indigo-50/50' : 'hover:bg-slate-50'}`}
                       onClick={() => setExpandedId(id => id === r.id ? null : r.id)}
                     >
-                      <TableCell className="px-3">
-                        <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-150 ${expandedId === r.id ? 'rotate-90' : ''}`} />
-                      </TableCell>
                       <TableCell className="font-medium">
                         {r.nome}
                         {r.colaboradorNome && (
-                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600">
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600">
                             {r.colaboradorNome}
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600">
+                      <TableCell className="text-sm text-gray-600 hidden sm:table-cell">
                         {r.categoria
-                          ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">{r.categoria}</span>
-                          : <span className="text-gray-400">—</span>}
+                          ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">{r.categoria}</span>
+                          : <span className="text-slate-300">—</span>}
                       </TableCell>
-                      <TableCell className="text-right font-semibold text-green-600">
+                      <TableCell className="text-right font-semibold text-green-600 tabular-nums">
                         €{valorTotal(r).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500">
+                      <TableCell className="text-sm text-gray-500 hidden sm:table-cell">
                         {formatDateTime(r.updatedAt)}
                       </TableCell>
                       <TableCell>
@@ -480,13 +471,13 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                     </TableRow>
 
                     {expandedId === r.id && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="p-0">
-                          <div className="px-8 py-4 bg-gray-50 border-t border-gray-200">
-                            <p className="text-xs font-semibold text-gray-500 tracking-wide mb-3">
-                              PARCELAS ({r.parcelas.length})
+                      <TableRow className="hidden sm:table-row">
+                        <TableCell colSpan={5} className="p-0">
+                          <div className="px-4 md:px-8 py-4 bg-slate-50/60 border-t border-slate-100">
+                            <p className="text-[11px] font-semibold text-slate-400 tracking-wider uppercase mb-3">
+                              Parcelas ({r.parcelas.length})
                             </p>
-                            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                               <ParcelasTable
                                 parcelas={r.parcelas}
                                 variant="receita"
@@ -496,7 +487,6 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                                 estornando={estornando}
                                 onLiquidar={(id, isRecorrente, contaId) => openLiquidarDialog(id, isRecorrente, contaId)}
                                 onEstornar={setEstornarConfirmId}
-                                onAlterarConta={(parcelaId, currentContaId) => setAlterarContaDialog({ parcelaId, contaId: currentContaId })}
                               />
                             </div>
                           </div>
@@ -509,7 +499,54 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
             </TableBody>
           </Table>
         )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          pageSize={15}
+          onPageChange={setPage}
+        />
       </div>
+
+      {/* ── Mobile detail overlay ── */}
+      {(() => {
+        const r = expandedId ? (receitas ?? []).find(x => x.id === expandedId) ?? null : null;
+        if (!r) return null;
+        return (
+          <div className="sm:hidden fixed inset-0 z-40 bg-white flex flex-col pb-16">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 shrink-0">
+              <Button variant="ghost" size="icon" className="h-8 w-8 -ml-1" onClick={() => setExpandedId(null)}>
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-slate-900 truncate">{r.nome}</p>
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {r.categoria && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{r.categoria}</span>
+                  )}
+                  {r.colaboradorNome && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600">
+                      {r.colaboradorNome}{r.percentagemComissao != null ? ` · ${r.percentagemComissao}%` : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <ParcelasTable
+                parcelas={r.parcelas}
+                variant="receita"
+                parcelaSort={parcelaSort}
+                toggleSort={toggleSort}
+                liquidando={liquidando}
+                estornando={estornando}
+                onLiquidar={(id, isRecorrente, contaId) => openLiquidarDialog(id, isRecorrente, contaId)}
+                onEstornar={setEstornarConfirmId}
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       <LiquidarDialog
         dialog={liquidarDialog}
@@ -543,47 +580,6 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
         onConfirm={handleEstornar}
       />
 
-      {/* ── Alterar conta dialog ── */}
-      <Dialog open={alterarContaDialog !== null} onOpenChange={open => { if (!open) setAlterarContaDialog(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Alterar Conta</DialogTitle>
-            <DialogDescription>Selecione a conta para esta parcela</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div>
-              <Label htmlFor="ac-conta-r" className="text-xs font-medium text-gray-700">CONTA</Label>
-              <Select
-                value={alterarContaDialog?.contaId ?? ''}
-                onValueChange={v => setAlterarContaDialog(d => d ? { ...d, contaId: v } : null)}
-              >
-                <SelectTrigger id="ac-conta-r" className="mt-1.5">
-                  <SelectValue placeholder="Selecionar conta" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(contas ?? []).map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome}
-                      <span className="ml-2 text-xs text-gray-400">
-                        €{c.saldo.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setAlterarContaDialog(null)}>Cancelar</Button>
-              <Button
-                disabled={!alterarContaDialog?.contaId || alterandoConta}
-                onClick={handleAlterarConta}
-              >
-                {alterandoConta ? 'A guardar...' : 'Confirmar'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

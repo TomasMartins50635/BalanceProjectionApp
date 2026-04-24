@@ -1,10 +1,9 @@
-import { useMemo, useState } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Search, Plus, Building2, TrendingDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { formatDate } from '@/lib/dates';
 import { useToast } from '@/hooks/useToast';
@@ -12,26 +11,99 @@ import { useAsync } from '@/hooks/useAsync';
 import { api } from '@/lib/api';
 import type { FinanciamentoDto } from '@/lib/types';
 
-// ── Create form ────────────────────────────────────────────────────────────────
-
 interface CreateForm {
   nome: string;
   valor: string;
-  data: string;
+  valorMensalidade: string;
   contaId: string;
-  despesaId: string;
 }
 
-const emptyForm = (): CreateForm => ({ nome: '', valor: '', data: '', contaId: '', despesaId: '' });
+const emptyForm = (): CreateForm => ({ nome: '', valor: '', valorMensalidade: '', contaId: '' });
 
-// ── Component ──────────────────────────────────────────────────────────────────
+function FinanciamentoCard({ f, contaNome }: { f: FinanciamentoDto; contaNome: string }) {
+  const pct = Math.max(0, Math.min(100, f.progressoPercentagem));
+  const mesesRestantes = f.valorRestante > 0 && f.valorMensalidade > 0
+    ? Math.ceil(f.valorRestante / f.valorMensalidade)
+    : 0;
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-5 space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+            <Building2 className="w-4 h-4 text-indigo-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold text-slate-900 truncate">{f.nome}</p>
+            <p className="text-xs text-slate-500 mt-0.5 truncate">{contaNome} · {formatDate(f.data)}</p>
+          </div>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Total</p>
+          <p className="text-lg font-bold tabular-nums text-slate-900">
+            €{f.valor.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div>
+        <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+          <span>Amortização</span>
+          <span className="tabular-nums font-medium">{pct.toFixed(0)}%</span>
+        </div>
+        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-indigo-500 rounded-full transition-all"
+            style={{ width: `${Math.max(2, pct)}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-3 pt-1">
+        <div className="bg-slate-50 rounded-lg p-2.5">
+          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Pago</p>
+          <p className="text-sm font-bold tabular-nums text-emerald-600 mt-1">
+            €{f.valorPago.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+        <div className="bg-slate-50 rounded-lg p-2.5">
+          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Restante</p>
+          <p className="text-sm font-bold tabular-nums text-rose-600 mt-1">
+            €{f.valorRestante.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+        <div className="bg-slate-50 rounded-lg p-2.5">
+          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Mensalidade</p>
+          <p className="text-sm font-bold tabular-nums text-indigo-600 mt-1">
+            €{f.valorMensalidade.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs text-slate-500">
+        <span className="flex items-center gap-1.5">
+          <TrendingDown className="w-3.5 h-3.5" />
+          {f.parcelasPagas} de {f.totalParcelas} parcelas pagas
+        </span>
+        {mesesRestantes > 0 && (
+          <span className="tabular-nums">~{mesesRestantes} meses restantes</span>
+        )}
+        {f.valorRestante <= 0 && (
+          <span className="text-emerald-600 font-medium">Liquidado</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function FinanciamentoView() {
   const toast = useToast();
   const { data: contas } = useAsync(() => api.contas.listar(), []);
-  const { data: despesas } = useAsync(() => api.despesas.listar(), []);
 
-  // Load financiamentos for all contas in parallel and flatten
   const { data: financiamentos, loading, error, reload } = useAsync(async () => {
     const contasList = await api.contas.listar();
     if (contasList.length === 0) return [];
@@ -39,20 +111,20 @@ export function FinanciamentoView() {
     return results.flat();
   }, []);
 
-  const [selectedF, setSelectedF] = useState<FinanciamentoDto | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState<CreateForm>(emptyForm());
   const [saving, setSaving] = useState(false);
 
-  const contaNome = useMemo(
-    () => (id: string) => contas?.find(c => c.id === id)?.nome ?? id,
-    [contas],
-  );
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isAtTop, setIsAtTop] = useState(true);
+  const handleScroll = useCallback(() => {
+    setIsAtTop((scrollRef.current?.scrollTop ?? 0) < 50);
+  }, []);
 
-  const despesaNome = useMemo(
-    () => (id: string | null) => id ? (despesas?.find(d => d.id === id)?.nome ?? id) : null,
-    [despesas],
+  const contaNome = useMemo(
+    () => (id: string) => contas?.find(c => c.id === id)?.nome ?? '—',
+    [contas],
   );
 
   const filtered = useMemo(() =>
@@ -63,13 +135,8 @@ export function FinanciamentoView() {
     [financiamentos, searchTerm, contaNome],
   );
 
-  const liveSelectedF = useMemo(
-    () => selectedF ? (financiamentos ?? []).find(f => f.id === selectedF.id) ?? null : null,
-    [financiamentos, selectedF],
-  );
-
   const handleCreate = async () => {
-    if (!form.nome.trim() || !form.valor || !form.data || !form.contaId) {
+    if (!form.nome.trim() || !form.valor || !form.valorMensalidade || !form.contaId) {
       toast('Preencha todos os campos obrigatórios', 'error');
       return;
     }
@@ -77,12 +144,11 @@ export function FinanciamentoView() {
     try {
       await api.financiamentos.criar({
         nome: form.nome.trim(),
-        valor: parseFloat(form.valor),
-        data: form.data,
+        valor: Number.parseFloat(form.valor),
         contaId: form.contaId,
-        despesaId: form.despesaId || undefined,
+        valorMensalidade: Number.parseFloat(form.valorMensalidade),
       });
-      toast('Financiamento registado. O valor foi creditado na conta imediatamente.');
+      toast('Financiamento registado. Valor creditado na conta.');
       setCreateOpen(false);
       setForm(emptyForm());
       reload();
@@ -94,157 +160,128 @@ export function FinanciamentoView() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-full">
-      {/* ── Left panel: list ── */}
-      <div className="w-full md:w-[480px] border-b md:border-b-0 md:border-r border-gray-200 bg-white flex flex-col max-h-[40vh] md:max-h-none">
-        <div className="px-4 md:px-5 py-3 md:py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base md:text-lg font-semibold text-gray-900">Financiamentos</h2>
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="w-4 h-4 md:mr-1" /><span className="hidden md:inline">Novo Financiamento</span>
-            </Button>
+    <div className="flex flex-col h-full bg-slate-50">
+      {/* Header */}
+      <div className="px-4 md:px-5 pt-4 bg-white border-b border-slate-100 shrink-0">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-base md:text-lg font-semibold text-slate-900">Financiamentos</h2>
+            {!loading && (
+              <p className="text-xs text-slate-400 mt-0.5">
+                {filtered.length} {filtered.length === 1 ? 'financiamento' : 'financiamentos'}
+              </p>
+            )}
           </div>
+          <Button size="sm" onClick={() => setCreateOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+            <Plus className="w-4 h-4 md:mr-1" /><span className="hidden md:inline">Novo Financiamento</span>
+          </Button>
+        </div>
+        <div className={`overflow-hidden transition-all duration-200 ${isAtTop ? 'max-h-16 opacity-100 pb-4' : 'max-h-0 opacity-0 pb-0'}`}>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" aria-hidden="true" />
             <Input
               aria-label="Pesquisar financiamentos"
               placeholder="Pesquisar por nome ou conta..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="pl-9 h-9"
+              className="pl-9 h-9 border-slate-200"
             />
           </div>
         </div>
-
-        <div className="flex-1 overflow-auto">
-          {error ? (
-            <div className="p-6 text-center text-red-600 text-sm">{error}</div>
-          ) : loading ? (
-            <div className="p-6 space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-12 bg-gray-100 animate-pulse rounded" />)}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader className="sticky top-0 bg-gray-50 z-10">
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead className="w-32 text-right">Valor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center text-sm text-gray-500 py-8">
-                      {(financiamentos ?? []).length === 0 ? 'Nenhum financiamento registado' : 'Nenhum resultado'}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filtered.map(f => (
-                    <TableRow
-                      key={f.id}
-                      className={`cursor-pointer ${liveSelectedF?.id === f.id ? 'bg-blue-50' : ''}`}
-                      onClick={() => setSelectedF(f)}
-                    >
-                      <TableCell>
-                        <div className="font-medium">{f.nome}</div>
-                        <div className="text-xs text-gray-500">{contaNome(f.contaId)}</div>
-                      </TableCell>
-                      <TableCell className="text-right font-semibold text-blue-600">
-                        €{f.valor.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </div>
       </div>
 
-      {/* ── Right panel: detail ── */}
-      <div className="flex-1 bg-gray-50 overflow-auto">
-        {liveSelectedF ? (
-          <div className="p-6">
-            <div className="mb-6">
-              <h3 className="text-xl font-semibold text-gray-900">{liveSelectedF.nome}</h3>
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
-              <p className="text-sm text-blue-800">
-                O valor deste financiamento foi <strong>creditado imediatamente</strong> na conta ao ser registado
-              </p>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-xs font-medium text-gray-500">NOME</p>
-                  <p className="text-sm font-medium text-gray-900 mt-1">{liveSelectedF.nome}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-500">CONTA</p>
-                  <p className="text-sm font-medium text-gray-900 mt-1">{contaNome(liveSelectedF.contaId)}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-500">VALOR</p>
-                  <p className="text-xl font-bold text-blue-600 mt-1">
-                    €{liveSelectedF.valor.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-500">DATA</p>
-                  <p className="text-sm font-medium text-gray-900 mt-1">{formatDate(liveSelectedF.data)}</p>
-                </div>
-              </div>
-
-              {liveSelectedF.despesaId && (
-                <div className="pt-4 border-t border-gray-100">
-                  <p className="text-xs font-medium text-gray-500 mb-1">DESPESA ASSOCIADA</p>
-                  <p className="text-sm text-gray-900">{despesaNome(liveSelectedF.despesaId)}</p>
-                  <p className="text-xs text-gray-500 mt-1">Esta despesa foi financiada por este financiamento</p>
-                </div>
-              )}
-            </div>
+      {/* Content */}
+      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto p-4 md:p-5">
+        {error ? (
+          <div className="p-6 text-center text-red-600 text-sm">{error}</div>
+        ) : loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-xl border border-slate-200 h-52 animate-pulse" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full min-h-48 text-center">
+            <Building2 className="w-10 h-10 text-slate-200 mb-3" />
+            <p className="text-sm font-medium text-slate-500">
+              {(financiamentos ?? []).length === 0 ? 'Nenhum financiamento registado' : 'Nenhum resultado'}
+            </p>
+            {(financiamentos ?? []).length === 0 && (
+              <Button size="sm" variant="outline" className="mt-3" onClick={() => setCreateOpen(true)}>
+                <Plus className="w-4 h-4 mr-1" />Registar financiamento
+              </Button>
+            )}
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            <p className="text-sm">Selecione um financiamento para ver os detalhes</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filtered.map(f => (
+              <FinanciamentoCard key={f.id} f={f} contaNome={contaNome(f.contaId)} />
+            ))}
           </div>
         )}
       </div>
 
-      {/* ── Create dialog ── */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      {/* Create dialog */}
+      <Dialog open={createOpen} onOpenChange={open => { setCreateOpen(open); if (!open) setForm(emptyForm()); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Novo Financiamento</DialogTitle>
             <DialogDescription>
-              O valor será creditado imediatamente na conta selecionada
+              O valor será creditado imediatamente na conta selecionada e uma despesa mensal será criada automaticamente.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
             <div>
-              <Label htmlFor="cf-nome" className="text-xs font-medium text-gray-700">NOME *</Label>
-              <Input id="cf-nome" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className="mt-1.5" placeholder="Ex: Empréstimo Bancário" />
+              <Label htmlFor="cf-nome" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nome *</Label>
+              <Input
+                id="cf-nome"
+                value={form.nome}
+                onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+                className="mt-1.5"
+                placeholder="Ex: Empréstimo Bancário"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="cf-valor" className="text-xs font-medium text-gray-700">VALOR *</Label>
+                <Label htmlFor="cf-valor" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Valor Total *</Label>
                 <div className="relative mt-1.5">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
-                  <Input id="cf-valor" type="number" value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} className="pl-7" step="0.01" min="0" placeholder="0.00" />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span>
+                  <Input
+                    id="cf-valor"
+                    type="number"
+                    value={form.valor}
+                    onChange={e => setForm(f => ({ ...f, valor: e.target.value }))}
+                    className="pl-7 tabular-nums"
+                    step="0.01" min="0" placeholder="0.00"
+                  />
                 </div>
               </div>
               <div>
-                <Label htmlFor="cf-data" className="text-xs font-medium text-gray-700">DATA *</Label>
-                <input id="cf-data" type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} className="mt-1.5 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" />
+                <Label htmlFor="cf-mensalidade" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Mensalidade *</Label>
+                <div className="relative mt-1.5">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span>
+                  <Input
+                    id="cf-mensalidade"
+                    type="number"
+                    value={form.valorMensalidade}
+                    onChange={e => setForm(f => ({ ...f, valorMensalidade: e.target.value }))}
+                    className="pl-7 tabular-nums"
+                    step="0.01" min="0" placeholder="0.00"
+                  />
+                </div>
               </div>
             </div>
 
+            {form.valor && form.valorMensalidade && Number(form.valor) > 0 && Number(form.valorMensalidade) > 0 && (
+              <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2.5 text-xs text-indigo-700">
+                Duração estimada: ~{Math.ceil(Number(form.valor) / Number(form.valorMensalidade))} meses
+              </div>
+            )}
+
             <div>
-              <Label htmlFor="cf-conta" className="text-xs font-medium text-gray-700">CONTA *</Label>
+              <Label htmlFor="cf-conta" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Conta *</Label>
               <Select value={form.contaId} onValueChange={v => setForm(f => ({ ...f, contaId: v }))}>
                 <SelectTrigger id="cf-conta" className="mt-1.5"><SelectValue placeholder="Selecionar conta" /></SelectTrigger>
                 <SelectContent>
@@ -253,19 +290,11 @@ export function FinanciamentoView() {
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="cf-despesa" className="text-xs font-medium text-gray-700">DESPESA ASSOCIADA (opcional)</Label>
-              <Select value={form.despesaId} onValueChange={v => setForm(f => ({ ...f, despesaId: v }))}>
-                <SelectTrigger id="cf-despesa" className="mt-1.5"><SelectValue placeholder="Nenhuma" /></SelectTrigger>
-                <SelectContent>
-                  {(despesas ?? []).map(d => <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => { setCreateOpen(false); setForm(emptyForm()); }}>Cancelar</Button>
-              <Button onClick={handleCreate} disabled={saving}>{saving ? 'A guardar...' : 'Registar Financiamento'}</Button>
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleCreate} disabled={saving}>
+                {saving ? 'A guardar...' : 'Registar Financiamento'}
+              </Button>
             </div>
           </div>
         </DialogContent>

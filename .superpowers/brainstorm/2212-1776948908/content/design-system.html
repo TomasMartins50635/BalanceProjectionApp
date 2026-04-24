@@ -1,0 +1,222 @@
+<h2>Recommended Design System — FinTech Professional</h2>
+<p class="subtitle">Based on UI/UX Pro Max analysis for financial management apps. Review each section and confirm before we implement.</p>
+
+<div class="section">
+  <h3>Color Palette</h3>
+  <p class="subtitle">Semantic tokens — semantic meaning takes priority over decoration</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px;">
+    <div>
+      <div style="height:56px;border-radius:10px;background:#4f46e5;margin-bottom:6px;"></div>
+      <div style="font-size:11px;font-weight:600;color:#1e293b;">Primary — Indigo 600</div>
+      <div style="font-size:10px;color:#64748b;">#4f46e5 · CTAs, nav active, links</div>
+    </div>
+    <div>
+      <div style="height:56px;border-radius:10px;background:#0f172a;margin-bottom:6px;"></div>
+      <div style="font-size:11px;font-weight:600;color:#1e293b;">Surface Dark — Slate 900</div>
+      <div style="font-size:10px;color:#64748b;">#0f172a · Sidebar background</div>
+    </div>
+    <div>
+      <div style="height:56px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:6px;"></div>
+      <div style="font-size:11px;font-weight:600;color:#1e293b;">Surface Light — Slate 50</div>
+      <div style="font-size:10px;color:#64748b;">#f8fafc · Page background</div>
+    </div>
+    <div>
+      <div style="height:56px;border-radius:10px;background:#16a34a;margin-bottom:6px;"></div>
+      <div style="font-size:11px;font-weight:600;color:#1e293b;">Success — Green 600</div>
+      <div style="font-size:10px;color:#64748b;">#16a34a · Revenue, positive values</div>
+    </div>
+    <div>
+      <div style="height:56px;border-radius:10px;background:#dc2626;margin-bottom:6px;"></div>
+      <div style="font-size:11px;font-weight:600;color:#1e293b;">Danger — Red 600</div>
+      <div style="font-size:10px;color:#64748b;">#dc2626 · Expenses, negative values</div>
+    </div>
+    <div>
+      <div style="height:56px;border-radius:10px;background:#f59e0b;margin-bottom:6px;"></div>
+      <div style="font-size:11px;font-weight:600;color:#1e293b;">Warning — Amber 500</div>
+      <div style="font-size:10px;color:#64748b;">#f59e0b · Pending, due soon</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Typography System</h3>
+  <p class="subtitle">Inter (already common in Tailwind projects) — tabular figures for all monetary values</p>
+  <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-top:12px;display:flex;flex-direction:column;gap:10px;">
+    <div style="display:flex;align-items:baseline;gap:16px;">
+      <div style="font-size:30px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;">€42.850,00</div>
+      <div style="font-size:11px;color:#64748b;">Display / Hero — 30px 700 · tabular-nums</div>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:16px;">
+      <div style="font-size:22px;font-weight:600;color:#0f172a;">Visão Geral</div>
+      <div style="font-size:11px;color:#64748b;">Page Title — 22px 600</div>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:16px;">
+      <div style="font-size:16px;font-weight:500;color:#1e293b;">Contas Bancárias</div>
+      <div style="font-size:11px;color:#64748b;">Section Heading — 16px 500</div>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:16px;">
+      <div style="font-size:14px;color:#475569;">Parcela 3/12 · Vencimento 30 Abr</div>
+      <div style="font-size:11px;color:#64748b;">Body / Table — 14px 400</div>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:16px;">
+      <div style="font-size:11px;font-weight:600;color:#64748b;letter-spacing:0.06em;text-transform:uppercase;">SALDO TOTAL</div>
+      <div style="font-size:11px;color:#64748b;">Label / Cap — 11px 600 uppercase</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Navigation Redesign</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
+
+    <!-- Current -->
+    <div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">ATUAL</div>
+      <div style="background:#1e293b;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:2px;">
+        <div style="font-size:10px;color:#94a3b8;padding:6px 8px;border-bottom:1px solid #334155;margin-bottom:4px;">Sistema Financeiro</div>
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;background:#2563eb;border-radius:6px;">
+          <div style="width:14px;height:14px;background:#93c5fd;border-radius:2px;"></div>
+          <span style="font-size:11px;color:white;">Visão Geral</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;">
+          <div style="width:14px;height:14px;background:#475569;border-radius:2px;"></div>
+          <span style="font-size:11px;color:#94a3b8;">Contas</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;">
+          <div style="width:14px;height:14px;background:#475569;border-radius:2px;"></div>
+          <span style="font-size:11px;color:#94a3b8;">Receitas</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;">
+          <div style="width:14px;height:14px;background:#475569;border-radius:2px;"></div>
+          <span style="font-size:11px;color:#94a3b8;">Despesas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Proposed -->
+    <div>
+      <div style="font-size:11px;color:#4f46e5;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">PROPOSTO</div>
+      <div style="background:#0f172a;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:2px;">
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #1e293b;margin-bottom:6px;">
+          <div style="width:20px;height:20px;background:#4f46e5;border-radius:5px;display:flex;align-items:center;justify-content:center;">
+            <div style="width:8px;height:8px;background:white;border-radius:2px;"></div>
+          </div>
+          <span style="font-size:12px;color:white;font-weight:600;">Gestão Financeira</span>
+        </div>
+        <div style="font-size:9px;color:#475569;padding:0 8px 4px;text-transform:uppercase;letter-spacing:0.07em;">Principal</div>
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;background:#1e293b;border-radius:6px;border-left:2px solid #4f46e5;">
+          <div style="width:14px;height:14px;background:#6366f1;border-radius:2px;"></div>
+          <span style="font-size:11px;color:white;font-weight:500;">Visão Geral</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;">
+          <div style="width:14px;height:14px;background:#334155;border-radius:2px;"></div>
+          <span style="font-size:11px;color:#94a3b8;">Contas</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 8px;border-radius:6px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:14px;height:14px;background:#334155;border-radius:2px;"></div>
+            <span style="font-size:11px;color:#94a3b8;">Receitas</span>
+          </div>
+          <span style="font-size:9px;background:#16a34a;color:white;padding:1px 5px;border-radius:9px;">3</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;">
+          <div style="width:14px;height:14px;background:#334155;border-radius:2px;"></div>
+          <span style="font-size:11px;color:#94a3b8;">Despesas</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>KPI Card — Before vs After</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
+    <!-- Before -->
+    <div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;font-weight:600;text-transform:uppercase;">ATUAL</div>
+      <div style="background:white;border:1px solid #e5e7eb;border-radius:8px;padding:16px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <div style="width:14px;height:14px;background:#3b82f6;border-radius:2px;"></div>
+          <span style="font-size:10px;color:#6b7280;font-weight:500;">SALDO TOTAL (TODAS AS CONTAS)</span>
+        </div>
+        <div style="font-size:24px;color:#111827;font-weight:600;margin-top:8px;">€42.850,00</div>
+        <div style="font-size:12px;color:#16a34a;margin-top:6px;">↑ +€1.240 este mês</div>
+      </div>
+    </div>
+    <!-- After -->
+    <div>
+      <div style="font-size:11px;color:#4f46e5;margin-bottom:6px;font-weight:600;text-transform:uppercase;">PROPOSTO</div>
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="width:32px;height:32px;border-radius:8px;background:#eef2ff;display:flex;align-items:center;justify-content:center;">
+            <div style="width:14px;height:14px;background:#4f46e5;border-radius:2px;"></div>
+          </div>
+          <span style="font-size:10px;font-weight:600;color:#4f46e5;background:#eef2ff;padding:2px 8px;border-radius:9px;">+2,9%</span>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Saldo Total</div>
+        <div style="font-size:28px;color:#0f172a;font-weight:700;font-variant-numeric:tabular-nums;">€42.850,00</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:6px;">
+          <span style="font-size:11px;color:#16a34a;font-weight:600;">↑ +€1.240</span>
+          <span style="font-size:11px;color:#94a3b8;">vs mês anterior</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Key UX Rules Applied (from UI/UX Pro Max)</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;">
+      <div style="font-size:11px;font-weight:600;color:#15803d;margin-bottom:4px;">✓ Tabular Numbers</div>
+      <div style="font-size:10px;color:#166534;">font-variant-numeric: tabular-nums on all monetary values to prevent column jitter</div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;">
+      <div style="font-size:11px;font-weight:600;color:#15803d;margin-bottom:4px;">✓ 44px Touch Targets</div>
+      <div style="font-size:10px;color:#166534;">All buttons and interactive elements meet minimum touch target size</div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;">
+      <div style="font-size:11px;font-weight:600;color:#15803d;margin-bottom:4px;">✓ Semantic Color Tokens</div>
+      <div style="font-size:10px;color:#166534;">Green = revenue, Red = expenses — consistent across all views</div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;">
+      <div style="font-size:11px;font-weight:600;color:#15803d;margin-bottom:4px;">✓ Loading States</div>
+      <div style="font-size:10px;color:#166534;">Skeleton loaders + disabled buttons during async actions</div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;">
+      <div style="font-size:11px;font-weight:600;color:#15803d;margin-bottom:4px;">✓ 8dp Spacing System</div>
+      <div style="font-size:10px;color:#166534;">Consistent spacing using 4/8/12/16/24/32px increments</div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;">
+      <div style="font-size:11px;font-weight:600;color:#15803d;margin-bottom:4px;">✓ Active Nav State</div>
+      <div style="font-size:10px;color:#166534;">Left border indicator + background highlight for current page</div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;">
+      <div style="font-size:11px;font-weight:600;color:#15803d;margin-bottom:4px;">✓ 4.5:1 Contrast</div>
+      <div style="font-size:10px;color:#166534;">All text/background pairs meet WCAG AA standard</div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;">
+      <div style="font-size:11px;font-weight:600;color:#15803d;margin-bottom:4px;">✓ 150–300ms Animations</div>
+      <div style="font-size:10px;color:#166534;">Micro-interactions in the right duration range, transform/opacity only</div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <div class="options">
+    <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+      <div class="letter">✓</div>
+      <div class="content">
+        <h3>Approve this design system</h3>
+        <p>Use Indigo/Slate palette, Inter typography with tabular numbers, dark sidebar, refined KPI cards — and start implementation planning.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="adjust" onclick="toggleSelect(this)">
+      <div class="letter">~</div>
+      <div class="content">
+        <h3>I want to adjust something</h3>
+        <p>The direction is right but I'd like to change a specific element — color, sidebar style, typography, etc.</p>
+      </div>
+    </div>
+  </div>
+</div>

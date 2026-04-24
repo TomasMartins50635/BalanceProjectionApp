@@ -9,5 +9,6 @@ public class CriarFinanciamentoCommandValidator : AbstractValidator<CriarFinanci
         RuleFor(x => x.Nome).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Valor).GreaterThan(0);
         RuleFor(x => x.ContaId).NotEmpty();
+        RuleFor(x => x.ValorMensalidade).GreaterThan(0);
     }
 }

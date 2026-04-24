@@ -93,7 +93,8 @@ dotnet ef migrations add <MigrationName> \
 - **IVA** — when creating a `Receita` with `temIva: true`, a Pontual `Despesa` named `"IVA de {nome}"` is automatically created with a single installment at 23% of the total value, due on the 20th of the current month.
 - **Liquidar** — settling an installment credits (Receita) or debits (Despesa) the account atomically.
 - **Estornar** — reverses a settled installment and restores the account balance (requires confirmation).
-- **Financiamento** — external capital that credits the account immediately on registration.
+- **Financiamento** — external capital that credits the account immediately on registration and auto-creates a linked active fixed expense with `valorMensalidade`, including the first installment.
+- **Financiamento Cap** — total paid amount across installments of an expense linked to a financing cannot exceed the financed value.
 - **Despesa Fixa / Recorrente** — recurring expense; the next installment is generated automatically after the current one is settled.
 
 ## API Endpoints
@@ -121,7 +122,7 @@ dotnet ef migrations add <MigrationName> \
 | `POST` | `/colaboradores` | Create collaborator |
 | `DELETE` | `/colaboradores/{id}` | Delete collaborator |
 | `GET` | `/financiamentos/conta/{contaId}` | List financing entries |
-| `POST` | `/financiamentos` | Register financing (credits account immediately) |
+| `POST` | `/financiamentos` | Register financing (`nome`, `valor`, `contaId`, `valorMensalidade`) with immediate date, linked active fixed expense, and immediate account credit |
 
 ## Tests
 

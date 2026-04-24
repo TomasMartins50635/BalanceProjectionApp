@@ -16,18 +16,14 @@ interface LiquidarDialogProps {
 }
 
 export function LiquidarDialog({
-  dialog,
-  contas,
-  onClose,
-  onDataChange,
-  onValorRealChange,
-  onContaChange,
-  onConfirm,
-  variant,
+  dialog, contas, onClose, onDataChange, onValorRealChange, onContaChange, onConfirm, variant,
 }: LiquidarDialogProps) {
+  const today = new Date().toISOString().split('T')[0];
+  const isFutureDate = !!dialog?.data && dialog.data > today;
+
   const confirmClass = variant === 'receita'
     ? 'bg-green-600 hover:bg-green-700 text-white'
-    : 'bg-red-600 hover:bg-red-700 text-white';
+    : 'bg-indigo-600 hover:bg-indigo-700 text-white';
 
   return (
     <Dialog open={!!dialog} onOpenChange={open => { if (!open) onClose(); }}>
@@ -38,16 +34,16 @@ export function LiquidarDialog({
         </DialogHeader>
         <div className="space-y-4 mt-2">
           <div>
-            <Label htmlFor="ld-conta" className="text-xs font-medium text-gray-700">CONTA</Label>
+            <Label htmlFor="ld-conta" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Conta</Label>
             <Select value={dialog?.contaId ?? ''} onValueChange={onContaChange}>
-              <SelectTrigger id="ld-conta" className="mt-1.5">
+              <SelectTrigger id="ld-conta" className="mt-1.5 border-slate-200">
                 <SelectValue placeholder="Selecionar conta" />
               </SelectTrigger>
               <SelectContent>
                 {contas.map(c => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.nome}
-                    <span className="ml-2 text-xs text-gray-400">
+                    <span className="ml-2 text-xs text-slate-400 tabular-nums">
                       €{c.saldo.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
                     </span>
                   </SelectItem>
@@ -56,18 +52,22 @@ export function LiquidarDialog({
             </Select>
           </div>
           <div>
-            <Label htmlFor="ld-data" className="text-xs font-medium text-gray-700">DATA DE PAGAMENTO</Label>
+            <Label htmlFor="ld-data" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Data de Pagamento</Label>
             <input
               id="ld-data"
               type="date"
               value={dialog?.data ?? ''}
+              max={today}
               onChange={e => onDataChange(e.target.value)}
-              className="mt-1.5 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className={`mt-1.5 flex h-9 w-full rounded-lg border bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${isFutureDate ? 'border-red-300 text-red-600' : 'border-slate-200'}`}
             />
+            {isFutureDate && (
+              <p className="mt-1 text-xs text-red-500">A data não pode ser futura</p>
+            )}
           </div>
           {variant === 'despesa' && dialog?.isRecorrente && (
             <div>
-              <Label htmlFor="ld-valor-real" className="text-xs font-medium text-gray-700">VALOR REAL (€)</Label>
+              <Label htmlFor="ld-valor-real" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Valor Real (€)</Label>
               <input
                 id="ld-valor-real"
                 type="number"
@@ -76,15 +76,15 @@ export function LiquidarDialog({
                 value={dialog.valorReal}
                 onChange={e => onValorRealChange(e.target.value)}
                 placeholder="Opcional"
-                className="mt-1.5 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="mt-1.5 flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
               />
             </div>
           )}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" className="rounded-lg" onClick={onClose}>Cancelar</Button>
             <Button
-              className={confirmClass}
-              disabled={!dialog?.data || !dialog?.contaId}
+              className={`rounded-lg ${confirmClass}`}
+              disabled={!dialog?.data || !dialog?.contaId || isFutureDate}
               onClick={onConfirm}
             >
               Confirmar

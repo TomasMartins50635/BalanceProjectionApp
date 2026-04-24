@@ -6,4 +6,10 @@ public record FinanciamentoDto(
     decimal Valor,
     DateOnly Data,
     Guid ContaId,
-    Guid? DespesaId);
+    Guid? DespesaId,
+    decimal ValorMensalidade,
+    int TotalParcelas,
+    int ParcelasPagas,
+    decimal ValorPago,
+    decimal ValorRestante,
+    decimal ProgressoPercentagem);

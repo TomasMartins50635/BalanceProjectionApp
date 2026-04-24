@@ -108,6 +108,12 @@ export interface FinanciamentoDto {
   data: string;
   contaId: string;
   despesaId: string | null;
+  valorMensalidade: number;
+  totalParcelas: number;
+  parcelasPagas: number;
+  valorPago: number;
+  valorRestante: number;
+  progressoPercentagem: number;
 }
 
 // ── Request bodies ─────────────────────────────────────────────────────────────
@@ -183,8 +189,6 @@ export interface AdicionarParcelaDespesaRequest {
 export interface CriarFinanciamentoRequest {
   nome: string;
   valor: number;
-  /** YYYY-MM-DD */
-  data: string;
   contaId: string;
-  despesaId?: string;
+  valorMensalidade: number;
 }

@@ -24,7 +24,7 @@ Core do sistema. Pertence a uma Receita **ou** Despesa (ReceitaId/DespesaId null
 Tem uma `Percentagem` de comissão. Quando associado a uma `Receita`, a sua percentagem é usada em `AdicionarParcela` para calcular o `ValorLiquido`. **Não existe entidade `Comissao` separada** — a percentagem é lida diretamente de `Colaborador.Percentagem`. O repositório deve sempre fazer `Include(r => r.Colaborador)` antes de adicionar parcelas; se `ColaboradorId` estiver definido mas `Colaborador` for null, `AdicionarParcela` lança `InvalidOperationException`.
 
 **Financiamento** — `Domain/Entities/Financiamento.cs`
-Capital externo. Ao ser criado credita imediatamente a Conta. Pode referenciar uma Despesa para rastreabilidade.
+Capital externo. Ao ser criado credita imediatamente a Conta e cria automaticamente uma **Despesa Fixa ativa** associada (categoria `Financiamento`) com `ValorFixo` igual à mensalidade e com a **primeira parcela** criada.
 
 ### Regras de Negócio Invioláveis
 1. **Nunca calcular saldo pelo total do contrato** — apenas parcelas com `IsPaid = true` afetam o saldo.
@@ -32,6 +32,8 @@ Capital externo. Ao ser criado credita imediatamente a Conta. Pode referenciar u
 3. **Liquidar uma parcela de Receita → `Conta.Creditar(ValorLiquido)`**; de Despesa → `Conta.Debitar(ValorLiquido)`.
 4. **Relação One-to-Many** entre Receita/Despesa e Parcelas no modelo de dados.
 5. **IVA**: ao criar uma Receita com `TemIva = true`, é gerada automaticamente uma Despesa Pontual com nome `"IVA de {nome}"`, categoria `IVA`, mesma conta, com uma parcela de valor `ValorTotal × 23%` com vencimento no dia 20 do mês corrente.
+6. **Financiamento**: ao criar financiamento, a data é imediata (`DateOnly.FromDateTime(DateTime.UtcNow)`), é gerada uma Despesa Fixa ativa associada com mensalidade (`ValorFixo`) e a primeira parcela é criada automaticamente.
+7. **Teto de financiamento**: a soma do valor pago nas parcelas de uma despesa associada a financiamento nunca pode ultrapassar `Financiamento.Valor`; quando aplicável, a próxima parcela é ajustada ao valor restante.
 
 ---
 
@@ -110,7 +112,7 @@ DependencyInjection.cs
 | `GET` | `/parcelas/conta/{contaId}` | Lista parcelas da conta (query `?apenasPendentes=true`) |
 | `POST` | `/parcelas/{id}/liquidar` | **Liquida parcela** — atualiza saldo da conta |
 | `GET` | `/financiamentos/conta/{contaId}` | Lista financiamentos da conta |
-| `POST` | `/financiamentos` | Regista financiamento — credita conta imediatamente |
+| `POST` | `/financiamentos` | Regista financiamento (`nome`, `valor`, `contaId`, `valorMensalidade`) — data imediata, cria despesa fixa ativa associada e credita conta imediatamente |
 | `GET` | `/health` | Health check (dev only) |
 | `GET` | `/alive` | Liveness probe (dev only) |
 | `GET` | `/openapi/v1.json` | OpenAPI schema (dev only) |

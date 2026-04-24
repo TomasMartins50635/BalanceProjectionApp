@@ -11,6 +11,7 @@ public class LiquidarParcelaCommandHandler(
     IParcelaRepository parcelaRepository,
     IContaRepository contaRepository,
     IDespesaRepository despesaRepository,
+    IFinanciamentoRepository financiamentoRepository,
     IUnitOfWork uow) : IRequestHandler<LiquidarParcelaCommand, LiquidarParcelaResult>
 {
     public async Task<LiquidarParcelaResult> Handle(LiquidarParcelaCommand request, CancellationToken ct)
@@ -42,13 +43,35 @@ public class LiquidarParcelaCommandHandler(
             var despesa = await despesaRepository.ObterPorIdComParcelasAsync(parcela.DespesaId.Value, ct)
                 ?? throw new EntityNotFoundException(nameof(Despesa), parcela.DespesaId.Value);
 
+            decimal? valorRestanteFinanciamento = null;
+            var financiamento = await financiamentoRepository.ObterPorDespesaIdAsync(despesa.Id, ct);
+
+            if (financiamento is not null)
+            {
+                var valorPago = despesa.Parcelas.Where(p => p.IsPaid).Sum(p => p.ValorLiquido);
+                if (valorPago > financiamento.Valor)
+                    throw new DomainException("O total pago nas despesas associadas não pode ultrapassar o valor do financiamento.");
+
+                valorRestanteFinanciamento = financiamento.Valor - valorPago;
+            }
+
             if (despesa.IsActive && despesa.TipoDespesa != TipoDespesa.Pontual)
             {
                 var temPendentes = despesa.Parcelas.Any(p => !p.IsPaid);
                 if (!temPendentes)
                 {
+                    if (valorRestanteFinanciamento.HasValue && valorRestanteFinanciamento.Value <= 0m)
+                    {
+                        despesa.Desativar();
+                    }
+                    else
+                    {
                     var novaParcela = despesa.GerarProximaParcela();
+                    if (valorRestanteFinanciamento.HasValue && novaParcela.ValorLiquido > valorRestanteFinanciamento.Value)
+                        novaParcela.AtualizarValor(valorRestanteFinanciamento.Value);
+
                     await parcelaRepository.AdicionarAsync(novaParcela, ct);
+                    }
                 }
             }
         }

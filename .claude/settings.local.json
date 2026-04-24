@@ -6,7 +6,8 @@
       "Bash(dotnet ef:*)",
       "Bash(sqlite3 BalanceProjection.db \"SELECT MigrationId FROM __EFMigrationsHistory;\")",
       "Bash(docker compose:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npx tsc *)"
     ]
   }
 }

@@ -5,6 +5,5 @@ namespace BalanceProjectionApp.Application.Features.Financiamentos.Commands.Cria
 public record CriarFinanciamentoCommand(
     string Nome,
     decimal Valor,
-    DateOnly Data,
     Guid ContaId,
-    Guid? DespesaId) : IRequest<Guid>;
+    decimal ValorMensalidade) : IRequest<Guid>;

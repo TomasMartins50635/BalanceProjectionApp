@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
@@ -27,7 +27,6 @@ export function OverviewView() {
     [despesas],
   );
 
-  // Chart: group paid parcelas by month for the last 6 months
   const chartData = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 6 }, (_, i) => {
@@ -44,7 +43,6 @@ export function OverviewView() {
     });
   }, [allPaidReceitasParcelas, allPaidDespesasParcelas]);
 
-  // Current month KPIs
   const now = new Date();
   const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const currentMonthReceitas = allPaidReceitasParcelas
@@ -55,7 +53,6 @@ export function OverviewView() {
     .reduce((s, p) => s + p.valorLiquido, 0);
   const currentMonthNet = currentMonthReceitas - currentMonthDespesas;
 
-  // Recent activity: last 10 paid parcelas across all entities, sorted by dataPagamento desc
   const receitaMap = useMemo(
     () => Object.fromEntries((receitas ?? []).map(r => [r.id, r.nome])),
     [receitas],
@@ -95,107 +92,113 @@ export function OverviewView() {
   }
 
   return (
-    <div className="p-4 md:p-6 bg-gray-50 h-full overflow-auto">
-      <div className="mb-4 md:mb-6">
-        <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-1">Visão Geral</h2>
-        <p className="text-xs md:text-sm text-gray-600">Resumo consolidado de todas as contas e movimentações</p>
+    <div className="p-4 md:p-6 bg-slate-50 h-full overflow-auto">
+      <div className="mb-5">
+        <h2 className="text-xl font-semibold text-slate-900 mb-0.5">Visão Geral</h2>
+        <p className="text-sm text-slate-400">Resumo consolidado de todas as contas e movimentações</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-4 md:mb-6">
-        <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <Wallet className="w-4 h-4 text-blue-600" />
-            <p className="text-xs font-medium text-gray-600">SALDO TOTAL (TODAS AS CONTAS)</p>
+      {/* KPI cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+              <Wallet className="w-4 h-4 text-indigo-600" />
+            </div>
+            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${currentMonthNet >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {currentMonthNet >= 0 ? '+' : ''}€{Math.abs(currentMonthNet).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+            </span>
           </div>
+          <p className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase mb-1">Saldo Total</p>
           {contasLoading ? (
-            <div className="h-9 w-36 bg-gray-100 animate-pulse rounded mt-2" />
+            <div className="h-9 w-36 bg-slate-100 animate-pulse rounded mt-1" />
           ) : (
-            <p className="text-2xl md:text-3xl font-semibold text-gray-900 mb-2">
+            <p className="text-3xl font-bold text-slate-900 tabular-nums">
               €{totalSaldo.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
             </p>
           )}
-          <div className={`flex items-center gap-1 text-sm ${currentMonthNet >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {currentMonthNet >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-            <span className="font-medium">
-              {currentMonthNet >= 0 ? '+' : ''}€{Math.abs(currentMonthNet).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
-            </span>
-            <span className="text-gray-500">este mês</span>
-          </div>
+          <p className="text-xs text-slate-400 mt-1">vs mês anterior</p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="w-4 h-4 text-green-600" />
-            <p className="text-xs font-medium text-gray-600">RECEITAS PAGAS (MÊS ATUAL)</p>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-green-600" />
+            </div>
           </div>
+          <p className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase mb-1">Receitas Pagas</p>
           {receitas === null ? (
-            <div className="h-9 w-36 bg-gray-100 animate-pulse rounded mt-2" />
+            <div className="h-9 w-36 bg-slate-100 animate-pulse rounded mt-1" />
           ) : (
-            <p className="text-2xl md:text-3xl font-semibold text-green-600 mb-2">
+            <p className="text-3xl font-bold text-green-600 tabular-nums">
               €{currentMonthReceitas.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
             </p>
           )}
-          <p className="text-xs text-gray-500">Parcelas liquidadas este mês</p>
+          <p className="text-xs text-slate-400 mt-1">Parcelas liquidadas este mês</p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingDown className="w-4 h-4 text-red-600" />
-            <p className="text-xs font-medium text-gray-600">DESPESAS PAGAS (MÊS ATUAL)</p>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
+              <TrendingDown className="w-4 h-4 text-red-600" />
+            </div>
           </div>
+          <p className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase mb-1">Despesas Pagas</p>
           {despesas === null ? (
-            <div className="h-9 w-36 bg-gray-100 animate-pulse rounded mt-2" />
+            <div className="h-9 w-36 bg-slate-100 animate-pulse rounded mt-1" />
           ) : (
-            <p className="text-2xl md:text-3xl font-semibold text-red-600 mb-2">
+            <p className="text-3xl font-bold text-red-600 tabular-nums">
               €{currentMonthDespesas.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
             </p>
           )}
-          <p className="text-xs text-gray-500">Parcelas pagas este mês</p>
+          <p className="text-xs text-slate-400 mt-1">Parcelas pagas este mês</p>
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-sm mb-4 md:mb-6">
-        <div className="mb-4 md:mb-6">
-          <h3 className="text-base md:text-lg font-semibold text-gray-900">Evolução dos Últimos 6 Meses</h3>
-          <p className="text-xs md:text-sm text-gray-600 mt-1">Receitas e despesas de parcelas liquidadas por mês</p>
+      {/* Chart */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-5">
+        <div className="mb-4">
+          <h3 className="text-base font-semibold text-slate-900">Evolução dos Últimos 6 Meses</h3>
+          <p className="text-xs text-slate-400 mt-0.5">Receitas e despesas de parcelas liquidadas por mês</p>
         </div>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={280}>
           <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#6b7280" />
-            <YAxis tick={{ fontSize: 12 }} stroke="#6b7280" tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
             <Tooltip
-              contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px' }}
+              contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
               formatter={(v) => typeof v === 'number' ? `€${v.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}` : ''}
             />
-            <Legend wrapperStyle={{ fontSize: '12px' }} />
-            <Line type="monotone" dataKey="receitas" name="Receitas" stroke="#10b981" strokeWidth={2} dot={{ fill: '#10b981', r: 4 }} />
-            <Line type="monotone" dataKey="despesas" name="Despesas" stroke="#ef4444" strokeWidth={2} dot={{ fill: '#ef4444', r: 4 }} />
+            <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} />
+            <Line type="monotone" dataKey="receitas" name="Receitas" stroke="#16a34a" strokeWidth={2} dot={{ fill: '#16a34a', r: 3 }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey="despesas" name="Despesas" stroke="#dc2626" strokeWidth={2} dot={{ fill: '#dc2626', r: 3 }} activeDot={{ r: 5 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-          <div className="px-4 md:px-5 py-3 md:py-4 border-b border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-900">TODAS AS CONTAS</h3>
+      {/* Bottom panels */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-100">
+            <h3 className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Todas as Contas</h3>
           </div>
           {contasLoading ? (
-            <div className="p-6 space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-8 bg-gray-100 animate-pulse rounded" />)}
+            <div className="p-5 space-y-3">
+              {[1, 2, 3].map(i => <div key={i} className="h-8 bg-slate-100 animate-pulse rounded-lg" />)}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Conta</TableHead>
-                  <TableHead className="text-right">Saldo Atual</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Conta</TableHead>
+                  <TableHead className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Saldo Atual</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(contas ?? []).length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={2} className="text-center text-sm text-gray-500 py-8">
+                    <TableCell colSpan={2} className="text-center text-sm text-slate-400 py-8">
                       Nenhuma conta registada
                     </TableCell>
                   </TableRow>
@@ -203,15 +206,15 @@ export function OverviewView() {
                   <>
                     {(contas ?? []).map(conta => (
                       <TableRow key={conta.id}>
-                        <TableCell className="font-medium">{conta.nome}</TableCell>
-                        <TableCell className="text-right font-semibold">
+                        <TableCell className="font-medium text-slate-700">{conta.nome}</TableCell>
+                        <TableCell className="text-right font-semibold text-slate-900 tabular-nums">
                           €{conta.saldo.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
                         </TableCell>
                       </TableRow>
                     ))}
-                    <TableRow className="bg-gray-50 font-semibold">
-                      <TableCell>TOTAL</TableCell>
-                      <TableCell className="text-right text-blue-600">
+                    <TableRow className="bg-slate-50">
+                      <TableCell className="font-semibold text-slate-700">Total</TableCell>
+                      <TableCell className="text-right font-bold text-indigo-600 tabular-nums">
                         €{totalSaldo.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
                       </TableCell>
                     </TableRow>
@@ -222,42 +225,36 @@ export function OverviewView() {
           )}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-          <div className="px-4 md:px-5 py-3 md:py-4 border-b border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-900">ATIVIDADE RECENTE</h3>
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-100">
+            <h3 className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Atividade Recente</h3>
           </div>
           <div className="max-h-[400px] overflow-auto">
             {receitas === null || despesas === null ? (
-              <div className="p-6 space-y-3">
-                {[1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-gray-100 animate-pulse rounded" />)}
+              <div className="p-5 space-y-3">
+                {[1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-slate-100 animate-pulse rounded-lg" />)}
               </div>
             ) : recentActivity.length === 0 ? (
-              <div className="p-8 text-center text-sm text-gray-500">
+              <div className="p-8 text-center text-sm text-slate-400">
                 Nenhuma atividade registada
               </div>
             ) : (
-              <Table>
-                <TableBody>
-                  {recentActivity.map(activity => (
-                    <TableRow key={activity.id}>
-                      <TableCell>
-                        <div className="flex items-start gap-3">
-                          <span className={`mt-0.5 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${activity.type === 'receita' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                            {activity.type === 'receita' ? 'R' : 'D'}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{activity.descricao}</p>
-                            <p className="text-xs text-gray-500">{new Date(activity.data).toLocaleDateString('pt-PT')}</p>
-                          </div>
-                          <p className={`text-sm font-semibold ${activity.type === 'receita' ? 'text-green-600' : 'text-red-600'}`}>
-                            {activity.type === 'receita' ? '+' : '-'}€{activity.valor.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
-                          </p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ul className="divide-y divide-slate-100">
+                {recentActivity.map(activity => (
+                  <li key={activity.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
+                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${activity.type === 'receita' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {activity.type === 'receita' ? 'R' : 'D'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{activity.descricao}</p>
+                      <p className="text-xs text-slate-400">{new Date(activity.data).toLocaleDateString('pt-PT')}</p>
+                    </div>
+                    <p className={`text-sm font-semibold tabular-nums flex-shrink-0 ${activity.type === 'receita' ? 'text-green-600' : 'text-red-600'}`}>
+                      {activity.type === 'receita' ? '+' : '-'}€{activity.valor.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+                    </p>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>

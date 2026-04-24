@@ -15,6 +15,7 @@ public class LiquidarParcelaHandlerTests
     private readonly IParcelaRepository _parcelaRepo = Substitute.For<IParcelaRepository>();
     private readonly IContaRepository _contaRepo = Substitute.For<IContaRepository>();
     private readonly IDespesaRepository _despesaRepo = Substitute.For<IDespesaRepository>();
+    private readonly IFinanciamentoRepository _financiamentoRepo = Substitute.For<IFinanciamentoRepository>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly LiquidarParcelaCommandHandler _handler;
 
@@ -22,7 +23,9 @@ public class LiquidarParcelaHandlerTests
 
     public LiquidarParcelaHandlerTests()
     {
-        _handler = new LiquidarParcelaCommandHandler(_parcelaRepo, _contaRepo, _despesaRepo, _uow);
+        _handler = new LiquidarParcelaCommandHandler(_parcelaRepo, _contaRepo, _despesaRepo, _financiamentoRepo, _uow);
+        _financiamentoRepo.ObterPorDespesaIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns((Financiamento?)null);
     }
 
     private static (Parcela parcela, Conta conta) CriarParcelaReceita(decimal valorTotal = 10_000m)
@@ -150,5 +153,62 @@ public class LiquidarParcelaHandlerTests
 
         await act.Should().ThrowAsync<DomainException>();
         await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_DespesaAssociadaAFinanciamento_NaoPermiteUltrapassarValorFinanciado()
+    {
+        var contaId = Guid.NewGuid();
+        var conta = Conta.Criar("Conta", 1000m);
+        var despesa = Despesa.Criar(
+            "Financiamento",
+            contaId,
+            tipo: TipoDespesa.Fixa,
+            valorFixo: 120m,
+            periodicidade: Periodicidade.Mensal,
+            dataInicio: new DateOnly(2026, 6, 1));
+
+        var parcela = despesa.GerarProximaParcela();
+        var financiamento = Financiamento.Criar("F", 100m, new DateOnly(2026, 6, 1), contaId, despesa.Id);
+
+        _parcelaRepo.ObterPorIdAsync(parcela.Id, Arg.Any<CancellationToken>()).Returns(parcela);
+        _contaRepo.ObterPorIdAsync(parcela.ContaId, Arg.Any<CancellationToken>()).Returns(conta);
+        _despesaRepo.ObterPorIdComParcelasAsync(parcela.DespesaId!.Value, Arg.Any<CancellationToken>()).Returns(despesa);
+        _financiamentoRepo.ObterPorDespesaIdAsync(despesa.Id, Arg.Any<CancellationToken>()).Returns(financiamento);
+
+        var act = async () => await _handler.Handle(new LiquidarParcelaCommand(parcela.Id, null), CancellationToken.None);
+
+        await act.Should().ThrowAsync<DomainException>()
+            .WithMessage("*não pode ultrapassar o valor do financiamento*");
+        await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_DespesaAssociadaAFinanciamento_AjustaUltimaParcelaAoValorRestante()
+    {
+        var contaId = Guid.NewGuid();
+        var conta = Conta.Criar("Conta", 1000m);
+        var despesa = Despesa.Criar(
+            "Financiamento",
+            contaId,
+            tipo: TipoDespesa.Fixa,
+            valorFixo: 80m,
+            periodicidade: Periodicidade.Mensal,
+            dataInicio: new DateOnly(2026, 6, 1));
+
+        var parcelaAtual = despesa.GerarProximaParcela();
+        var financiamento = Financiamento.Criar("F", 130m, new DateOnly(2026, 6, 1), contaId, despesa.Id);
+
+        _parcelaRepo.ObterPorIdAsync(parcelaAtual.Id, Arg.Any<CancellationToken>()).Returns(parcelaAtual);
+        _contaRepo.ObterPorIdAsync(parcelaAtual.ContaId, Arg.Any<CancellationToken>()).Returns(conta);
+        _despesaRepo.ObterPorIdComParcelasAsync(parcelaAtual.DespesaId!.Value, Arg.Any<CancellationToken>()).Returns(despesa);
+        _financiamentoRepo.ObterPorDespesaIdAsync(despesa.Id, Arg.Any<CancellationToken>()).Returns(financiamento);
+
+        var result = await _handler.Handle(new LiquidarParcelaCommand(parcelaAtual.Id, null), CancellationToken.None);
+
+        result.ValorLiquido.Should().Be(80m);
+        despesa.Parcelas.Should().HaveCount(2);
+        despesa.Parcelas.Count(p => !p.IsPaid).Should().Be(1);
+        despesa.Parcelas.Single(p => !p.IsPaid).ValorLiquido.Should().Be(50m);
     }
 }
