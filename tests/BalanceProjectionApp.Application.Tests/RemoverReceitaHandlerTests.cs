@@ -24,7 +24,7 @@ public class RemoverReceitaHandlerTests
     public async Task Handle_ReceitaAtiva_MarcaComoRemovidaEGuarda()
     {
         var receitaId = Guid.NewGuid();
-        var receita = Receita.Criar("Proj", Guid.NewGuid(), 1000m);
+        var receita = Receita.Criar("Proj", Guid.NewGuid());
         _repo.ObterPorIdAsync(receitaId, Arg.Any<CancellationToken>()).Returns(receita);
 
         await _handler.Handle(new RemoverReceitaCommand(receitaId), CancellationToken.None);
@@ -49,7 +49,7 @@ public class RemoverReceitaHandlerTests
     public async Task Handle_ReceitaJaRemovida_NaoLancaExcecaoEGuarda()
     {
         var receitaId = Guid.NewGuid();
-        var receita = Receita.Criar("Proj", Guid.NewGuid(), 1000m);
+        var receita = Receita.Criar("Proj", Guid.NewGuid());
         receita.Deletar(); // já removida
         _repo.ObterPorIdAsync(receitaId, Arg.Any<CancellationToken>()).Returns(receita);
 

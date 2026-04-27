@@ -17,7 +17,7 @@ public class ListarFinanciamentosQueryHandler(IFinanciamentoRepository repositor
             var parcelasPagas = parcelas.Count(p => p.IsPaid);
             var valorPago = Math.Min(parcelas.Where(p => p.IsPaid).Sum(p => p.ValorLiquido), f.Valor);
             var valorRestante = Math.Max(f.Valor - valorPago, 0m);
-            var valorMensalidade = f.Despesa?.ValorFixo
+            var valorPrestacao = f.Despesa?.ValorFixo
                 ?? parcelas.OrderBy(p => p.Numero).FirstOrDefault()?.ValorLiquido
                 ?? 0m;
             var progressoPercentagem = f.Valor <= 0
@@ -25,18 +25,10 @@ public class ListarFinanciamentosQueryHandler(IFinanciamentoRepository repositor
                 : Math.Round(valorPago * 100m / f.Valor, 2);
 
             return new FinanciamentoDto(
-                f.Id,
-                f.Nome,
-                f.Valor,
-                f.Data,
-                f.ContaId,
-                f.DespesaId,
-                valorMensalidade,
-                totalParcelas,
-                parcelasPagas,
-                valorPago,
-                valorRestante,
-                progressoPercentagem);
+                f.Id, f.Nome, f.Valor, f.Data, f.ContaId, f.DespesaId,
+                valorPrestacao,
+                f.Despesa?.Periodicidade,
+                totalParcelas, parcelasPagas, valorPago, valorRestante, progressoPercentagem);
         });
     }
 }

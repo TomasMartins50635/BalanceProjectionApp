@@ -14,11 +14,11 @@ public class DespesaTests
     [Fact]
     public void Criar_DadosValidos_RetornaDespesa()
     {
-        var despesa = Despesa.Criar("Renda", ContaId, CategoriaContrato.Aluguer);
+        var despesa = Despesa.Criar("Renda", ContaId, CategoriaContrato.Servicos);
 
         despesa.Nome.Should().Be("Renda");
         despesa.ContaId.Should().Be(ContaId);
-        despesa.Categoria.Should().Be(CategoriaContrato.Aluguer);
+        despesa.Categoria.Should().Be(CategoriaContrato.Servicos);
     }
 
     [Theory]
@@ -35,10 +35,10 @@ public class DespesaTests
     public void Criar_Recorrente_ComValorPrevisto_RetornaDespesaComParcelaInicial()
     {
         var despesa = Despesa.Criar(
-            "Assinatura",
-            ContaId,
+            "Assinatura", ContaId,
             tipo: TipoDespesa.Recorrente,
             valorFixo: 125.50m,
+            periodicidade: Periodicidade.Mensal,
             dataInicio: new DateOnly(2026, 6, 1));
 
         despesa.ValorFixo.Should().Be(125.50m);
@@ -54,12 +54,54 @@ public class DespesaTests
     public void Criar_Recorrente_SemValorPrevisto_LancaDomainException()
     {
         var act = () => Despesa.Criar(
-            "Assinatura",
-            ContaId,
+            "Assinatura", ContaId,
             tipo: TipoDespesa.Recorrente,
+            periodicidade: Periodicidade.Mensal,
             dataInicio: new DateOnly(2026, 6, 1));
 
         act.Should().Throw<DomainException>();
+    }
+
+    [Fact]
+    public void Criar_Recorrente_SemPeriodicidade_LancaDomainException()
+    {
+        var act = () => Despesa.Criar(
+            "Água", ContaId,
+            tipo: TipoDespesa.Recorrente,
+            valorFixo: 50m,
+            dataInicio: new DateOnly(2026, 6, 1));
+
+        act.Should().Throw<DomainException>();
+    }
+
+    [Fact]
+    public void Criar_Recorrente_ComPeriodicidade_RetornaDespesa()
+    {
+        var despesa = Despesa.Criar(
+            "Água", ContaId,
+            tipo: TipoDespesa.Recorrente,
+            valorFixo: 50m,
+            periodicidade: Periodicidade.Mensal,
+            dataInicio: new DateOnly(2026, 6, 1));
+
+        despesa.Periodicidade.Should().Be(Periodicidade.Mensal);
+        despesa.ValorFixo.Should().Be(50m);
+    }
+
+    [Fact]
+    public void GerarProximaParcela_Recorrente_UsaPeriodicidade()
+    {
+        var despesa = Despesa.Criar(
+            "Água", ContaId,
+            tipo: TipoDespesa.Recorrente,
+            valorFixo: 50m,
+            periodicidade: Periodicidade.Trimestral,
+            dataInicio: new DateOnly(2026, 1, 1));
+        despesa.GerarProximaParcela();
+
+        var segunda = despesa.GerarProximaParcela();
+
+        segunda.DataVencimento.Should().Be(new DateOnly(2026, 4, 1));
     }
 
     [Fact]

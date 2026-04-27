@@ -28,7 +28,7 @@ public class ReceitaRepositoryTests(PostgresFixture db) : IAsyncLifetime
     public async Task AdicionarEObterComParcelas_CascadePersisteParcelas()
     {
         var conta = await SeedContaAsync();
-        var receita = Receita.Criar("Proj", conta.Id, 10_000m);
+        var receita = Receita.Criar("Proj", conta.Id);
         receita.AdicionarParcela(1, Vencimento, 50m);
         receita.AdicionarParcela(2, Vencimento.AddMonths(1), 50m);
 
@@ -62,7 +62,7 @@ public class ReceitaRepositoryTests(PostgresFixture db) : IAsyncLifetime
     {
         var conta = await SeedContaAsync();
         var colaborador = Colaborador.Criar("Ana", 10m);
-        var receita = Receita.Criar("Proj com Comissao", conta.Id, 10_000m);
+        var receita = Receita.Criar("Proj com Comissao", conta.Id);
         receita.AssociarColaborador(colaborador);
         receita.AdicionarParcela(1, Vencimento, 100m);
 
@@ -79,7 +79,7 @@ public class ReceitaRepositoryTests(PostgresFixture db) : IAsyncLifetime
         var encontrada = lista.First(r => r.Id == receita.Id);
         encontrada.Colaborador!.Percentagem.Should().Be(10m);
         encontrada.Parcelas.Should().HaveCount(1);
-        encontrada.Parcelas.Single().ValorLiquido.Should().Be(9_000m); // 10000 - 10%
+        encontrada.Parcelas.Single().ValorLiquido.Should().Be(90m); // 100m - 10%
     }
 
     // ── Global query filter (soft delete) ────────────────────────────────────
@@ -88,8 +88,8 @@ public class ReceitaRepositoryTests(PostgresFixture db) : IAsyncLifetime
     public async Task ListarAsync_ReceitaRemovidaNaoRetornada()
     {
         var conta = await SeedContaAsync();
-        var ativa = Receita.Criar("Ativa", conta.Id, 5_000m);
-        var removida = Receita.Criar("Removida", conta.Id, 5_000m);
+        var ativa = Receita.Criar("Ativa", conta.Id);
+        var removida = Receita.Criar("Removida", conta.Id);
 
         await using (var ctx = db.CreateContext())
         {

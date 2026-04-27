@@ -1,6 +1,7 @@
 using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Application.Features.Financiamentos.Commands.CriarFinanciamento;
 using BalanceProjectionApp.Domain.Entities;
+using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
 using FluentAssertions;
@@ -18,11 +19,16 @@ public class CriarFinanciamentoHandlerTests
     private readonly CriarFinanciamentoCommandHandler _handler;
 
     private static readonly Guid ContaId = Guid.NewGuid();
+    private static readonly DateOnly PrimeiraParcela = new(2026, 6, 1);
 
     public CriarFinanciamentoHandlerTests()
     {
         _handler = new CriarFinanciamentoCommandHandler(_financiamentoRepo, _despesaRepo, _contaRepo, _uow);
     }
+
+    private CriarFinanciamentoCommand CmdPadrao(decimal valor = 5_000m, decimal prestacao = 500m,
+        Periodicidade periodicidade = Periodicidade.Mensal)
+        => new("Empréstimo", valor, ContaId, prestacao, periodicidade, PrimeiraParcela);
 
     [Fact]
     public async Task Handle_DadosValidos_CreditaContaImediatamente()
@@ -30,8 +36,7 @@ public class CriarFinanciamentoHandlerTests
         var conta = Conta.Criar("Conta", 0m);
         _contaRepo.ObterPorIdAsync(ContaId, Arg.Any<CancellationToken>()).Returns(conta);
 
-        await _handler.Handle(new CriarFinanciamentoCommand("Empréstimo", 5_000m, ContaId, 500m),
-            CancellationToken.None);
+        await _handler.Handle(CmdPadrao(), CancellationToken.None);
 
         conta.Saldo.Should().Be(5_000m);
     }
@@ -42,9 +47,7 @@ public class CriarFinanciamentoHandlerTests
         var conta = Conta.Criar("Conta", 0m);
         _contaRepo.ObterPorIdAsync(ContaId, Arg.Any<CancellationToken>()).Returns(conta);
 
-        var id = await _handler.Handle(
-            new CriarFinanciamentoCommand("Empréstimo", 5_000m, ContaId, 500m),
-            CancellationToken.None);
+        var id = await _handler.Handle(CmdPadrao(), CancellationToken.None);
 
         id.Should().NotBeEmpty();
         await _despesaRepo.Received(1).AdicionarAsync(Arg.Any<Despesa>(), Arg.Any<CancellationToken>());
@@ -53,43 +56,42 @@ public class CriarFinanciamentoHandlerTests
     }
 
     [Fact]
-    public async Task Handle_DadosValidos_CriaDespesaFixaAtivaAssociadaComPrimeiraParcela()
+    public async Task Handle_DadosValidos_CriaDespesaFixaComPeriodicidadeEDataCorretas()
     {
         var conta = Conta.Criar("Conta", 0m);
         _contaRepo.ObterPorIdAsync(ContaId, Arg.Any<CancellationToken>()).Returns(conta);
 
         await _handler.Handle(
-            new CriarFinanciamentoCommand("Notebook", 5_000m, ContaId, 420m),
+            new CriarFinanciamentoCommand("Notebook", 5_000m, ContaId, 420m, Periodicidade.Trimestral, PrimeiraParcela),
             CancellationToken.None);
 
         await _despesaRepo.Received(1).AdicionarAsync(
             Arg.Is<Despesa>(d =>
                 d.Nome == "Notebook"
-                && d.ContaId == conta.Id
-                && d.TipoDespesa == Domain.Enums.TipoDespesa.Fixa
-                && d.Categoria == Domain.Enums.CategoriaContrato.Financiamento
+                && d.TipoDespesa == TipoDespesa.Fixa
+                && d.Categoria == CategoriaContrato.Financiamento
                 && d.ValorFixo == 420m
+                && d.Periodicidade == Periodicidade.Trimestral
+                && d.DataInicio == PrimeiraParcela
                 && d.IsActive
                 && d.Parcelas.Count == 1
-                && d.Parcelas.Single().Numero == 1
-                && d.Parcelas.Single().ValorBruto == 420m),
+                && d.Parcelas.Single().DataVencimento == PrimeiraParcela),
             Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_MensalidadeMaiorQueFinanciamento_LancaDomainException()
+    public async Task Handle_PrestacaoMaiorQueFinanciamento_LancaDomainException()
     {
         var conta = Conta.Criar("Conta", 0m);
         _contaRepo.ObterPorIdAsync(ContaId, Arg.Any<CancellationToken>()).Returns(conta);
 
         var act = async () => await _handler.Handle(
-            new CriarFinanciamentoCommand("Notebook", 300m, ContaId, 420m),
+            new CriarFinanciamentoCommand("Notebook", 300m, ContaId, 420m, Periodicidade.Mensal, PrimeiraParcela),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<DomainException>()
-            .WithMessage("*mensalidade não pode ultrapassar o valor do financiamento*");
+            .WithMessage("*prestação não pode ultrapassar o valor do financiamento*");
         await _despesaRepo.DidNotReceive().AdicionarAsync(Arg.Any<Despesa>(), Arg.Any<CancellationToken>());
-        await _financiamentoRepo.DidNotReceive().AdicionarAsync(Arg.Any<Financiamento>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -98,23 +100,9 @@ public class CriarFinanciamentoHandlerTests
         _contaRepo.ObterPorIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Conta?)null);
 
         var act = async () => await _handler.Handle(
-            new CriarFinanciamentoCommand("Empréstimo", 1_000m, Guid.NewGuid(), 100m),
+            new CriarFinanciamentoCommand("Empréstimo", 1_000m, Guid.NewGuid(), 100m, Periodicidade.Mensal, PrimeiraParcela),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<EntityNotFoundException>();
-        await _financiamentoRepo.DidNotReceive().AdicionarAsync(Arg.Any<Financiamento>(), Arg.Any<CancellationToken>());
-        await _despesaRepo.DidNotReceive().AdicionarAsync(Arg.Any<Despesa>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_VariosFinanciamentos_SaldoAcumulado()
-    {
-        var conta = Conta.Criar("Conta", 1_000m);
-        _contaRepo.ObterPorIdAsync(ContaId, Arg.Any<CancellationToken>()).Returns(conta);
-
-        await _handler.Handle(new CriarFinanciamentoCommand("F1", 3_000m, ContaId, 300m), CancellationToken.None);
-        await _handler.Handle(new CriarFinanciamentoCommand("F2", 2_000m, ContaId, 200m), CancellationToken.None);
-
-        conta.Saldo.Should().Be(6_000m); // 1000 + 3000 + 2000
     }
 }

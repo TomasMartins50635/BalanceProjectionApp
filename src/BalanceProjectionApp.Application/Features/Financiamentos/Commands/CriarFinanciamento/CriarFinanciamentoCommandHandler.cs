@@ -18,26 +18,24 @@ public class CriarFinanciamentoCommandHandler(
         var conta = await contaRepository.ObterPorIdAsync(request.ContaId, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Conta), request.ContaId);
 
-        var dataAtual = DateOnly.FromDateTime(DateTime.UtcNow);
-
-        if (request.ValorMensalidade > request.Valor)
-            throw new DomainException("A mensalidade não pode ultrapassar o valor do financiamento.");
+        if (request.ValorPrestacao > request.Valor)
+            throw new DomainException("A prestação não pode ultrapassar o valor do financiamento.");
 
         var despesa = Despesa.Criar(
             request.Nome,
             conta.Id,
             CategoriaContrato.Financiamento,
             TipoDespesa.Fixa,
-            request.ValorMensalidade,
-            Periodicidade.Mensal,
-            dataAtual);
+            request.ValorPrestacao,
+            request.Periodicidade,
+            request.DataPrimeiraParcela);
 
-        // Ao criar o financiamento, a despesa fixa associada deve iniciar com a primeira mensalidade.
         despesa.GerarProximaParcela();
 
-        var financiamento = Financiamento.Criar(request.Nome, request.Valor, dataAtual, conta.Id, despesa.Id);
+        var financiamento = Financiamento.Criar(request.Nome, request.Valor,
+            DateOnly.FromDateTime(DateTime.UtcNow),
+            conta.Id, despesa.Id);
 
-        // O financiamento credita o saldo imediatamente ao ser registado
         conta.Creditar(request.Valor);
 
         await despesaRepository.AdicionarAsync(despesa, cancellationToken);

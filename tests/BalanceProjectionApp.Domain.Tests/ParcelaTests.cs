@@ -12,8 +12,8 @@ public class ParcelaTests
 
     private static Parcela CriarParcelaReceita(decimal valorBruto = 1000m, decimal valorLiquido = 1000m)
     {
-        var receita = Receita.Criar("Proj", ContaId, valorBruto);
-        return receita.AdicionarParcela(1, Vencimento, 100m);
+        var receita = Receita.Criar("Proj", ContaId);
+        return receita.AdicionarParcela(1, Vencimento, valorBruto);
     }
 
     // ── Liquidar ───────────────────────────────────────────────────────────────

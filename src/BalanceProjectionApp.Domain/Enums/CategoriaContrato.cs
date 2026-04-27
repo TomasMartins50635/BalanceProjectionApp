@@ -4,7 +4,6 @@ public enum CategoriaContrato
 {
     Servicos,
     Produtos,
-    Aluguer,
     Salarios,
     Impostos,
     IVA,

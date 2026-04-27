@@ -1,3 +1,5 @@
+using BalanceProjectionApp.Domain.Enums;
+
 namespace BalanceProjectionApp.Application.Features.Financiamentos.Dtos;
 
 public record FinanciamentoDto(
@@ -7,7 +9,8 @@ public record FinanciamentoDto(
     DateOnly Data,
     Guid ContaId,
     Guid? DespesaId,
-    decimal ValorMensalidade,
+    decimal ValorPrestacao,
+    Periodicidade? Periodicidade,
     int TotalParcelas,
     int ParcelasPagas,
     decimal ValorPago,

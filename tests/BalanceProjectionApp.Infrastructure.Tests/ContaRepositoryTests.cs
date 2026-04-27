@@ -112,7 +112,7 @@ public class ContaRepositoryTests(PostgresFixture db) : IAsyncLifetime
     public async Task TemEntidadesVinculadas_ComReceita_RetornaTrue()
     {
         var conta = Conta.Criar("Conta Com Receita", 0m);
-        var receita = Receita.Criar("Proj", conta.Id, 1_000m);
+        var receita = Receita.Criar("Proj", conta.Id);
 
         await using (var ctx = db.CreateContext())
         {

@@ -1,3 +1,4 @@
+using BalanceProjectionApp.Domain.Enums;
 using MediatR;
 
 namespace BalanceProjectionApp.Application.Features.Receitas.Commands.AtualizarReceita;
@@ -5,9 +6,8 @@ namespace BalanceProjectionApp.Application.Features.Receitas.Commands.AtualizarR
 public record AtualizarReceitaCommand(
     Guid Id,
     string Nome,
-    decimal ValorTotal,
-    string? Categoria,
+    CategoriaReceita? Categoria,
     Guid? ColaboradorId,
     IEnumerable<AtualizarParcelaDto> Parcelas) : IRequest;
 
-public record AtualizarParcelaDto(int Numero, DateOnly DataVencimento, decimal Percentagem);
+public record AtualizarParcelaDto(int Numero, DateOnly DataVencimento, decimal Valor);

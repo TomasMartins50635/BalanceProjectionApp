@@ -10,7 +10,11 @@ public class CriarDespesaCommandValidator : AbstractValidator<CriarDespesaComman
         RuleFor(x => x.Nome).NotEmpty().MaximumLength(200);
         RuleFor(x => x.ContaId).NotEmpty();
 
-        // Fixa e Recorrente
+        RuleFor(x => x.Categoria)
+            .Must(c => c != CategoriaContrato.IVA && c != CategoriaContrato.Financiamento)
+            .When(x => x.Categoria.HasValue)
+            .WithMessage("Não é possível criar manualmente despesas de IVA ou Financiamento.");
+
         When(x => x.TipoDespesa != TipoDespesa.Pontual, () =>
         {
             RuleFor(x => x.ValorFixo).NotNull().GreaterThan(0)
@@ -19,14 +23,12 @@ public class CriarDespesaCommandValidator : AbstractValidator<CriarDespesaComman
                 .WithMessage("Despesa fixa ou recorrente requer uma data de início.");
         });
 
-        // Fixa
-        When(x => x.TipoDespesa == TipoDespesa.Fixa, () =>
+        When(x => x.TipoDespesa == TipoDespesa.Fixa || x.TipoDespesa == TipoDespesa.Recorrente, () =>
         {
             RuleFor(x => x.Periodicidade).NotNull()
-                .WithMessage("Despesa fixa requer uma periodicidade.");
+                .WithMessage("Despesa fixa ou recorrente requer uma periodicidade.");
         });
 
-        // Pontual: parcelas manuais obrigatórias
         When(x => x.TipoDespesa == TipoDespesa.Pontual, () =>
         {
             RuleFor(x => x.Parcelas).NotEmpty()
@@ -36,13 +38,6 @@ public class CriarDespesaCommandValidator : AbstractValidator<CriarDespesaComman
                 p.RuleFor(x => x.Numero).GreaterThan(0);
                 p.RuleFor(x => x.ValorBruto).GreaterThan(0);
             });
-        });
-
-        // Recorrente: data de início obrigatória (parcelas geradas automaticamente)
-        When(x => x.TipoDespesa == TipoDespesa.Recorrente, () =>
-        {
-            RuleFor(x => x.DataInicio).NotNull()
-                .WithMessage("Despesa recorrente requer uma data de início.");
         });
     }
 }

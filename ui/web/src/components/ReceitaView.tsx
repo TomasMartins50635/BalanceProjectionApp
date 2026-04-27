@@ -16,51 +16,44 @@ import { useToast } from '@/hooks/useToast';
 import { useAsync } from '@/hooks/useAsync';
 import { useParcelaActions } from '@/hooks/useParcelaActions';
 import { api } from '@/lib/api';
-import type { ColaboradorDto, ReceitaDto } from '@/lib/types';
+import type { ColaboradorDto, ReceitaDto, CategoriaReceita } from '@/lib/types';
+import { CATEGORIAS_RECEITA, CATEGORIA_RECEITA_LABELS } from '@/lib/types';
 
 // ── Form types ─────────────────────────────────────────────────────────────────
 
 interface ReceitaForm {
   nome: string;
   contaId: string;
-  valorTotal: string;
   categoria: string;
   colaboradorId: string;
   temIva: boolean;
-  parcelas: { dataVencimento: string; percentagem: string }[];
+  parcelas: { dataVencimento: string; valor: string }[];
 }
 
 const emptyForm = (contaId = ''): ReceitaForm => ({
   nome: '',
   contaId,
-  valorTotal: '',
   categoria: '',
   colaboradorId: '',
   temIva: false,
-  parcelas: [{ dataVencimento: '', percentagem: '100' }],
+  parcelas: [{ dataVencimento: '', valor: '' }],
 });
 
 const receitaToForm = (r: ReceitaDto): ReceitaForm => ({
   nome: r.nome,
   contaId: r.contaId,
-  valorTotal: String(r.valorTotal),
   categoria: r.categoria ?? '',
   colaboradorId: r.colaboradorId ?? '',
+  temIva: false,
   parcelas: r.parcelas
     .filter(p => !p.isPaid)
     .sort((a, b) => a.numero - b.numero)
     .map(p => ({
       dataVencimento: p.dataVencimento,
-      percentagem: p.percentagem != null ? String(p.percentagem) : '',
+      valor: String(p.valorBruto),
     })),
 });
 
-function parcelaValorBruto(valorTotal: string, pct: string): string {
-  const vt = parseFloat(valorTotal);
-  const p = parseFloat(pct);
-  if (!vt || !p) return '—';
-  return `€${((vt * p) / 100).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`;
-}
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -129,20 +122,16 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   const valorTotal = (r: ReceitaDto) => r.parcelas.reduce((s, p) => s + p.valorBruto, 0);
 
   const addParcela = () =>
-    setForm(f => ({ ...f, parcelas: [...f.parcelas, { dataVencimento: '', percentagem: '' }] }));
+    setForm(f => ({ ...f, parcelas: [...f.parcelas, { dataVencimento: '', valor: '' }] }));
 
   const removeParcela = (i: number) =>
-    setForm(f => {
-      const next = f.parcelas.filter((_, idx) => idx !== i);
-      if (next.length === 1) return { ...f, parcelas: [{ ...next[0], percentagem: '100' }] };
-      return { ...f, parcelas: next };
-    });
+    setForm(f => ({ ...f, parcelas: f.parcelas.filter((_, idx) => idx !== i) }));
 
   const updateParcela = (i: number, field: keyof ReceitaForm['parcelas'][0], value: string) =>
     setForm(f => ({ ...f, parcelas: f.parcelas.map((p, idx) => idx === i ? { ...p, [field]: value } : p) }));
 
-  const totalPercentagem = useMemo(
-    () => form.parcelas.reduce((s, p) => s + (parseFloat(p.percentagem) || 0), 0),
+  const totalValor = useMemo(
+    () => form.parcelas.reduce((s, p) => s + (parseFloat(p.valor) || 0), 0),
     [form.parcelas],
   );
 
@@ -158,9 +147,8 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   const validateForm = () => {
     if (!form.nome.trim()) { toast('Nome obrigatório', 'error'); return false; }
     if (!form.contaId) { toast('Selecione uma conta', 'error'); return false; }
-    if (!form.valorTotal || parseFloat(form.valorTotal) <= 0) { toast('Valor total deve ser positivo', 'error'); return false; }
     if (form.parcelas.length === 0) { toast('Adicione pelo menos uma parcela', 'error'); return false; }
-    if (form.parcelas.some(p => !p.dataVencimento || !p.percentagem)) { toast('Preencha todas as parcelas', 'error'); return false; }
+    if (form.parcelas.some(p => !p.dataVencimento || !p.valor || parseFloat(p.valor) <= 0)) { toast('Preencha todas as parcelas com valores positivos', 'error'); return false; }
     return true;
   };
 
@@ -171,14 +159,13 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
       await api.receitas.criar({
         nome: form.nome.trim(),
         contaId: form.contaId,
-        valorTotal: parseFloat(form.valorTotal),
-        categoria: form.categoria.trim() || undefined,
+        categoria: (form.categoria.trim() as CategoriaReceita) || undefined,
         colaboradorId: form.colaboradorId || undefined,
         temIva: form.temIva,
         parcelas: form.parcelas.map((p, i) => ({
           numero: i + 1,
           dataVencimento: p.dataVencimento,
-          percentagem: parseFloat(p.percentagem),
+          valor: parseFloat(p.valor),
         })),
       });
       toast('Receita criada com sucesso');
@@ -198,13 +185,12 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
     try {
       await api.receitas.atualizar(editingId, {
         nome: form.nome.trim(),
-        valorTotal: parseFloat(form.valorTotal),
-        categoria: form.categoria.trim() || undefined,
+        categoria: (form.categoria.trim() as CategoriaReceita) || undefined,
         colaboradorId: form.colaboradorId || undefined,
         parcelas: form.parcelas.map((p, i) => ({
           numero: i + 1,
           dataVencimento: p.dataVencimento,
-          percentagem: parseFloat(p.percentagem),
+          valor: parseFloat(p.valor),
         })),
       });
       toast('Receita atualizada');
@@ -248,7 +234,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
             <DialogDescription>
               {isEdit
                 ? 'As parcelas não liquidadas serão substituídas pelas novas.'
-                : 'Defina o valor total e distribua-o em parcelas por percentagem.'}
+                : 'Defina parcelas com valores específicos.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -270,15 +256,15 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                 </div>
               )}
               <div>
-                <Label htmlFor="rf-vt" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">VALOR TOTAL (€) *</Label>
-                <div className="relative mt-1.5">
-                  <Input id="rf-vt" type="number" value={form.valorTotal} onChange={e => setForm(f => ({ ...f, valorTotal: e.target.value }))} step="0.01" min="0" placeholder="0.00" className="pl-6" />
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
-                </div>
-              </div>
-              <div>
                 <Label htmlFor="rf-cat" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">CATEGORIA</Label>
-                <Input id="rf-cat" value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} className="mt-1.5" placeholder="Ex: Consultoria" />
+                <Select value={form.categoria} onValueChange={v => setForm(f => ({ ...f, categoria: v }))}>
+                  <SelectTrigger id="rf-cat" className="mt-1.5"><SelectValue placeholder="Selecionar categoria" /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIAS_RECEITA.map(cat => (
+                      <SelectItem key={cat} value={cat}>{CATEGORIA_RECEITA_LABELS[cat]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="rf-col" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">COLABORADOR</Label>
@@ -303,9 +289,9 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                     />
                     <span className="text-sm text-gray-700">
                       Sujeito a IVA (23%)
-                      {form.temIva && form.valorTotal && parseFloat(form.valorTotal) > 0 && (
+                      {form.temIva && totalValor > 0 && (
                         <span className="ml-2 text-xs text-gray-500">
-                          — despesa de IVA criada automaticamente: €{(parseFloat(form.valorTotal) * 0.23).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+                          — despesa de IVA criada automaticamente: €{(totalValor * 0.23).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
                         </span>
                       )}
                     </span>
@@ -318,38 +304,31 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
                   <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">PARCELAS *</Label>
-                  <span className={`text-xs font-medium ${Math.abs(totalPercentagem - 100) < 0.01 ? 'text-green-600' : totalPercentagem > 100 ? 'text-red-600' : 'text-gray-500'}`}>
-                    {totalPercentagem.toFixed(1)}% / 100%
+                  <span className={`text-xs font-medium text-gray-600`}>
+                    Total: €{totalValor.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
                 <Button type="button" size="sm" variant="outline" onClick={addParcela}><Plus className="w-3.5 h-3.5 mr-1" />Adicionar</Button>
               </div>
               <div className="space-y-2">
                 {form.parcelas.map((p, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_120px_90px_auto] gap-2 items-end">
+                  <div key={i} className="grid grid-cols-[1fr_150px_auto] gap-2 items-end">
                     <div>
                       <label className="text-xs text-gray-500">Vencimento</label>
                       <input type="date" value={p.dataVencimento} onChange={e => updateParcela(i, 'dataVencimento', e.target.value)} className="mt-1 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500">Percentagem (%)</label>
+                      <label className="text-xs text-gray-500">Valor (€)</label>
                       <div className="relative mt-1">
                         <Input
                           type="number"
-                          value={p.percentagem}
-                          onChange={e => updateParcela(i, 'percentagem', e.target.value)}
-                          step="0.1" min="0" max="100" placeholder="0"
+                          value={p.valor}
+                          onChange={e => updateParcela(i, 'valor', e.target.value)}
+                          step="0.01" min="0" placeholder="0.00"
                           className="pr-6"
-                          disabled={form.parcelas.length === 1}
                         />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">€</span>
                       </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Valor</label>
-                      <p className="mt-1 h-9 flex items-center text-sm font-medium text-green-600">
-                        {parcelaValorBruto(form.valorTotal, p.percentagem)}
-                      </p>
                     </div>
                     {form.parcelas.length > 1 && (
                       <Button type="button" size="sm" variant="ghost" className="text-red-500 hover:bg-red-50 mb-0.5" onClick={() => removeParcela(i)}>✕</Button>

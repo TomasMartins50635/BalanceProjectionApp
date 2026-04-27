@@ -39,9 +39,9 @@ public class Despesa : Entity
                 throw new DomainException("Despesa fixa ou recorrente requer uma data de início.");
         }
 
-        if (tipo == TipoDespesa.Fixa && periodicidade is null)
+        if ((tipo == TipoDespesa.Fixa || tipo == TipoDespesa.Recorrente) && periodicidade is null)
         {
-            throw new DomainException("Despesa fixa requer uma periodicidade.");
+            throw new DomainException($"Despesa {tipo} requer uma periodicidade.");
         }
 
         return new Despesa
@@ -139,7 +139,15 @@ public class Despesa : Entity
             }
             else // Recorrente
             {
-                dataVencimento = ultimaData.AddMonths(1);
+                var meses = Periodicidade switch
+                {
+                    Enums.Periodicidade.Mensal     => 1,
+                    Enums.Periodicidade.Trimestral => 3,
+                    Enums.Periodicidade.Semestral  => 6,
+                    Enums.Periodicidade.Anual      => 12,
+                    _ => throw new DomainException("Periodicidade inválida.")
+                };
+                dataVencimento = ultimaData.AddMonths(meses);
             }
         }
 

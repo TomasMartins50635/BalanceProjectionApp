@@ -1,6 +1,7 @@
 using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Application.Features.Receitas.Commands.CriarReceita;
 using BalanceProjectionApp.Domain.Entities;
+using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
 using FluentAssertions;
@@ -24,7 +25,6 @@ public class CriarReceitaHandlerTests
     public CriarReceitaHandlerTests()
     {
         _handler = new CriarReceitaCommandHandler(_receitaRepo, _contaRepo, _colaboradorRepo, _despesaRepo, _uow);
-
         _contaRepo.ObterPorIdAsync(ContaId, Arg.Any<CancellationToken>())
             .Returns(Conta.Criar("Conta", 0m));
     }
@@ -32,8 +32,8 @@ public class CriarReceitaHandlerTests
     [Fact]
     public async Task Handle_DadosValidos_AdicionaReceitaERetornaId()
     {
-        var command = new CriarReceitaCommand("Proj ABC", ContaId, 10_000m, null, null,
-            [new(1, Vencimento, 100m)]);
+        var command = new CriarReceitaCommand("Proj ABC", ContaId, null, null,
+            [new(1, Vencimento, 5_000m)]);
 
         var id = await _handler.Handle(command, CancellationToken.None);
 
@@ -49,7 +49,7 @@ public class CriarReceitaHandlerTests
             .Returns((Conta?)null);
 
         var act = async () => await _handler.Handle(
-            new CriarReceitaCommand("Proj", Guid.NewGuid(), 1000m, null, null, [new(1, Vencimento, 100m)]),
+            new CriarReceitaCommand("Proj", Guid.NewGuid(), null, null, [new(1, Vencimento, 1_000m)]),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<EntityNotFoundException>();
@@ -68,7 +68,7 @@ public class CriarReceitaHandlerTests
         await _receitaRepo.AdicionarAsync(Arg.Do<Receita>(r => receitaCriada = r), Arg.Any<CancellationToken>());
 
         await _handler.Handle(
-            new CriarReceitaCommand("Proj", ContaId, 10_000m, null, colaboradorId, [new(1, Vencimento, 100m)]),
+            new CriarReceitaCommand("Proj", ContaId, null, colaboradorId, [new(1, Vencimento, 10_000m)]),
             CancellationToken.None);
 
         receitaCriada!.Colaborador!.Percentagem.Should().Be(10m);
@@ -82,7 +82,7 @@ public class CriarReceitaHandlerTests
             .Returns((Colaborador?)null);
 
         var act = async () => await _handler.Handle(
-            new CriarReceitaCommand("Proj", ContaId, 1000m, null, colaboradorId, [new(1, Vencimento, 50m)]),
+            new CriarReceitaCommand("Proj", ContaId, null, colaboradorId, [new(1, Vencimento, 5_000m)]),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<EntityNotFoundException>();
@@ -95,14 +95,64 @@ public class CriarReceitaHandlerTests
         await _receitaRepo.AdicionarAsync(Arg.Do<Receita>(r => receitaCriada = r), Arg.Any<CancellationToken>());
 
         await _handler.Handle(
-            new CriarReceitaCommand("Proj", ContaId, 10_000m, null, null,
+            new CriarReceitaCommand("Proj", ContaId, null, null,
             [
-                new(2, Vencimento.AddMonths(1), 60m),
-                new(1, Vencimento, 40m)
+                new(2, Vencimento.AddMonths(1), 6_000m),
+                new(1, Vencimento, 4_000m),
             ]),
             CancellationToken.None);
 
         receitaCriada!.Parcelas.Should().HaveCount(2);
         receitaCriada.Parcelas.Select(p => p.Numero).Should().BeEquivalentTo([1, 2]);
+    }
+
+    [Fact]
+    public async Task Handle_TemIvaUmaParcela_CriaUmaDespesaIvaComParcelaCorreta()
+    {
+        Despesa? despesaIva = null;
+        await _despesaRepo.AdicionarAsync(Arg.Do<Despesa>(d => despesaIva = d), Arg.Any<CancellationToken>());
+
+        await _handler.Handle(
+            new CriarReceitaCommand("Proj", ContaId, null, null,
+                [new(1, new DateOnly(2026, 5, 10), 1_000m)], TemIva: true),
+            CancellationToken.None);
+
+        despesaIva.Should().NotBeNull();
+        despesaIva!.Categoria.Should().Be(CategoriaContrato.IVA);
+        despesaIva.Parcelas.Should().HaveCount(1);
+        despesaIva.Parcelas.Single().ValorBruto.Should().Be(230m);
+        despesaIva.Parcelas.Single().DataVencimento.Should().Be(new DateOnly(2026, 5, 25));
+    }
+
+    [Fact]
+    public async Task Handle_TemIva_ParcelaDia25_VencimentoNoMesSeguinte()
+    {
+        Despesa? despesaIva = null;
+        await _despesaRepo.AdicionarAsync(Arg.Do<Despesa>(d => despesaIva = d), Arg.Any<CancellationToken>());
+
+        await _handler.Handle(
+            new CriarReceitaCommand("Proj", ContaId, null, null,
+                [new(1, new DateOnly(2026, 5, 25), 1_000m)], TemIva: true),
+            CancellationToken.None);
+
+        despesaIva!.Parcelas.Single().DataVencimento.Should().Be(new DateOnly(2026, 6, 25));
+    }
+
+    [Fact]
+    public async Task Handle_TemIvaMultiplasParcelas_CriaParcelaIvaPorCadaParcela()
+    {
+        Despesa? despesaIva = null;
+        await _despesaRepo.AdicionarAsync(Arg.Do<Despesa>(d => despesaIva = d), Arg.Any<CancellationToken>());
+
+        await _handler.Handle(
+            new CriarReceitaCommand("Proj", ContaId, null, null,
+            [
+                new(1, new DateOnly(2026, 5, 10), 1_000m),
+                new(2, new DateOnly(2026, 6, 10), 2_000m),
+            ], TemIva: true),
+            CancellationToken.None);
+
+        despesaIva!.Parcelas.Should().HaveCount(2);
+        despesaIva.Parcelas.Sum(p => p.ValorBruto).Should().Be(690m);
     }
 }

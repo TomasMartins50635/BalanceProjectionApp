@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Search, Plus, Building2, TrendingDown, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -10,21 +10,31 @@ import { formatDate } from '@/lib/dates';
 import { useToast } from '@/hooks/useToast';
 import { useAsync } from '@/hooks/useAsync';
 import { api } from '@/lib/api';
-import type { FinanciamentoDto } from '@/lib/types';
+import type { FinanciamentoDto, Periodicidade } from '@/lib/types';
+import { PERIODICIDADE_LABELS } from '@/lib/types';
 
 interface CreateForm {
   nome: string;
   valor: string;
-  valorMensalidade: string;
+  valorPrestacao: string;
+  periodicidade: Periodicidade | '';
+  dataPrimeiraParcela: string;
   contaId: string;
 }
 
-const emptyForm = (): CreateForm => ({ nome: '', valor: '', valorMensalidade: '', contaId: '' });
+const emptyForm = (): CreateForm => ({ 
+  nome: '', 
+  valor: '', 
+  valorPrestacao: '', 
+  periodicidade: '',
+  dataPrimeiraParcela: '',
+  contaId: '' 
+});
 
-function FinanciamentoCard({ f, contaNome, onEliminar }: { f: FinanciamentoDto; contaNome: string; onEliminar: () => void }) {
+function FinanciamentoCard({ f, contaNome, onEliminar }: Readonly<{ f: FinanciamentoDto; contaNome: string; onEliminar: () => void }>) {
   const pct = Math.max(0, Math.min(100, f.progressoPercentagem));
-  const mesesRestantes = f.valorRestante > 0 && f.valorMensalidade > 0
-    ? Math.ceil(f.valorRestante / f.valorMensalidade)
+  const mesesRestantes = f.valorRestante > 0 && f.valorPrestacao > 0
+    ? Math.ceil(f.valorRestante / f.valorPrestacao)
     : 0;
 
   return (
@@ -77,9 +87,9 @@ function FinanciamentoCard({ f, contaNome, onEliminar }: { f: FinanciamentoDto; 
           </p>
         </div>
         <div className="bg-slate-50 rounded-lg p-2.5">
-          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Mensalidade</p>
+          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Prestação</p>
           <p className="text-sm font-bold tabular-nums text-indigo-600 mt-1">
-            €{f.valorMensalidade.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+            €{f.valorPrestacao.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
           </p>
         </div>
       </div>
@@ -162,7 +172,7 @@ export function FinanciamentoView() {
   };
 
   const handleCreate = async () => {
-    if (!form.nome.trim() || !form.valor || !form.valorMensalidade || !form.contaId) {
+    if (!form.nome.trim() || !form.valor || !form.valorPrestacao || !form.periodicidade || !form.dataPrimeiraParcela || !form.contaId) {
       toast('Preencha todos os campos obrigatórios', 'error');
       return;
     }
@@ -172,7 +182,9 @@ export function FinanciamentoView() {
         nome: form.nome.trim(),
         valor: Number.parseFloat(form.valor),
         contaId: form.contaId,
-        valorMensalidade: Number.parseFloat(form.valorMensalidade),
+        valorPrestacao: Number.parseFloat(form.valorPrestacao),
+        periodicidade: form.periodicidade,
+        dataPrimeiraParcela: form.dataPrimeiraParcela,
       });
       toast('Financiamento registado. Valor creditado na conta.');
       setCreateOpen(false);
@@ -184,6 +196,41 @@ export function FinanciamentoView() {
       setSaving(false);
     }
   };
+
+  let content: React.ReactElement;
+  if (error) {
+    content = <div className="p-6 text-center text-red-600 text-sm">{error}</div>;
+  } else if (loading) {
+    content = (
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="bg-white rounded-xl border border-slate-200 h-52 animate-pulse" />
+        ))}
+      </div>
+    );
+  } else if (filtered.length === 0) {
+    content = (
+      <div className="flex flex-col items-center justify-center h-full min-h-48 text-center">
+        <Building2 className="w-10 h-10 text-slate-200 mb-3" />
+        <p className="text-sm font-medium text-slate-500">
+          {(financiamentos ?? []).length === 0 ? 'Nenhum financiamento registado' : 'Nenhum resultado'}
+        </p>
+        {(financiamentos ?? []).length === 0 && (
+          <Button size="sm" variant="outline" className="mt-3" onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-1" />Registar financiamento
+          </Button>
+        )}
+      </div>
+    );
+  } else {
+    content = (
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {filtered.map(f => (
+          <FinanciamentoCard key={f.id} f={f} contaNome={contaNome(f.contaId)} onEliminar={() => setDeleteId(f.id)} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
@@ -218,33 +265,7 @@ export function FinanciamentoView() {
 
       {/* Content */}
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto p-4 md:p-5">
-        {error ? (
-          <div className="p-6 text-center text-red-600 text-sm">{error}</div>
-        ) : loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white rounded-xl border border-slate-200 h-52 animate-pulse" />
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full min-h-48 text-center">
-            <Building2 className="w-10 h-10 text-slate-200 mb-3" />
-            <p className="text-sm font-medium text-slate-500">
-              {(financiamentos ?? []).length === 0 ? 'Nenhum financiamento registado' : 'Nenhum resultado'}
-            </p>
-            {(financiamentos ?? []).length === 0 && (
-              <Button size="sm" variant="outline" className="mt-3" onClick={() => setCreateOpen(true)}>
-                <Plus className="w-4 h-4 mr-1" />Registar financiamento
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map(f => (
-              <FinanciamentoCard key={f.id} f={f} contaNome={contaNome(f.contaId)} onEliminar={() => setDeleteId(f.id)} />
-            ))}
-          </div>
-        )}
+        {content}
       </div>
 
       <ConfirmDialog
@@ -294,14 +315,14 @@ export function FinanciamentoView() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="cf-mensalidade" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Mensalidade *</Label>
+                <Label htmlFor="cf-prestacao" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Prestação *</Label>
                 <div className="relative mt-1.5">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span>
                   <Input
-                    id="cf-mensalidade"
+                    id="cf-prestacao"
                     type="number"
-                    value={form.valorMensalidade}
-                    onChange={e => setForm(f => ({ ...f, valorMensalidade: e.target.value }))}
+                    value={form.valorPrestacao}
+                    onChange={e => setForm(f => ({ ...f, valorPrestacao: e.target.value }))}
                     className="pl-7 tabular-nums"
                     step="0.01" min="0" placeholder="0.00"
                   />
@@ -309,9 +330,33 @@ export function FinanciamentoView() {
               </div>
             </div>
 
-            {form.valor && form.valorMensalidade && Number(form.valor) > 0 && Number(form.valorMensalidade) > 0 && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="cf-periodicidade" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Periodicidade *</Label>
+                <Select value={form.periodicidade} onValueChange={v => setForm(f => ({ ...f, periodicidade: v as Periodicidade }))}>
+                  <SelectTrigger id="cf-periodicidade" className="mt-1.5"><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(PERIODICIDADE_LABELS) as Periodicidade[]).map(per => (
+                      <SelectItem key={per} value={per}>{PERIODICIDADE_LABELS[per]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="cf-dataPrimeira" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Data Primeira Parcela *</Label>
+                <Input
+                  id="cf-dataPrimeira"
+                  type="date"
+                  value={form.dataPrimeiraParcela}
+                  onChange={e => setForm(f => ({ ...f, dataPrimeiraParcela: e.target.value }))}
+                  className="mt-1.5"
+                />
+              </div>
+            </div>
+
+            {form.valor && form.valorPrestacao && Number(form.valor) > 0 && Number(form.valorPrestacao) > 0 && (
               <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2.5 text-xs text-indigo-700">
-                Duração estimada: ~{Math.ceil(Number(form.valor) / Number(form.valorMensalidade))} meses
+                Duração estimada: ~{Math.ceil(Number(form.valor) / Number(form.valorPrestacao))} {form.periodicidade ? PERIODICIDADE_LABELS[form.periodicidade].toLowerCase() + 's' : 'períodos'}
               </div>
             )}
 

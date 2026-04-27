@@ -3,6 +3,7 @@ using System;
 using BalanceProjectionApp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BalanceProjectionApp.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260427000639_FinancialModelChanges")]
+    partial class FinancialModelChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -52,7 +55,7 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Colaboradores", (string)null);
+                    b.ToTable("Colaboradores");
                 });
 
             modelBuilder.Entity("BalanceProjectionApp.Domain.Entities.Conta", b =>
@@ -85,7 +88,7 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Contas", (string)null);
+                    b.ToTable("Contas");
                 });
 
             modelBuilder.Entity("BalanceProjectionApp.Domain.Entities.Despesa", b =>
@@ -138,7 +141,7 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
 
                     b.HasIndex("ContaId");
 
-                    b.ToTable("Despesas", (string)null);
+                    b.ToTable("Despesas");
                 });
 
             modelBuilder.Entity("BalanceProjectionApp.Domain.Entities.Financiamento", b =>
@@ -184,7 +187,7 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
 
                     b.HasIndex("DespesaId");
 
-                    b.ToTable("Financiamentos", (string)null);
+                    b.ToTable("Financiamentos");
                 });
 
             modelBuilder.Entity("BalanceProjectionApp.Domain.Entities.Parcela", b =>
@@ -251,7 +254,7 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
 
                     b.HasIndex("ContaId", "IsPaid");
 
-                    b.ToTable("Parcelas", (string)null);
+                    b.ToTable("Parcelas");
                 });
 
             modelBuilder.Entity("BalanceProjectionApp.Domain.Entities.Receita", b =>
@@ -293,7 +296,7 @@ namespace BalanceProjectionApp.Infrastructure.Migrations
 
                     b.HasIndex("ContaId");
 
-                    b.ToTable("Receitas", (string)null);
+                    b.ToTable("Receitas");
                 });
 
             modelBuilder.Entity("BalanceProjectionApp.Domain.Entities.Despesa", b =>

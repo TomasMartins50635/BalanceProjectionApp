@@ -22,6 +22,10 @@ import {
   PERIODICIDADE_LABELS,
 } from '@/lib/types';
 
+const CATEGORIAS_MANUAIS = CATEGORIAS.filter(
+  c => c !== 'IVA' && c !== 'Financiamento'
+);
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const TIPO_BADGE: Record<TipoDespesa, { label: string; className: string }> = {
@@ -30,7 +34,7 @@ const TIPO_BADGE: Record<TipoDespesa, { label: string; className: string }> = {
   Recorrente: { label: 'Recorrente', className: 'bg-purple-50 text-purple-700' },
 };
 
-type ToastFn = (message: string, type?: 'error' | 'success' | 'info') => void;
+type ToastFn = (message: string, type?: 'error' | 'success') => void;
 
 async function removerParcelaAction(params: {
   removeParcelaId: string | null;
@@ -157,9 +161,9 @@ function buildCriarPayload(form: CreateForm) {
   }
 
   if (form.tipoDespesa === 'Recorrente') {
-    if (!nome || !form.contaId || !form.valorFixo || !form.dataInicio)
+    if (!nome || !form.contaId || !form.valorFixo || !form.periodicidade || !form.dataInicio)
       return null;
-    return { ...base, tipoDespesa: 'Recorrente' as const, valorFixo: parseFloat(form.valorFixo), dataInicio: form.dataInicio };
+    return { ...base, tipoDespesa: 'Recorrente' as const, valorFixo: parseFloat(form.valorFixo), periodicidade: form.periodicidade as Periodicidade, dataInicio: form.dataInicio };
   }
 
   if (!nome || !form.contaId || form.parcelas.some(p => !p.dataVencimento || !p.valorBruto))
@@ -440,7 +444,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1 justify-end">
-                          {d.categoria !== 'IVA' && (
+                          {d.categoria !== 'IVA' && d.categoria !== 'Financiamento' && (
                             <Button
                               size="sm" variant="ghost"
                               className="h-7 w-7 p-0 text-gray-500 hover:text-gray-700"
@@ -484,7 +488,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                                     {d.isActive ? 'Desativar' : 'Ativar'}
                                   </Button>
                                 )}
-                                {d.categoria !== 'IVA' && (
+                                {d.categoria !== 'IVA' && d.categoria !== 'Financiamento' && (
                                   <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setAddParcelaOpen(true)}>
                                     <Plus className="w-3.5 h-3.5 mr-1" />Parcela
                                   </Button>
@@ -559,7 +563,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                 {expandedDespesa.isActive ? 'Desativar' : 'Ativar'}
               </Button>
             )}
-            {expandedDespesa.categoria !== 'IVA' && (
+            {expandedDespesa.categoria !== 'IVA' && expandedDespesa.categoria !== 'Financiamento' && (
               <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400"
                 onClick={() => setAddParcelaOpen(true)}>
                 <Plus className="w-3.5 h-3.5" />
@@ -623,7 +627,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                 <Select value={form.categoria} onValueChange={v => setForm(f => ({ ...f, categoria: v as CategoriaContrato }))}>
                   <SelectTrigger id="cd-cat" className="mt-1.5"><SelectValue placeholder="Opcional" /></SelectTrigger>
                   <SelectContent>
-                    {CATEGORIAS.map(c => <SelectItem key={c} value={c}>{CATEGORIA_LABELS[c]}</SelectItem>)}
+                    {CATEGORIAS_MANUAIS.map(c => <SelectItem key={c} value={c}>{CATEGORIA_LABELS[c]}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -649,7 +653,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
               </div>
               <p className="text-xs text-gray-500 mt-1.5">
                 {form.tipoDespesa === 'Pontual' && 'Uma ou mais parcelas avulsas, sem repetição.'}
-                {form.tipoDespesa === 'Recorrente' && 'Repete-se mensalmente com valor variável no momento da liquidação.'}
+                {form.tipoDespesa === 'Recorrente' && 'Periodicidade configurável; o valor pode variar na liquidação.'}
                 {form.tipoDespesa === 'Fixa' && 'Valor e periodicidade fixos — a próxima parcela é gerada automaticamente.'}
               </p>
             </div>
@@ -668,7 +672,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                     className="mt-1.5"
                   />
                 </div>
-                {form.tipoDespesa === 'Fixa' && (
+                {(form.tipoDespesa === 'Fixa' || form.tipoDespesa === 'Recorrente') && (
                   <div>
                     <Label htmlFor="cd-periodicidade" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">PERIODICIDADE *</Label>
                     <Select value={form.periodicidade} onValueChange={v => setForm(f => ({ ...f, periodicidade: v as Periodicidade }))}>

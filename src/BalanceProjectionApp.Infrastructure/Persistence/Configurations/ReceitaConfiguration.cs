@@ -10,8 +10,6 @@ public class ReceitaConfiguration : IEntityTypeConfiguration<Receita>
     {
         builder.HasKey(r => r.Id);
         builder.Property(r => r.Nome).IsRequired().HasMaxLength(200);
-        builder.Property(r => r.Categoria).HasMaxLength(100);
-        builder.Property(r => r.ValorTotal).HasPrecision(18, 2);
         builder.HasQueryFilter(r => !r.IsDeleted);
 
         builder.HasOne(r => r.Conta)

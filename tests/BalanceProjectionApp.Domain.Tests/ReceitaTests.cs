@@ -1,4 +1,5 @@
 using BalanceProjectionApp.Domain.Entities;
+using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Exceptions;
 using FluentAssertions;
 using Xunit;
@@ -10,17 +11,14 @@ public class ReceitaTests
     private static readonly Guid ContaId = Guid.NewGuid();
     private static readonly DateOnly Vencimento = new(2026, 6, 1);
 
-    // ── Criar ──────────────────────────────────────────────────────────────────
-
     [Fact]
     public void Criar_DadosValidos_RetornaReceita()
     {
-        var receita = Receita.Criar("Projeto ABC", ContaId, 10_000m, "Consultoria");
+        var receita = Receita.Criar("Projeto ABC", ContaId, CategoriaReceita.Vendas);
 
         receita.Nome.Should().Be("Projeto ABC");
         receita.ContaId.Should().Be(ContaId);
-        receita.ValorTotal.Should().Be(10_000m);
-        receita.Categoria.Should().Be("Consultoria");
+        receita.Categoria.Should().Be(CategoriaReceita.Vendas);
         receita.IsDeleted.Should().BeFalse();
     }
 
@@ -29,104 +27,78 @@ public class ReceitaTests
     [InlineData("   ")]
     public void Criar_NomeVazio_LancaDomainException(string nome)
     {
-        var act = () => Receita.Criar(nome, ContaId, 1000m);
+        var act = () => Receita.Criar(nome, ContaId);
 
         act.Should().Throw<DomainException>();
     }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void Criar_ValorTotalNaoPositivo_LancaDomainException(decimal valor)
-    {
-        var act = () => Receita.Criar("Projeto", ContaId, valor);
-
-        act.Should().Throw<DomainException>();
-    }
-
-    // ── Remover ────────────────────────────────────────────────────────────────
 
     [Fact]
     public void Deletar_ReceitaAtiva_MarcaComoRemovida()
     {
-        var receita = Receita.Criar("Projeto", ContaId, 1000m);
-
+        var receita = Receita.Criar("Projeto", ContaId);
         receita.Deletar();
-
         receita.IsDeleted.Should().BeTrue();
     }
 
     [Fact]
     public void Deletar_ReceitaJaRemovida_NaoLancaExcecao()
     {
-        var receita = Receita.Criar("Projeto", ContaId, 1000m);
+        var receita = Receita.Criar("Projeto", ContaId);
         receita.Deletar();
-
         var act = () => receita.Deletar();
-
         act.Should().NotThrow();
     }
 
-    // ── AdicionarParcela ───────────────────────────────────────────────────────
-
     [Fact]
-    public void AdicionarParcela_SemComissao_ValorBrutoCorreto()
+    public void AdicionarParcela_SemComissao_ValorBrutoELiquidoIguais()
     {
-        var receita = Receita.Criar("Projeto", ContaId, 10_000m);
+        var receita = Receita.Criar("Projeto", ContaId);
 
-        var parcela = receita.AdicionarParcela(1, Vencimento, 40m);
+        var parcela = receita.AdicionarParcela(1, Vencimento, 4_000m);
 
         parcela.ValorBruto.Should().Be(4_000m);
         parcela.ValorLiquido.Should().Be(4_000m);
-        parcela.Percentagem.Should().Be(40m);
+        parcela.Percentagem.Should().BeNull();
     }
 
     [Fact]
     public void AdicionarParcela_ComComissao_ValorLiquidoDeduzido()
     {
-        var receita = Receita.Criar("Projeto", ContaId, 10_000m);
-        var colaborador = Colaborador.Criar("Ana", 10m); // 10% comissão
+        var receita = Receita.Criar("Projeto", ContaId);
+        var colaborador = Colaborador.Criar("Ana", 10m);
         receita.AssociarColaborador(colaborador);
 
-        var parcela = receita.AdicionarParcela(1, Vencimento, 100m);
+        var parcela = receita.AdicionarParcela(1, Vencimento, 10_000m);
 
         parcela.ValorBruto.Should().Be(10_000m);
-        parcela.ValorLiquido.Should().Be(9_000m); // 10_000 - 10%
+        parcela.ValorLiquido.Should().Be(9_000m);
     }
 
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    [InlineData(101)]
-    public void AdicionarParcela_PercentagemInvalida_LancaDomainException(decimal pct)
+    public void AdicionarParcela_ValorInvalido_LancaDomainException(decimal valor)
     {
-        var receita = Receita.Criar("Projeto", ContaId, 1000m);
-
-        var act = () => receita.AdicionarParcela(1, Vencimento, pct);
-
+        var receita = Receita.Criar("Projeto", ContaId);
+        var act = () => receita.AdicionarParcela(1, Vencimento, valor);
         act.Should().Throw<DomainException>();
     }
 
     [Fact]
     public void AdicionarParcela_NumeroRepetido_LancaDomainException()
     {
-        var receita = Receita.Criar("Projeto", ContaId, 1000m);
-        receita.AdicionarParcela(1, Vencimento, 50m);
-
-        var act = () => receita.AdicionarParcela(1, Vencimento, 50m);
-
+        var receita = Receita.Criar("Projeto", ContaId);
+        receita.AdicionarParcela(1, Vencimento, 1_000m);
+        var act = () => receita.AdicionarParcela(1, Vencimento, 500m);
         act.Should().Throw<DomainException>();
     }
 
-    // ── RemoverParcelasNaoPagas ────────────────────────────────────────────────
-
     [Fact]
-    public void RemoverParcelasNaoPagas_MantemParcelas_LiquidadasRemoveRestantes()
+    public void RemoverParcelasNaoPagas_MantemLiquidadasRemoveRestantes()
     {
-        var receita = Receita.Criar("Projeto", ContaId, 10_000m);
-        receita.AdicionarParcela(1, Vencimento, 50m);
-        receita.AdicionarParcela(2, Vencimento.AddMonths(1), 50m);
-        // Liquidar parcela 1
+        var receita = Receita.Criar("Projeto", ContaId);
+        receita.AdicionarParcela(1, Vencimento, 5_000m);
+        receita.AdicionarParcela(2, Vencimento.AddMonths(1), 5_000m);
         receita.Parcelas.First(p => p.Numero == 1).Liquidar();
 
         var removidos = receita.RemoverParcelasNaoPagas();

@@ -30,7 +30,7 @@ public class ParcelaRepositoryTests(PostgresFixture db) : IAsyncLifetime
     public async Task ObterPorId_ParcelaExistente_RetornaParcela()
     {
         var conta = await SeedContaAsync();
-        var receita = Receita.Criar("Proj", conta.Id, 5_000m);
+        var receita = Receita.Criar("Proj", conta.Id);
         var parcela = receita.AdicionarParcela(1, Janeiro, 100m);
 
         await using (var ctx = db.CreateContext())
@@ -44,7 +44,7 @@ public class ParcelaRepositoryTests(PostgresFixture db) : IAsyncLifetime
 
         resultado.Should().NotBeNull();
         resultado!.Numero.Should().Be(1);
-        resultado.ValorBruto.Should().Be(5_000m);
+        resultado.ValorBruto.Should().Be(100m);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class ParcelaRepositoryTests(PostgresFixture db) : IAsyncLifetime
     public async Task ListarPorContaAsync_RetornaParcelasDeReceitaEDespesa()
     {
         var conta = await SeedContaAsync();
-        var receita = Receita.Criar("Proj", conta.Id, 10_000m);
+        var receita = Receita.Criar("Proj", conta.Id);
         receita.AdicionarParcela(1, Fevereiro, 100m);
         var despesa = Despesa.Criar("Renda", conta.Id);
         despesa.AdicionarParcela(1, Marco, 500m);
@@ -83,7 +83,7 @@ public class ParcelaRepositoryTests(PostgresFixture db) : IAsyncLifetime
     public async Task ListarPorContaAsync_OrdenadaPorDataVencimento()
     {
         var conta = await SeedContaAsync();
-        var receita = Receita.Criar("Proj", conta.Id, 10_000m);
+        var receita = Receita.Criar("Proj", conta.Id);
         receita.AdicionarParcela(1, Marco, 50m);
         receita.AdicionarParcela(2, Janeiro, 50m);
 
@@ -104,9 +104,9 @@ public class ParcelaRepositoryTests(PostgresFixture db) : IAsyncLifetime
     public async Task ListarPorContaAsync_ReceitaRemovida_ExcluiSuasParcelas()
     {
         var conta = await SeedContaAsync();
-        var receitaAtiva = Receita.Criar("Ativa", conta.Id, 5_000m);
+        var receitaAtiva = Receita.Criar("Ativa", conta.Id);
         receitaAtiva.AdicionarParcela(1, Janeiro, 100m);
-        var receitaRemovida = Receita.Criar("Removida", conta.Id, 5_000m);
+        var receitaRemovida = Receita.Criar("Removida", conta.Id);
         receitaRemovida.AdicionarParcela(1, Fevereiro, 100m);
 
         await using (var ctx = db.CreateContext())
@@ -136,10 +136,10 @@ public class ParcelaRepositoryTests(PostgresFixture db) : IAsyncLifetime
     public async Task ListarPorReceitaAsync_RetornaApenasParcelasDaReceita()
     {
         var conta = await SeedContaAsync();
-        var r1 = Receita.Criar("R1", conta.Id, 10_000m);
+        var r1 = Receita.Criar("R1", conta.Id);
         r1.AdicionarParcela(1, Janeiro, 50m);
         r1.AdicionarParcela(2, Fevereiro, 50m);
-        var r2 = Receita.Criar("R2", conta.Id, 5_000m);
+        var r2 = Receita.Criar("R2", conta.Id);
         r2.AdicionarParcela(1, Marco, 100m);
 
         await using (var ctx = db.CreateContext())

@@ -1,3 +1,4 @@
+using BalanceProjectionApp.Domain.Enums;
 using MediatR;
 
 namespace BalanceProjectionApp.Application.Features.Financiamentos.Commands.CriarFinanciamento;
@@ -6,4 +7,6 @@ public record CriarFinanciamentoCommand(
     string Nome,
     decimal Valor,
     Guid ContaId,
-    decimal ValorMensalidade) : IRequest<Guid>;
+    decimal ValorPrestacao,
+    Periodicidade Periodicidade,
+    DateOnly DataPrimeiraParcela) : IRequest<Guid>;

@@ -32,7 +32,7 @@ public class LiquidarParcelaHandlerTests
     {
         var contaId = Guid.NewGuid();
         var conta = Conta.Criar("Conta", 0m);
-        var receita = Receita.Criar("Proj", contaId, valorTotal);
+        var receita = Receita.Criar("Proj", contaId);
         var parcela = receita.AdicionarParcela(1, Vencimento, 100m);
         return (parcela, conta);
     }
@@ -50,7 +50,7 @@ public class LiquidarParcelaHandlerTests
     {
         var contaId = Guid.NewGuid();
         var conta = Conta.Criar("Conta", 1000m);
-        var despesa = Despesa.Criar("Subscricao", contaId, tipo: TipoDespesa.Recorrente, valorFixo: 80m, dataInicio: new DateOnly(2026, 6, 1));
+        var despesa = Despesa.Criar("Subscricao", contaId, tipo: TipoDespesa.Recorrente, valorFixo: 80m, periodicidade: Periodicidade.Mensal, dataInicio: new DateOnly(2026, 6, 1));
         var parcela = despesa.GerarProximaParcela();
         return (despesa, parcela, conta);
     }
@@ -64,8 +64,8 @@ public class LiquidarParcelaHandlerTests
 
         var result = await _handler.Handle(new LiquidarParcelaCommand(parcela.Id, null), CancellationToken.None);
 
-        conta.Saldo.Should().Be(10_000m); // creditado
-        result.NovoSaldoConta.Should().Be(10_000m);
+        conta.Saldo.Should().Be(100m); // creditado com o valor da parcela (100m)
+        result.NovoSaldoConta.Should().Be(100m);
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

@@ -1,4 +1,4 @@
-﻿using BalanceProjectionApp.Application.Features.Parcelas.Dtos;
+using BalanceProjectionApp.Application.Features.Parcelas.Dtos;
 using BalanceProjectionApp.Application.Features.Receitas.Dtos;
 using BalanceProjectionApp.Domain.Interfaces;
 using MediatR;
@@ -16,7 +16,7 @@ public class ListarReceitasQueryHandler(IReceitaRepository repository)
             r.Nome,
             r.Categoria,
             r.ContaId,
-            r.ValorTotal,
+            r.Parcelas.Where(p => !p.IsDeleted).Sum(p => p.ValorBruto),
             r.ColaboradorId,
             r.Colaborador?.Nome,
             r.Colaborador?.Percentagem,

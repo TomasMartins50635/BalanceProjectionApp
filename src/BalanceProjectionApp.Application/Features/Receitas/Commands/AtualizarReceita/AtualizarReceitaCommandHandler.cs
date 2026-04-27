@@ -1,4 +1,4 @@
-﻿using BalanceProjectionApp.Application.Common.Interfaces;
+using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
@@ -16,7 +16,7 @@ public class AtualizarReceitaCommandHandler(
         var receita = await receitaRepository.ObterPorIdComParcelasAsync(request.Id, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Receita), request.Id);
 
-        receita.Atualizar(request.Nome, request.Categoria, request.ValorTotal);
+        receita.Atualizar(request.Nome, request.Categoria);
 
         if (request.ColaboradorId != receita.ColaboradorId)
         {
@@ -35,7 +35,7 @@ public class AtualizarReceitaCommandHandler(
         receita.RemoverParcelasNaoPagas();
 
         foreach (var p in request.Parcelas.OrderBy(p => p.Numero))
-            receita.AdicionarParcela(p.Numero, p.DataVencimento, p.Percentagem);
+            receita.AdicionarParcela(p.Numero, p.DataVencimento, p.Valor);
 
         await uow.SaveChangesAsync(cancellationToken);
     }

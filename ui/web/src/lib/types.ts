@@ -1,8 +1,18 @@
-// CategoriaContrato mantida para Despesas (enum fixo)
+// CategoriaReceita — enum estático para Receitas
+export type CategoriaReceita = 'Vendas' | 'Arrendamentos' | 'Outros';
+
+export const CATEGORIA_RECEITA_LABELS: Record<CategoriaReceita, string> = {
+  Vendas: 'Vendas',
+  Arrendamentos: 'Arrendamentos',
+  Outros: 'Outros',
+};
+
+export const CATEGORIAS_RECEITA = Object.keys(CATEGORIA_RECEITA_LABELS) as CategoriaReceita[];
+
+// CategoriaContrato — enum para Despesas (sem Aluguer)
 export type CategoriaContrato =
   | 'Servicos'
   | 'Produtos'
-  | 'Aluguer'
   | 'Salarios'
   | 'Impostos'
   | 'IVA'
@@ -12,7 +22,6 @@ export type CategoriaContrato =
 export const CATEGORIA_LABELS: Record<CategoriaContrato, string> = {
   Servicos: 'Serviços',
   Produtos: 'Produtos',
-  Aluguer: 'Aluguer',
   Salarios: 'Salários',
   Impostos: 'Impostos',
   IVA: 'IVA',
@@ -73,8 +82,7 @@ export interface ParcelaDto {
 export interface ReceitaDto {
   id: string;
   nome: string;
-  /** Categoria livre (string) */
-  categoria: string | null;
+  categoria: CategoriaReceita | null;
   contaId: string;
   valorTotal: number;
   colaboradorId: string | null;
@@ -108,7 +116,8 @@ export interface FinanciamentoDto {
   data: string;
   contaId: string;
   despesaId: string | null;
-  valorMensalidade: number;
+  valorPrestacao: number;
+  periodicidade: Periodicidade | null;
   totalParcelas: number;
   parcelasPagas: number;
   valorPago: number;
@@ -128,12 +137,11 @@ export interface CriarContaRequest {
   saldoInicial?: number;
 }
 
-/** Parcela de Receita: usa percentagem do ValorTotal */
 export interface CriarReceitaParcelaRequest {
   numero: number;
   /** YYYY-MM-DD */
   dataVencimento: string;
-  percentagem: number;
+  valor: number;
 }
 
 /** Parcela de Despesa: usa valor absoluto */
@@ -147,8 +155,7 @@ export interface CriarDespesaParcelaRequest {
 export interface CriarReceitaRequest {
   nome: string;
   contaId: string;
-  valorTotal: number;
-  categoria?: string;
+  categoria?: CategoriaReceita;
   colaboradorId?: string;
   parcelas: CriarReceitaParcelaRequest[];
   temIva?: boolean;
@@ -156,8 +163,7 @@ export interface CriarReceitaRequest {
 
 export interface AtualizarReceitaRequest {
   nome: string;
-  valorTotal: number;
-  categoria?: string;
+  categoria?: CategoriaReceita;
   colaboradorId?: string;
   parcelas: CriarReceitaParcelaRequest[];
 }
@@ -190,5 +196,7 @@ export interface CriarFinanciamentoRequest {
   nome: string;
   valor: number;
   contaId: string;
-  valorMensalidade: number;
+  valorPrestacao: number;
+  periodicidade: Periodicidade;
+  dataPrimeiraParcela: string;
 }
