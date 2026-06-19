@@ -1,0 +1,12 @@
+services:
+  db:
+    ports: []
+    restart: unless-stopped
+
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      GitHub__Token: ""
+      GitHub__Owner: ""
+      GitHub__Repo: ""
+    restart: unless-stopped

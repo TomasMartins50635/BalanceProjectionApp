@@ -156,9 +156,11 @@ public class Despesa : Entity
         {
             valor = ValorFixo ?? throw new DomainException("Valor fixo não definido.");
         }
-        else // Recorrente
+        else // Recorrente — média das parcelas existentes, ou ValorFixo se ainda não houver nenhuma
         {
-            valor = ValorFixo ?? throw new DomainException("Valor previsto não definido.");
+            valor = parcelasAtivas.Count > 0
+                ? parcelasAtivas.Average(p => p.ValorLiquido)
+                : ValorFixo ?? throw new DomainException("Valor previsto não definido.");
         }
 
         var numero = parcelasAtivas.Count == 0 ? 1 : parcelasAtivas.Max(p => p.Numero) + 1;

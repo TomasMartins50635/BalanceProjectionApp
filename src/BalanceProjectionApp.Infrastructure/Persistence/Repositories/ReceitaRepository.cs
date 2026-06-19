@@ -1,4 +1,5 @@
 ﻿using BalanceProjectionApp.Domain.Entities;
+using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,6 +22,12 @@ public class ReceitaRepository(AppDbContext context) : IReceitaRepository
         => await context.Receitas
             .Include(r => r.Colaborador)
             .Include(r => r.Parcelas)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IEnumerable<Receita>> ListarPorContaECategoriaAsync(Guid? contaId, CategoriaReceita categoria, CancellationToken cancellationToken = default)
+        => await context.Receitas
+            .Include(r => r.Parcelas)
+            .Where(r => (contaId == null || r.ContaId == contaId) && r.Categoria == categoria)
             .ToListAsync(cancellationToken);
 
     public async Task AdicionarAsync(Receita receita, CancellationToken cancellationToken = default)

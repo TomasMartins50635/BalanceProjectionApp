@@ -87,7 +87,7 @@ DependencyInjection.cs
 - **Provider:** PostgreSQL via `Npgsql.EntityFrameworkCore.PostgreSQL`
 - **Dev setup:** `docker compose up -d` na raiz do repositório inicia um container Postgres 17 na porta 5432
 - **Connection string:** `ConnectionStrings:DefaultConnection` em `appsettings.Development.json` (aponta para o container Docker)
-- **Migrações:** aplicadas automaticamente em Development via `db.Database.MigrateAsync()` no `Program.cs`
+- **Migrações:** aplicadas automaticamente em todos os ambientes via `db.Database.MigrateAsync()` no `Program.cs` (fora do bloco `IsDevelopment`)
 - **Gerar migração:** `dotnet ef migrations add NomeDaMigracao --project src/BalanceProjectionApp.Infrastructure --startup-project src/BalanceProjectionApp.ApiService`
 
 ### Índices definidos em `ParcelaConfiguration`
@@ -148,16 +148,39 @@ cd ui/desktop && npm run dev
 ## Running the Application
 
 ```bash
-# Run everything (DB + API) in Docker
+# Development — run everything (DB + API) in Docker
 docker compose up --build
 
-# Or run only the DB and the API locally
+# Development — run only the DB, API locally
 docker compose up db -d
 dotnet run --project src/BalanceProjectionApp.ApiService
 ```
 
 - Containerised API: `http://localhost:5535`
 - Local API: HTTP `5535` / HTTPS `7329`
+
+### Production (Windows Server)
+
+**One-time server setup:**
+1. Install Docker Desktop for Windows on the server
+2. Clone this repo on the server
+3. Open Windows Firewall — inbound TCP rule for port `5535`
+4. Run: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
+
+**Update after code changes (run on the server):**
+```bash
+git pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+**Build Tauri desktop installer (run on dev machine):**
+```bash
+# 1. Set the server IP in ui/web/.env.production:
+#    VITE_API_BASE_URL=http://<SERVER_LAN_IP>:5535
+# 2. Build:
+cd ui/desktop && npm run build
+# Installer output: ui/desktop/src-tauri/target/release/bundle/
+```
 
 ---
 

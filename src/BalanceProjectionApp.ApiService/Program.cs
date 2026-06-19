@@ -1,3 +1,4 @@
+using BalanceProjectionApp.ApiService.Services;
 using BalanceProjectionApp.Application;
 using BalanceProjectionApp.Infrastructure;
 using BalanceProjectionApp.Infrastructure.Persistence;
@@ -5,8 +6,18 @@ using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHttpClient("github", client =>
+{
+    var token = builder.Configuration["GitHub:Token"];
+    if (!string.IsNullOrEmpty(token))
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("BalanceProjectionApp/1.0");
+});
+builder.Services.AddScoped<GitHubUpdateService>();
 
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
@@ -58,11 +69,11 @@ if (app.Environment.IsDevelopment())
     {
         Predicate = r => r.Tags.Contains("live")
     });
-
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
 }
+
+using var scope = app.Services.CreateScope();
+var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+await db.Database.MigrateAsync();
 
 app.MapControllers();
 

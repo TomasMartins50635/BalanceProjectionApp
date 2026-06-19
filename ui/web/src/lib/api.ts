@@ -1,6 +1,7 @@
 import type {
   AdicionarParcelaDespesaRequest,
   AtualizarDespesaRequest,
+  AtualizarPrevisaoRequest,
   AtualizarReceitaRequest,
   ColaboradorDto,
   ContaDto,
@@ -8,14 +9,17 @@ import type {
   CriarContaRequest,
   CriarDespesaRequest,
   CriarFinanciamentoRequest,
+  CriarPrevisaoRequest,
   CriarReceitaRequest,
+  DefaultsPrevisaoDto,
   DespesaDto,
   FinanciamentoDto,
   ParcelaDto,
+  PrevisaoDto,
   ReceitaDto,
 } from './types';
 
-const BASE = '/api';
+const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -106,5 +110,22 @@ export const api = {
       request<{ id: string }>('/financiamentos', { method: 'POST', body: JSON.stringify(body) }),
     eliminar: (id: string) =>
       request<void>(`/financiamentos/${id}`, { method: 'DELETE' }),
+  },
+
+  previsoes: {
+    listar: (contaId?: string) => {
+      const qs = contaId ? `?contaId=${contaId}` : '';
+      return request<PrevisaoDto[]>(`/previsoes${qs}`);
+    },
+    obterDefaults: (contaId?: string) => {
+      const qs = contaId ? `?contaId=${contaId}` : '';
+      return request<DefaultsPrevisaoDto>(`/previsoes/defaults${qs}`);
+    },
+    criar: (body: CriarPrevisaoRequest) =>
+      request<{ id: string }>('/previsoes', { method: 'POST', body: JSON.stringify(body) }),
+    atualizar: (id: string, body: AtualizarPrevisaoRequest) =>
+      request<void>(`/previsoes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    remover: (id: string) =>
+      request<void>(`/previsoes/${id}`, { method: 'DELETE' }),
   },
 };

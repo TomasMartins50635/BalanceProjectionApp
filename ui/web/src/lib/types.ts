@@ -200,3 +200,40 @@ export interface CriarFinanciamentoRequest {
   periodicidade: Periodicidade;
   dataPrimeiraParcela: string;
 }
+
+// ── Previsão ───────────────────────────────────────────────────────────────────
+
+export interface PrevisaoDto {
+  id: string;
+  nome: string;
+  contaId: string | null;
+  diasEntreVendas: number | null;
+  valorMedioVenda: number | null;
+  diasEntreArrendamentos: number | null;
+  valorMedioArrendamento: number | null;
+  criadoEm: string;
+}
+
+export interface DefaultsPrevisaoDto {
+  diasEntreVendas: number | null;
+  valorMedioVenda: number | null;
+  diasEntreArrendamentos: number | null;
+  valorMedioArrendamento: number | null;
+}
+
+export interface CriarPrevisaoRequest {
+  nome: string;
+  contaId: string | null;
+  diasEntreVendas: number | null;
+  valorMedioVenda: number | null;
+  diasEntreArrendamentos: number | null;
+  valorMedioArrendamento: number | null;
+}
+
+export interface AtualizarPrevisaoRequest {
+  nome: string;
+  diasEntreVendas: number | null;
+  valorMedioVenda: number | null;
+  diasEntreArrendamentos: number | null;
+  valorMedioArrendamento: number | null;
+}

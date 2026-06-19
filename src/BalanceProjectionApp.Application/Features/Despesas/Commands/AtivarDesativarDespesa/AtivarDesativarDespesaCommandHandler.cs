@@ -9,6 +9,7 @@ namespace BalanceProjectionApp.Application.Features.Despesas.Commands.AtivarDesa
 
 public class AtivarDesativarDespesaCommandHandler(
     IDespesaRepository despesaRepository,
+    IParcelaRepository parcelaRepository,
     IUnitOfWork uow) : IRequestHandler<AtivarDesativarDespesaCommand>
 {
     public async Task Handle(AtivarDesativarDespesaCommand request, CancellationToken cancellationToken)
@@ -22,7 +23,10 @@ public class AtivarDesativarDespesaCommandHandler(
 
             // Ao ativar, gerar próxima parcela se não existir nenhuma pendente
             if (despesa.TipoDespesa != TipoDespesa.Pontual && !despesa.Parcelas.Any(p => !p.IsPaid))
-                despesa.GerarProximaParcela();
+            {
+                var novaParcela = despesa.GerarProximaParcela();
+                await parcelaRepository.AdicionarAsync(novaParcela, cancellationToken);
+            }
         }
         else
         {
