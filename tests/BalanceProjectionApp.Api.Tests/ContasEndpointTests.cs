@@ -106,8 +106,7 @@ public class ContasEndpointTests(ApiFactory factory) : IAsyncLifetime
         {
             nome = "Proj",
             contaId = conta!.Id,
-            valorTotal = 1000m,
-            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", percentagem = 100m } }
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor = 1_000m } }
         });
 
         var response = await _client.DeleteAsync($"/contas/{conta.Id}");

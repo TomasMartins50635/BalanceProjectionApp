@@ -15,19 +15,17 @@ public class ParcelasEndpointTests(ApiFactory factory) : IAsyncLifetime
 
     /// <summary>Creates conta + receita with one parcela and returns (contaId, parcelaId).</summary>
     private async Task<(Guid contaId, Guid parcelaId)> SeedReceitaComParcelaAsync(
-        decimal valorTotal = 10_000m)
+        decimal valor = 10_000m)
     {
         var contaResp = await _client.PostAsJsonAsync("/contas", new { nome = "Conta", saldoInicial = 0m });
         var conta = await contaResp.Content.ReadFromJsonAsync<IdResponse>();
 
-        var receitaResp = await _client.PostAsJsonAsync("/receitas", new
+        await _client.PostAsJsonAsync("/receitas", new
         {
             nome = "Projeto",
             contaId = conta!.Id,
-            valorTotal,
-            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", percentagem = 100m } }
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor } }
         });
-        var receita = await receitaResp.Content.ReadFromJsonAsync<IdResponse>();
 
         // Retrieve the parcela id via GET /parcelas/conta/{contaId}
         var parcelas = await _client.GetFromJsonAsync<List<ParcelaResponse>>($"/parcelas/conta/{conta.Id}");
@@ -46,11 +44,10 @@ public class ParcelasEndpointTests(ApiFactory factory) : IAsyncLifetime
         {
             nome = "Proj",
             contaId = conta!.Id,
-            valorTotal = 10_000m,
             parcelas = new[]
             {
-                new { numero = 1, dataVencimento = "2026-03-01", percentagem = 50m },
-                new { numero = 2, dataVencimento = "2026-01-01", percentagem = 50m }
+                new { numero = 1, dataVencimento = "2026-03-01", valor = 5_000m },
+                new { numero = 2, dataVencimento = "2026-01-01", valor = 5_000m }
             }
         });
 
@@ -136,8 +133,7 @@ public class ParcelasEndpointTests(ApiFactory factory) : IAsyncLifetime
         {
             nome = "Proj",
             contaId = conta!.Id,
-            valorTotal = 2_000m,
-            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", percentagem = 100m } }
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor = 2_000m } }
         });
 
         var parcelas = await _client.GetFromJsonAsync<List<ParcelaResponse>>($"/parcelas/conta/{conta.Id}");

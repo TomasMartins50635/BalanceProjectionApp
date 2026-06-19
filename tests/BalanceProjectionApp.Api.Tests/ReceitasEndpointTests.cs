@@ -31,11 +31,10 @@ public class ReceitasEndpointTests(ApiFactory factory) : IAsyncLifetime
         {
             nome = "Projeto Alpha",
             contaId,
-            valorTotal = 10_000m,
             parcelas = new[]
             {
-                new { numero = 1, dataVencimento = "2026-06-01", percentagem = 50m },
-                new { numero = 2, dataVencimento = "2026-07-01", percentagem = 50m }
+                new { numero = 1, dataVencimento = "2026-06-01", valor = 5_000m },
+                new { numero = 2, dataVencimento = "2026-07-01", valor = 5_000m }
             }
         });
 
@@ -53,8 +52,7 @@ public class ReceitasEndpointTests(ApiFactory factory) : IAsyncLifetime
         {
             nome = "",
             contaId,
-            valorTotal = 1_000m,
-            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", percentagem = 100m } }
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor = 1_000m } }
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -67,8 +65,7 @@ public class ReceitasEndpointTests(ApiFactory factory) : IAsyncLifetime
         {
             nome = "Proj",
             contaId = Guid.NewGuid(),
-            valorTotal = 1_000m,
-            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", percentagem = 100m } }
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor = 1_000m } }
         });
 
         // EntityNotFoundException → DomainException handler → 422
@@ -76,7 +73,7 @@ public class ReceitasEndpointTests(ApiFactory factory) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Post_PercentagemZero_Retorna400()
+    public async Task Post_ValorZero_Retorna400()
     {
         var contaId = await CriarContaAsync();
 
@@ -84,8 +81,7 @@ public class ReceitasEndpointTests(ApiFactory factory) : IAsyncLifetime
         {
             nome = "Proj",
             contaId,
-            valorTotal = 1_000m,
-            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", percentagem = 0m } }
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor = 0m } }
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -101,8 +97,7 @@ public class ReceitasEndpointTests(ApiFactory factory) : IAsyncLifetime
         {
             nome = "Receita Listagem",
             contaId,
-            valorTotal = 5_000m,
-            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", percentagem = 100m } }
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor = 5_000m } }
         });
 
         var response = await _client.GetAsync("/receitas");
@@ -126,8 +121,7 @@ public class ReceitasEndpointTests(ApiFactory factory) : IAsyncLifetime
         {
             nome = "Para Remover",
             contaId,
-            valorTotal = 1_000m,
-            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", percentagem = 100m } }
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor = 1_000m } }
         });
         var receita = await postResp.Content.ReadFromJsonAsync<IdResponse>();
 
