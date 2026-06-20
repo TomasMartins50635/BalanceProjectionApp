@@ -134,7 +134,7 @@ export function FinanciamentoView() {
   }, []);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createMode, setCreateMode] = useState<'novo' | 'existente' | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<CreateForm>(emptyForm());
   const [saving, setSaving] = useState(false);
@@ -185,9 +185,12 @@ export function FinanciamentoView() {
         valorPrestacao: Number.parseFloat(form.valorPrestacao),
         periodicidade: form.periodicidade,
         dataPrimeiraParcela: form.dataPrimeiraParcela,
+        creditarConta: createMode === 'novo',
       });
-      toast('Financiamento registado. Valor creditado na conta.');
-      setCreateOpen(false);
+      toast(createMode === 'novo'
+        ? 'Financiamento registado. Valor creditado na conta.'
+        : 'Financiamento registado. Saldo da conta não foi alterado.');
+      setCreateMode(null);
       setForm(emptyForm());
       reload();
     } catch (e) {
@@ -216,7 +219,7 @@ export function FinanciamentoView() {
           {(financiamentos ?? []).length === 0 ? 'Nenhum financiamento registado' : 'Nenhum resultado'}
         </p>
         {(financiamentos ?? []).length === 0 && (
-          <Button size="sm" variant="outline" className="mt-3" onClick={() => setCreateOpen(true)}>
+          <Button size="sm" variant="outline" className="mt-3" onClick={() => setCreateMode('novo')}>
             <Plus className="w-4 h-4 mr-1" />Registar financiamento
           </Button>
         )}
@@ -245,9 +248,14 @@ export function FinanciamentoView() {
               </p>
             )}
           </div>
-          <Button size="sm" onClick={() => setCreateOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-            <Plus className="w-4 h-4 md:mr-1" /><span className="hidden md:inline">Novo Financiamento</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setCreateMode('existente')}>
+              <Plus className="w-4 h-4 md:mr-1" /><span className="hidden md:inline">Adicionar Existente</span>
+            </Button>
+            <Button size="sm" onClick={() => setCreateMode('novo')} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Plus className="w-4 h-4 md:mr-1" /><span className="hidden md:inline">Novo Financiamento</span>
+            </Button>
+          </div>
         </div>
         <div className={`overflow-hidden transition-all duration-200 ${isAtTop ? 'max-h-16 opacity-100 pb-4' : 'max-h-0 opacity-0 pb-0'}`}>
           <div className="relative">
@@ -278,12 +286,14 @@ export function FinanciamentoView() {
       />
 
       {/* Create dialog */}
-      <Dialog open={createOpen} onOpenChange={open => { setCreateOpen(open); if (!open) setForm(emptyForm()); }}>
+      <Dialog open={createMode !== null} onOpenChange={open => { if (!open) { setCreateMode(null); setForm(emptyForm()); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Novo Financiamento</DialogTitle>
+            <DialogTitle>{createMode === 'existente' ? 'Adicionar Financiamento Existente' : 'Novo Financiamento'}</DialogTitle>
             <DialogDescription>
-              O valor será creditado imediatamente na conta selecionada e uma despesa mensal será criada automaticamente.
+              {createMode === 'existente'
+                ? ''
+                : 'O valor será creditado imediatamente na conta selecionada e uma despesa periódica será criada automaticamente.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -371,9 +381,9 @@ export function FinanciamentoView() {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => { setCreateOpen(false); setForm(emptyForm()); }}>Cancelar</Button>
+              <Button variant="outline" onClick={() => { setCreateMode(null); setForm(emptyForm()); }}>Cancelar</Button>
               <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleCreate} disabled={saving}>
-                {saving ? 'A guardar...' : 'Registar Financiamento'}
+                {saving ? 'A guardar...' : createMode === 'existente' ? 'Adicionar Financiamento' : 'Registar Financiamento'}
               </Button>
             </div>
           </div>

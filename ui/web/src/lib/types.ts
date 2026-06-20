@@ -182,8 +182,10 @@ export interface CriarDespesaRequest {
 }
 
 export interface AtualizarDespesaRequest {
-  nome: string;
+  nome?: string;
   categoria?: CategoriaContrato;
+  valorFixo?: number;
+  periodicidade?: Periodicidade;
 }
 
 export interface AdicionarParcelaDespesaRequest {
@@ -199,6 +201,7 @@ export interface CriarFinanciamentoRequest {
   valorPrestacao: number;
   periodicidade: Periodicidade;
   dataPrimeiraParcela: string;
+  creditarConta?: boolean;
 }
 
 // ── Previsão ───────────────────────────────────────────────────────────────────

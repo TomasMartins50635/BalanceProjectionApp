@@ -36,7 +36,8 @@ public class CriarFinanciamentoCommandHandler(
             DateOnly.FromDateTime(DateTime.UtcNow),
             conta.Id, despesa.Id);
 
-        conta.Creditar(request.Valor);
+        if (request.CreditarConta)
+            conta.Creditar(request.Valor);
 
         await despesaRepository.AdicionarAsync(despesa, cancellationToken);
         await financiamentoRepository.AdicionarAsync(financiamento, cancellationToken);

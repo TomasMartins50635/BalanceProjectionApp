@@ -202,7 +202,7 @@ export function SimulationCalendar({ selectedDateStr, onSelect, parcelasGeradas,
                     <span className={`w-1.5 h-1.5 rounded-full border ${day.isSelected ? 'border-emerald-200' : 'border-emerald-400'}`} title="Arrendamento previsto" />
                   )}
                   {day.despesasProjetadas > 0 && (
-                    <span className={`w-1.5 h-1.5 rounded-full border ${day.isSelected ? 'border-red-300' : 'border-red-400'}`} title="Despesa recorrente/fixa projetada" />
+                    <span className={`w-1.5 h-1.5 rounded-full border ${day.isSelected ? 'border-red-300' : 'border-red-400'}`} title="Despesa prevista" />
                   )}
                 </div>
               )}

@@ -16,10 +16,20 @@ public class AtualizarDespesaCommandHandler(
         var despesa = await despesaRepository.ObterPorIdComParcelasAsync(request.Id, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Despesa), request.Id);
 
-        if (despesa.Categoria == CategoriaContrato.IVA || despesa.Categoria == CategoriaContrato.Financiamento)
-            throw new DomainException("Despesas de IVA e Financiamento não podem ser editadas.");
+        if (despesa.Categoria == CategoriaContrato.IVA)
+            throw new DomainException("Despesas de IVA não podem ser editadas.");
 
-        despesa.Atualizar(request.Nome, request.Categoria);
+        if (despesa.Categoria == CategoriaContrato.Financiamento)
+        {
+            if (request.ValorFixo.HasValue)
+                despesa.AtualizarValorFixo(request.ValorFixo.Value);
+            if (request.Periodicidade.HasValue)
+                despesa.AtualizarPeriodicidade(request.Periodicidade.Value);
+        }
+        else
+        {
+            despesa.Atualizar(request.Nome!, request.Categoria);
+        }
 
         await uow.SaveChangesAsync(cancellationToken);
     }

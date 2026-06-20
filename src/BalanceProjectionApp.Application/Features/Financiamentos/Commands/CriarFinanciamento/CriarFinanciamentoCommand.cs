@@ -9,4 +9,5 @@ public record CriarFinanciamentoCommand(
     Guid ContaId,
     decimal ValorPrestacao,
     Periodicidade Periodicidade,
-    DateOnly DataPrimeiraParcela) : IRequest<Guid>;
+    DateOnly DataPrimeiraParcela,
+    bool CreditarConta = true) : IRequest<Guid>;

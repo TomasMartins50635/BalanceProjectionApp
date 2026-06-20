@@ -195,6 +195,12 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
     [despesas, expandedId],
   );
 
+  const editingDespesa = useMemo(
+    () => editingId ? (despesas ?? []).find(d => d.id === editingId) ?? null : null,
+    [despesas, editingId],
+  );
+  const isEditingFinanciamento = editingDespesa?.categoria === 'Financiamento';
+
   useEffect(() => {
     if (highlightId && despesas) {
       const match = despesas.find(d => d.id === highlightId);
@@ -295,13 +301,24 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
 
   const handleEdit = async () => {
     if (!editingId) return;
-    if (!form.nome.trim()) { toast('Nome obrigatório', 'error'); return; }
     setSaving(true);
     try {
-      await api.despesas.atualizar(editingId, {
-        nome: form.nome.trim(),
-        categoria: form.categoria || undefined,
-      });
+      if (isEditingFinanciamento) {
+        if (!form.valorFixo || !form.periodicidade) {
+          toast('Preencha o valor da prestação e a periodicidade', 'error');
+          return;
+        }
+        await api.despesas.atualizar(editingId, {
+          valorFixo: parseFloat(form.valorFixo),
+          periodicidade: form.periodicidade as Periodicidade,
+        });
+      } else {
+        if (!form.nome.trim()) { toast('Nome obrigatório', 'error'); return; }
+        await api.despesas.atualizar(editingId, {
+          nome: form.nome.trim(),
+          categoria: form.categoria || undefined,
+        });
+      }
       toast('Despesa atualizada com sucesso');
       setEditOpen(false);
       setForm(emptyForm());
@@ -444,7 +461,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1 justify-end">
-                          {d.categoria !== 'IVA' && d.categoria !== 'Financiamento' && (
+                          {d.categoria !== 'IVA' && (
                             <Button
                               size="sm" variant="ghost"
                               className="h-7 w-7 p-0 text-gray-500 hover:text-gray-700"
@@ -488,7 +505,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                                     {d.isActive ? 'Desativar' : 'Ativar'}
                                   </Button>
                                 )}
-                                {d.categoria !== 'IVA' && d.categoria !== 'Financiamento' && (
+                                {d.categoria !== 'IVA' && (
                                   <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setAddParcelaOpen(true)}>
                                     <Plus className="w-3.5 h-3.5 mr-1" />Parcela
                                   </Button>
@@ -563,7 +580,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                 {expandedDespesa.isActive ? 'Desativar' : 'Ativar'}
               </Button>
             )}
-            {expandedDespesa.categoria !== 'IVA' && expandedDespesa.categoria !== 'Financiamento' && (
+            {expandedDespesa.categoria !== 'IVA' && (
               <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400"
                 onClick={() => setAddParcelaOpen(true)}>
                 <Plus className="w-3.5 h-3.5" />
@@ -737,23 +754,55 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Editar Despesa</DialogTitle>
-            <DialogDescription>Altere o nome ou a categoria da despesa.</DialogDescription>
+            <DialogDescription>
+              {isEditingFinanciamento
+                ? 'Altere o valor da prestação e a periodicidade.'
+                : 'Altere o nome ou a categoria da despesa.'}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
-            <div>
-              <Label htmlFor="ed-nome" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">NOME *</Label>
-              <Input id="ed-nome" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className="mt-1.5" />
-            </div>
-            <div>
-              <Label htmlFor="ed-cat" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">CATEGORIA</Label>
-              <Select value={form.categoria} onValueChange={v => setForm(f => ({ ...f, categoria: v as CategoriaContrato }))}>
-                <SelectTrigger id="ed-cat" className="mt-1.5"><SelectValue placeholder="Opcional" /></SelectTrigger>
-                <SelectContent>
-                  {CATEGORIAS.map(c => <SelectItem key={c} value={c}>{CATEGORIA_LABELS[c]}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {isEditingFinanciamento ? (
+              <>
+                <div>
+                  <Label htmlFor="ed-valor-fixo" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">VALOR DA PRESTAÇÃO (€) *</Label>
+                  <Input
+                    id="ed-valor-fixo"
+                    type="number" min="0" step="0.01" placeholder="0,00"
+                    value={form.valorFixo}
+                    onChange={e => setForm(f => ({ ...f, valorFixo: e.target.value }))}
+                    className="mt-1.5"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ed-periodicidade" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">PERIODICIDADE *</Label>
+                  <Select value={form.periodicidade} onValueChange={v => setForm(f => ({ ...f, periodicidade: v as Periodicidade }))}>
+                    <SelectTrigger id="ed-periodicidade" className="mt-1.5"><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(PERIODICIDADE_LABELS) as Periodicidade[]).map(p => (
+                        <SelectItem key={p} value={p}>{PERIODICIDADE_LABELS[p]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="ed-nome" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">NOME *</Label>
+                  <Input id="ed-nome" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className="mt-1.5" />
+                </div>
+                <div>
+                  <Label htmlFor="ed-cat" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">CATEGORIA</Label>
+                  <Select value={form.categoria} onValueChange={v => setForm(f => ({ ...f, categoria: v as CategoriaContrato }))}>
+                    <SelectTrigger id="ed-cat" className="mt-1.5"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIAS.map(c => <SelectItem key={c} value={c}>{CATEGORIA_LABELS[c]}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => { setEditOpen(false); setForm(emptyForm()); }}>Cancelar</Button>
               <Button onClick={handleEdit} disabled={saving}>{saving ? 'A guardar...' : 'Guardar'}</Button>

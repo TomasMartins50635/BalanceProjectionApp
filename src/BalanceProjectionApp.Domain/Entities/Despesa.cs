@@ -178,6 +178,13 @@ public class Despesa : Entity
         Categoria = categoria;
     }
 
+    public void AtualizarPeriodicidade(Periodicidade periodicidade)
+    {
+        if (TipoDespesa == TipoDespesa.Pontual)
+            throw new DomainException("Apenas despesas fixas ou recorrentes têm periodicidade.");
+        Periodicidade = periodicidade;
+    }
+
     public void AtualizarValorFixo(decimal valorFixo)
     {
         if (TipoDespesa == TipoDespesa.Pontual)
