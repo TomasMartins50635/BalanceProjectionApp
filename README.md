@@ -3,156 +3,177 @@
 [![CI](https://github.com/TomasMartins50635/BalanceProjectionApp/actions/workflows/build.yml/badge.svg)](https://github.com/TomasMartins50635/BalanceProjectionApp/actions/workflows/build.yml)
 [![Sonar](https://github.com/TomasMartins50635/BalanceProjectionApp/actions/workflows/Sonar.yml/badge.svg)](https://github.com/TomasMartins50635/BalanceProjectionApp/actions/workflows/Sonar.yml)
 
-A financial management system focused on tracking **real and projected bank balances**, invoicing, and expenses. Built with .NET 10 (Clean Architecture) and React + Vite.
+Sistema de gestão financeira focado no controlo de **saldo bancário real e previsto**, faturação e despesas. O saldo é calculado **parcela a parcela** — nunca pelo valor total dos contratos.
 
-## Overview
+---
 
-The core differentiator is that balances are calculated **installment by installment** — never from the total contract value. Only paid installments affect the account balance, ensuring it always reflects actual cash flow.
+## Arquitectura
 
-## Architecture
+Clean Architecture com 4 camadas:
 
-Clean Architecture with the following layers:
-
-| Project | Layer | Description |
+| Projeto | Camada | Responsabilidade |
 |---|---|---|
-| `Domain` | Domain | Entities, exceptions, repository interfaces |
+| `Domain` | Domain | Entidades, regras de negócio, interfaces de repositório |
 | `Application` | Application | CQRS via MediatR, FluentValidation, DTOs |
-| `Infrastructure` | Infrastructure | EF Core (PostgreSQL), repositories, UnitOfWork |
-| `ApiService` | Presentation | ASP.NET Core Web API (Controllers) |
+| `Infrastructure` | Infrastructure | EF Core + SQLite, repositórios, UnitOfWork |
+| `ApiService` | Presentation | Minimal API endpoints, registo DI, middleware |
+
+```
+src/
+├── BalanceProjectionApp.Domain/
+├── BalanceProjectionApp.Application/
+├── BalanceProjectionApp.Infrastructure/
+└── BalanceProjectionApp.ApiService/
+
+ui/
+├── web/        # React + Vite (fonte de verdade do frontend)
+└── desktop/    # Tauri wrapper — inclui a API .NET como sidecar
+
+tests/
+├── BalanceProjectionApp.Domain.Tests/
+├── BalanceProjectionApp.Application.Tests/
+├── BalanceProjectionApp.Infrastructure.Tests/
+└── BalanceProjectionApp.Api.Tests/
+```
+
+---
 
 ## Tech Stack
 
 **Backend**
-- **.NET 10** / C#
-- **ASP.NET Core** Web API
-- **Entity Framework Core 10** with PostgreSQL (Npgsql)
-- **MediatR 12** for CQRS
+- **.NET 10** / ASP.NET Core Minimal API
+- **Entity Framework Core 10** + SQLite
+- **MediatR 12** (CQRS)
 - **FluentValidation 11**
 
 **Frontend**
-- **React 19** + **Vite**
-- **TypeScript**
-- **Tailwind CSS v4**
-- **Radix UI** (shadcn/ui components)
-- **Recharts** for charts
+- **React 19** + **Vite** + **TypeScript**
+- **Tailwind CSS v4** + **shadcn/ui**
+- **Recharts**
 
-**Desktop** (optional)
-- **Tauri** wrapper around the React web app
+**Desktop**
+- **Tauri 2** — a API .NET é bundled como sidecar; sem servidor externo necessário
 
-## Getting Started
+---
 
-### Prerequisites
+## Desenvolvimento
+
+### Pré-requisitos
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Node.js 20+](https://nodejs.org/)
-- [Docker](https://www.docker.com/) (for PostgreSQL)
+- [Node.js 22+](https://nodejs.org/)
+- [Rust stable](https://rustup.rs/) — apenas para a app desktop
 
-### Run everything
+### API + Frontend web
 
 ```bash
-# Start the database
-docker compose up db -d
-
-# Start the API (http://localhost:5535)
+# Iniciar a API (http://localhost:5535)
 dotnet run --project src/BalanceProjectionApp.ApiService
 
-# Start the web frontend (http://localhost:5173)
+# Iniciar o frontend (http://localhost:5173)
 cd ui/web && npm install && npm run dev
 ```
 
-Or run the full stack in Docker:
+A base de dados SQLite é criada automaticamente em `bin/.../data/balance_projection.db`.
+
+### App desktop (Tauri)
 
 ```bash
-docker compose up --build
-```
-
-### Desktop app
-
-```bash
+# A API tem de estar a correr separadamente em dev
 cd ui/desktop && npm install && npm run dev
 ```
 
-This starts the Tauri app which embeds the React web frontend.
-
-## Database
-
-PostgreSQL via Docker. Schema is applied automatically on startup (`MigrateAsync`).
-
-To add a migration:
+### Docker (stack completa)
 
 ```bash
-dotnet ef migrations add <MigrationName> \
-  --project src/BalanceProjectionApp.Infrastructure \
-  --startup-project src/BalanceProjectionApp.ApiService
+docker compose up --build
+# API em http://localhost:5535
 ```
 
-## Key Concepts
+### Popular a base de dados
 
-- **Parcela (Installment)** — the core unit; only paid installments affect the balance.
-- **Comissão (Commission)** — deducted at installment creation via the associated `Colaborador.Percentagem`: `ValorLiquido = ValorBruto − (ValorBruto × Colaborador.Percentagem / 100)`. No separate commission entity exists.
-- **IVA** — when creating a `Receita` with `temIva: true`, a Pontual `Despesa` named `"IVA de {nome}"` is automatically created with a single installment at 23% of the total value, due on the 20th of the current month.
-- **Liquidar** — settling an installment credits (Receita) or debits (Despesa) the account atomically.
-- **Estornar** — reverses a settled installment and restores the account balance (requires confirmation).
-- **Financiamento** — external capital that credits the account immediately on registration and auto-creates a linked active fixed expense with `valorMensalidade`, including the first installment.
-- **Financiamento Cap** — total paid amount across installments of an expense linked to a financing cannot exceed the financed value.
-- **Despesa Fixa / Recorrente** — recurring expense; the next installment is generated automatically after the current one is settled.
+```bash
+sqlite3 src/BalanceProjectionApp.ApiService/bin/Debug/net10.0/data/balance_projection.db < seed.sql
+```
 
-## API Endpoints
+---
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/contas` | List accounts |
-| `POST` | `/contas` | Create account |
-| `GET` | `/contas/{id}` | Get account with current balance |
-| `DELETE` | `/contas/{id}` | Delete account |
-| `GET` | `/receitas` | List revenue entries with installments |
-| `POST` | `/receitas` | Create revenue entry |
-| `PUT` | `/receitas/{id}` | Update revenue entry |
-| `DELETE` | `/receitas/{id}` | Delete revenue entry |
-| `GET` | `/despesas` | List expense entries with installments |
-| `POST` | `/despesas` | Create expense entry |
-| `PUT` | `/despesas/{id}` | Update expense entry |
-| `PATCH` | `/despesas/{id}/estado` | Activate / deactivate a Fixa expense |
-| `DELETE` | `/despesas/{id}` | Delete expense entry |
-| `GET` | `/parcelas/conta/{contaId}` | List installments (`?apenasPendentes=true`) |
-| `POST` | `/parcelas/{id}/liquidar` | Settle an installment |
-| `POST` | `/parcelas/{id}/estornar` | Reverse a settled installment |
-| `DELETE` | `/parcelas/{id}` | Delete a pending installment |
-| `GET` | `/colaboradores` | List collaborators |
-| `POST` | `/colaboradores` | Create collaborator |
-| `DELETE` | `/colaboradores/{id}` | Delete collaborator |
-| `GET` | `/financiamentos/conta/{contaId}` | List financing entries |
-| `POST` | `/financiamentos` | Register financing (`nome`, `valor`, `contaId`, `valorMensalidade`) with immediate date, linked active fixed expense, and immediate account credit |
+## Testes
 
-## Tests
-
-| Project | Type | Coverage |
-|---|---|---|
-| `Domain.Tests` | Unit | Entities and domain rules |
-| `Application.Tests` | Unit (mocks) | CQRS handlers with NSubstitute |
-| `Infrastructure.Tests` | Integration | EF Core repositories against real PostgreSQL (Testcontainers) |
-| `Api.Tests` | E2E | HTTP endpoints via WebApplicationFactory + Testcontainers |
+Os testes de integração usam SQLite em ficheiro temporário — sem Docker necessário.
 
 ```bash
 dotnet test tests/BalanceProjectionApp.Domain.Tests
 dotnet test tests/BalanceProjectionApp.Application.Tests
-dotnet test tests/BalanceProjectionApp.Infrastructure.Tests   # requires Docker
-dotnet test tests/BalanceProjectionApp.Api.Tests              # requires Docker
+dotnet test tests/BalanceProjectionApp.Infrastructure.Tests
+dotnet test tests/BalanceProjectionApp.Api.Tests
 ```
 
-## Frontend Structure
+| Projeto | Tipo | O que testa |
+|---|---|---|
+| `Domain.Tests` | Unitário | Entidades e regras de domínio |
+| `Application.Tests` | Unitário (mocks) | Handlers CQRS com NSubstitute |
+| `Infrastructure.Tests` | Integração | Repositórios EF Core contra SQLite (ficheiro temp) |
+| `Api.Tests` | E2E | Endpoints HTTP via WebApplicationFactory + SQLite (ficheiro temp) |
 
+---
+
+## Migrações
+
+```bash
+dotnet ef migrations add NomeDaMigracao \
+  --project src/BalanceProjectionApp.Infrastructure \
+  --startup-project src/BalanceProjectionApp.ApiService
 ```
-ui/web/src/
-  components/          # Page-level views and shared UI components
-    LiquidarDialog     # Shared dialog for settling installments
-    ParcelasTable      # Shared installments table (receita / despesa variants)
-    ...
-  hooks/
-    useParcelaActions  # Shared hook: liquidar, estornar, sort state
-    useAsync           # Generic data fetching hook
-    useToast           # Toast notifications
-  lib/
-    api.ts             # All API calls
-    types.ts           # TypeScript types matching backend DTOs
+
+---
+
+## Release do installer desktop
+
+O workflow `.github/workflows/release.yml` automatiza o build e publicação ao fazer push de uma tag:
+
+```bash
+# Actualizar a versão em ui/desktop/src-tauri/tauri.conf.json, depois:
+git tag v1.0.0
+git push origin v1.0.0
 ```
+
+O GitHub Actions (~10-15 min):
+1. Publica a API como binário single-file win-x64
+2. Compila e assina o installer NSIS
+3. Cria o GitHub Release com o `.exe` e `latest.json` para auto-update
+
+O installer está disponível em **Releases**. Os clientes com a app instalada recebem notificação de atualização automática.
+
+---
+
+## Conceitos de domínio
+
+- **Parcela** — unidade central; apenas parcelas `IsPaid = true` afectam o saldo.
+- **Comissão** — deduzida na criação da parcela via `Colaborador.Percentagem`: `ValorLiquido = ValorBruto × (1 − Percentagem / 100)`.
+- **IVA** — ao criar uma `Receita` com `temIva: true`, é gerada automaticamente uma despesa pontual `"IVA de {nome}"` com 23% do valor, com vencimento no dia 20 do mês corrente.
+- **Liquidar** — liquida uma parcela e credita/debita atomicamente a conta.
+- **Financiamento** — credita a conta imediatamente e cria uma despesa fixa associada; o total pago nunca pode exceder `Financiamento.Valor`.
+
+---
+
+## API Endpoints
+
+| Method | Path | Descrição |
+|---|---|---|
+| `GET/POST` | `/contas` | Listar / criar contas |
+| `GET/DELETE` | `/contas/{id}` | Obter / eliminar conta |
+| `GET/POST` | `/receitas` | Listar / criar receitas |
+| `PUT/DELETE` | `/receitas/{id}` | Editar / eliminar receita |
+| `GET/POST` | `/despesas` | Listar / criar despesas |
+| `PUT/DELETE` | `/despesas/{id}` | Editar / eliminar despesa |
+| `PATCH` | `/despesas/{id}/estado` | Activar / desactivar despesa fixa |
+| `GET` | `/parcelas/conta/{contaId}` | Listar parcelas (`?apenasPendentes=true`) |
+| `POST` | `/parcelas/{id}/liquidar` | Liquidar parcela |
+| `POST` | `/parcelas/{id}/estornar` | Estornar parcela |
+| `DELETE` | `/parcelas/{id}` | Eliminar parcela pendente |
+| `GET/POST` | `/colaboradores` | Listar / criar colaboradores |
+| `DELETE` | `/colaboradores/{id}` | Eliminar colaborador |
+| `GET` | `/financiamentos/conta/{contaId}` | Listar financiamentos |
+| `POST` | `/financiamentos` | Registar financiamento |
+| `GET/POST/PUT/DELETE` | `/previsoes` | Gestão de previsões (modo simulação) |
