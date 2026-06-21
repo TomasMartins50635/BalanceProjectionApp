@@ -27,7 +27,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "REPLACE_WITH_OUTPUT_OF_tauri_signer_generate",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcxRDBBQkI5MzEwNUE4OTkKUldTWnFBVXh1YXZRY1o5bHZMNFk4NUc3V28zU1VqZmYwSkdTSzk5RDcwT1o4bTdXUUFhSVo0a20K",
       "endpoints": [
         "https://github.com/TomasMartins50635/BalanceProjectionApp/releases/latest/download/latest.json"
       ]
