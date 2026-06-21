@@ -365,6 +365,9 @@ FodyWeavers.xsd
 # Tauri — Rust build cache (can be several GB)
 ui/desktop/src-tauri/target/
 
+# Tauri sidecar binary (built locally via prepare-sidecar.ps1, never committed)
+ui/desktop/src-tauri/binaries/
+
 # Tauri signing keys — never commit
 tauri.key
 tauri.key.pub

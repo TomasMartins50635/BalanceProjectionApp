@@ -188,7 +188,7 @@ function buildChartData(
 
 // ── componente principal ──────────────────────────────────────────────────────
 
-export function SimulationView() {
+export function SimulationView({ isActive }: { isActive: boolean }) {
   const toast = useToast();
 
   const [contas, setContas] = useState<ContaDto[]>([]);
@@ -211,11 +211,12 @@ export function SimulationView() {
   const isGlobal = selectedContaId === GLOBAL_ID;
   const conta = isGlobal ? null : contas.find(c => c.id === selectedContaId);
 
-  // Carregar contas e despesas
+  // Re-carregar contas e despesas sempre que a aba fica visível
   useEffect(() => {
+    if (!isActive) return;
     api.contas.listar().then(setContas).catch(() => {});
     api.despesas.listar().then(setDespesas).catch(() => {});
-  }, []);
+  }, [isActive]);
 
   // Carregar previsões quando a conta muda
   useEffect(() => {

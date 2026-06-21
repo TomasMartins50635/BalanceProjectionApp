@@ -3,49 +3,41 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace BalanceProjectionApp.Api.Tests;
 
-/// <summary>
-/// Boots the real ASP.NET Core application against a Postgres container.
-/// Use as an ICollectionFixture so one container is shared for the whole test run.
-/// </summary>
 public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:17")
-        .Build();
+    private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"api_test_{Guid.NewGuid():N}.db");
 
-    public async Task InitializeAsync()
-    {
-        await _postgres.StartAsync();
-    }
+    public Task InitializeAsync() => Task.CompletedTask;
 
     public new async Task DisposeAsync()
     {
-        await _postgres.DisposeAsync();
         await base.DisposeAsync();
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        try { if (File.Exists(_dbPath)) File.Delete(_dbPath); }
+        catch (IOException) { /* temp file; OS will clean up */ }
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // Use the container's connection string instead of the real one
-        builder.UseEnvironment("Development"); // ensures EnsureCreatedAsync runs in Program.cs
-        builder.UseSetting("ConnectionStrings:DefaultConnection", _postgres.GetConnectionString());
+        builder.UseEnvironment("Development");
+        builder.UseSetting("ConnectionStrings:DefaultConnection", $"Data Source={_dbPath}");
     }
 
-    /// <summary>Truncates all tables so each test class starts with an empty database.</summary>
     public async Task ResetDatabaseAsync()
     {
         using var scope = Services.CreateScope();
         var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await ctx.Database.ExecuteSqlRawAsync("""
-            TRUNCATE TABLE "Parcelas", "Financiamentos",
-                           "Receitas", "Despesas", "Colaboradores", "Contas"
-            CASCADE
-            """);
+        await ctx.Database.ExecuteSqlRawAsync("DELETE FROM \"Parcelas\"");
+        await ctx.Database.ExecuteSqlRawAsync("DELETE FROM \"Financiamentos\"");
+        await ctx.Database.ExecuteSqlRawAsync("DELETE FROM \"Previsoes\"");
+        await ctx.Database.ExecuteSqlRawAsync("DELETE FROM \"Receitas\"");
+        await ctx.Database.ExecuteSqlRawAsync("DELETE FROM \"Despesas\"");
+        await ctx.Database.ExecuteSqlRawAsync("DELETE FROM \"Colaboradores\"");
+        await ctx.Database.ExecuteSqlRawAsync("DELETE FROM \"Contas\"");
     }
 }
 

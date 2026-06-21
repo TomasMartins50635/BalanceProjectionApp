@@ -138,7 +138,7 @@ export default function App() {
           {activeView === 'colaboradores'  && <ColaboradorView />}
           {simulationEverVisited && (
             <div className={activeView === 'simulation' ? 'h-full' : 'hidden'}>
-              <SimulationView />
+              <SimulationView isActive={activeView === 'simulation'} />
             </div>
           )}
         </main>

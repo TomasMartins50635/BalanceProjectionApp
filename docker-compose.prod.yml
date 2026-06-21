@@ -1,8 +1,4 @@
 services:
-  db:
-    ports: []
-    restart: unless-stopped
-
   api:
     environment:
       ASPNETCORE_ENVIRONMENT: Production

@@ -41,10 +41,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .Where(t => typeof(Entity).IsAssignableFrom(t.ClrType)))
         {
             var builder = modelBuilder.Entity(entityType.ClrType);
-            // CreatedAt: gerado pelo DB no INSERT via DEFAULT NOW(), nunca alterado
-            builder.Property<DateTime>("CreatedAt").HasDefaultValueSql("NOW()");
-            // UpdatedAt: sempre enviado pelo C# — sem ValueGeneratedOnAdd, sem ambiguidade
-            builder.Property<DateTime>("UpdatedAt").HasColumnType("timestamp with time zone");
+            builder.Property<DateTime>("CreatedAt").HasDefaultValueSql("datetime('now')");
+            builder.Property<DateTime>("UpdatedAt");
             builder.Property<bool>("IsDeleted").HasDefaultValue(false);
         }
 

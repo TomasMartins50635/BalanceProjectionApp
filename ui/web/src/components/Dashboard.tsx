@@ -189,10 +189,10 @@ export function Dashboard({ onNavigate }: Readonly<DashboardProps>) {
         </div>
 
         <section className="rounded-xl border border-slate-200 bg-white p-4 md:p-5 space-y-3 shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-3 md:gap-6 items-start">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-3 md:gap-6 items-start">
+            <div className="md:min-w-[160px]">
               <p className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Património Total</p>
-              <p className="text-3xl font-bold text-slate-900 mt-2 tabular-nums">
+              <p className="text-3xl font-bold text-slate-900 mt-2 tabular-nums whitespace-nowrap">
                 €{totalSaldo.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
               </p>
             </div>

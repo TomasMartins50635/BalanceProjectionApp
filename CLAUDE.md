@@ -53,7 +53,7 @@ ApiService → Infrastructure  (apenas para registo DI em Program.cs)
 |---|---|---|
 | `BalanceProjectionApp.Domain` | Domain | Entidades, exceções, interfaces de repositório |
 | `BalanceProjectionApp.Application` | Application | CQRS (MediatR), validação (FluentValidation), DTOs |
-| `BalanceProjectionApp.Infrastructure` | Infrastructure | EF Core (PostgreSQL), repositórios, UnitOfWork |
+| `BalanceProjectionApp.Infrastructure` | Infrastructure | EF Core (SQLite), repositórios, UnitOfWork |
 | `BalanceProjectionApp.ApiService` | Presentation | Minimal API endpoints, registo DI, middleware |
 
 ### Estrutura de ficheiros Application
@@ -76,7 +76,7 @@ DependencyInjection.cs
 |---|---|---|
 | `MediatR` | Application | 12.4.1 |
 | `FluentValidation.DependencyInjectionExtensions` | Application | 11.11.0 |
-| `Npgsql.EntityFrameworkCore.PostgreSQL` | Infrastructure | 10.0.1 |
+| `Microsoft.EntityFrameworkCore.Sqlite` | Infrastructure | 10.0.1 |
 | `Microsoft.EntityFrameworkCore.Tools` | Infrastructure | 10.0.1 |
 | `Microsoft.AspNetCore.OpenApi` | ApiService | 10.0.1 |
 
@@ -84,9 +84,10 @@ DependencyInjection.cs
 
 ## Base de Dados
 
-- **Provider:** PostgreSQL via `Npgsql.EntityFrameworkCore.PostgreSQL`
-- **Dev setup:** `docker compose up -d` na raiz do repositório inicia um container Postgres 17 na porta 5432
-- **Connection string:** `ConnectionStrings:DefaultConnection` em `appsettings.Development.json` (aponta para o container Docker)
+- **Provider:** SQLite via `Microsoft.EntityFrameworkCore.Sqlite`
+- **Dev setup:** sem dependências externas — a base de dados é um ficheiro local criado automaticamente (`balance_projection.db` no diretório de execução)
+- **Connection string:** `ConnectionStrings:DefaultConnection` em `appsettings.Development.json` (`Data Source=balance_projection.db`)
+- **Produção (Docker):** ficheiro em `/app/data/balance_projection.db` montado num volume Docker (`sqlite_data`)
 - **Migrações:** aplicadas automaticamente em todos os ambientes via `db.Database.MigrateAsync()` no `Program.cs` (fora do bloco `IsDevelopment`)
 - **Gerar migração:** `dotnet ef migrations add NomeDaMigracao --project src/BalanceProjectionApp.Infrastructure --startup-project src/BalanceProjectionApp.ApiService`
 
@@ -148,39 +149,76 @@ cd ui/desktop && npm run dev
 ## Running the Application
 
 ```bash
-# Development — run everything (DB + API) in Docker
+# Development — run API in Docker (SQLite file stored in Docker volume)
 docker compose up --build
 
-# Development — run only the DB, API locally
-docker compose up db -d
+# Development — run API locally (SQLite file created in project dir)
 dotnet run --project src/BalanceProjectionApp.ApiService
 ```
 
 - Containerised API: `http://localhost:5535`
 - Local API: HTTP `5535` / HTTPS `7329`
 
-### Production (Windows Server)
+### Production — Tauri desktop (sidecar, all local)
 
-**One-time server setup:**
-1. Install Docker Desktop for Windows on the server
-2. Clone this repo on the server
-3. Open Windows Firewall — inbound TCP rule for port `5535`
-4. Run: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
+The desktop installer bundles the .NET API as a sidecar. No server or Docker needed on client machines.
 
-**Update after code changes (run on the server):**
+**Build the installer (run on dev machine):**
 ```bash
+cd ui/desktop && npm run build
+# beforeBuildCommand automatically:
+#   1. Publishes the API as a single-file self-contained win-x64 binary
+#   2. Copies it to src-tauri/binaries/api-x86_64-pc-windows-msvc.exe
+#   3. Builds the web frontend
+# Installer output: ui/desktop/src-tauri/target/release/bundle/
+```
+
+At runtime the Tauri app spawns `binaries/api` on startup (production builds only) listening on `http://localhost:5535`, and kills it when the window closes. The SQLite database is stored at `%LOCALAPPDATA%\BalanceProjectionApp\balance_projection.db`.
+
+**To prepare the sidecar binary manually (without a full Tauri build):**
+```bash
+cd ui/desktop && powershell -ExecutionPolicy Bypass -File scripts/prepare-sidecar.ps1
+```
+
+### Releasing a new version (GitHub Actions)
+
+Releases are fully automated via `.github/workflows/release.yml`. Push a version tag to trigger:
+
+```bash
+# Bump version in ui/desktop/src-tauri/tauri.conf.json first, then:
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The workflow (runs on `windows-latest`):
+1. Publishes the .NET API sidecar
+2. Builds the Tauri NSIS installer (signed with `TAURI_SIGNING_PRIVATE_KEY` secret)
+3. Generates `latest.json` with the installer URL and signature
+4. Creates a GitHub Release and uploads installer + `latest.json`
+
+Clients with the app running receive the update banner automatically on next launch.
+
+**One-time secrets setup (GitHub repo → Settings → Secrets):**
+- `TAURI_SIGNING_PRIVATE_KEY` — output of `npx tauri signer generate -w tauri.key` (the private key file content)
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — password chosen during key generation (leave empty if none)
+
+**One-time pubkey setup** — after generating the key, copy the public key printed to stdout into `tauri.conf.json`:
+```json
+"updater": { "pubkey": "<paste public key here>", ... }
+```
+
+### Production — Docker (server deployment)
+
+```bash
+# One-time setup on the server:
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+# Update after code changes:
 git pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
-**Build Tauri desktop installer (run on dev machine):**
-```bash
-# 1. Set the server IP in ui/web/.env.production:
-#    VITE_API_BASE_URL=http://<SERVER_LAN_IP>:5535
-# 2. Build:
-cd ui/desktop && npm run build
-# Installer output: ui/desktop/src-tauri/target/release/bundle/
-```
+The Docker API stores the SQLite DB at `/app/data/balance_projection.db` (mounted volume `sqlite_data`). The connection string is set via `ConnectionStrings__DefaultConnection` env var in docker-compose, overriding `appsettings.Production.json`.
 
 ---
 
@@ -202,19 +240,19 @@ Três camadas de testes, todos registados em `.slnx`:
 |---|---|---|
 | `tests/BalanceProjectionApp.Domain.Tests` | Unidade | Entidades e regras de domínio |
 | `tests/BalanceProjectionApp.Application.Tests` | Unidade (mocks) | Handlers CQRS, repositórios mockados com NSubstitute |
-| `tests/BalanceProjectionApp.Infrastructure.Tests` | Integração | Repositórios EF Core contra PostgreSQL real via Testcontainers |
-| `tests/BalanceProjectionApp.Api.Tests` | Integração (E2E) | Endpoints HTTP via WebApplicationFactory + Testcontainers |
+| `tests/BalanceProjectionApp.Infrastructure.Tests` | Integração | Repositórios EF Core contra SQLite (ficheiro temp) |
+| `tests/BalanceProjectionApp.Api.Tests` | Integração (E2E) | Endpoints HTTP via WebApplicationFactory + SQLite (ficheiro temp) |
 
 ### Executar todos os testes
 ```bash
 dotnet test tests/BalanceProjectionApp.Domain.Tests
 dotnet test tests/BalanceProjectionApp.Application.Tests
-dotnet test tests/BalanceProjectionApp.Infrastructure.Tests   # requer Docker
-dotnet test tests/BalanceProjectionApp.Api.Tests              # requer Docker
+dotnet test tests/BalanceProjectionApp.Infrastructure.Tests   # SQLite em ficheiro temp
+dotnet test tests/BalanceProjectionApp.Api.Tests              # SQLite em ficheiro temp
 ```
 
 ### Notas de implementação
-- `xUnit`, `FluentAssertions`, `NSubstitute` (mocks), `Testcontainers.PostgreSql` (container PostgreSQL efémero)
+- `xUnit`, `FluentAssertions`, `NSubstitute` (mocks), `Microsoft.EntityFrameworkCore.Sqlite` (ficheiro SQLite temporário nos testes de integração)
 - Os testes de integração usam `[Collection("Database")]` / `[Collection("Api")]` com fixture partilhada — um container por suite
 - Cada classe de teste chama `ResetDatabaseAsync()` (TRUNCATE + CASCADE) em `IAsyncLifetime.InitializeAsync` para isolamento
 - `WebApplicationFactory<Program>` liga-se ao container via override da connection string em `ConfigureWebHost`
