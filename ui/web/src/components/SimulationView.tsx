@@ -133,7 +133,7 @@ function projetarDespesas(
     // Âncora: data seguinte ao máximo de todas as parcelas conhecidas
     let anchor: string;
     if (todasDatas.length > 0) {
-      const maxDate = todasDatas.reduce((a, b) => (a > b ? a : b));
+      const maxDate = todasDatas.reduce((a, b) => (a > b ? a : b), todasDatas[0]);
       anchor = adicionarMesesStr(maxDate, meses);
     } else if (despesa.dataInicio) {
       anchor = despesa.dataInicio;
@@ -430,14 +430,17 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
                   {previsoes.map(p => (
                     <div
                       key={p.id}
+                      role="button"
+                      tabIndex={0}
                       className={`flex items-center justify-between px-5 py-3 cursor-pointer transition-colors ${activePrevisao?.id === p.id ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
                       onClick={() => carregarPrevisao(p)}
+                      onKeyDown={e => e.key === 'Enter' && carregarPrevisao(p)}
                     >
                       <div>
                         <p className="text-sm font-medium text-slate-800">{p.nome}</p>
                         <p className="text-xs text-slate-500 mt-0.5">{formatDate(p.criadoEm.split('T')[0])}</p>
                       </div>
-                      <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                      <div className="flex gap-1" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400 hover:text-indigo-600" onClick={() => { carregarPrevisao(p); setIsEditing(true); }} aria-label="Editar"><Edit2 className="w-3.5 h-3.5" /></Button>
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400 hover:text-red-600" onClick={() => setDeleteTarget(p)} aria-label="Eliminar"><Trash2 className="w-3.5 h-3.5" /></Button>
                       </div>

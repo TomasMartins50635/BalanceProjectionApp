@@ -125,30 +125,15 @@ public class Despesa : Entity
         {
             var ultimaData = parcelasAtivas.Max(p => p.DataVencimento);
 
-            if (TipoDespesa == TipoDespesa.Fixa)
+            var meses = Periodicidade switch
             {
-                var meses = Periodicidade switch
-                {
-                    Enums.Periodicidade.Mensal     => 1,
-                    Enums.Periodicidade.Trimestral  => 3,
-                    Enums.Periodicidade.Semestral   => 6,
-                    Enums.Periodicidade.Anual       => 12,
-                    _ => throw new DomainException("Periodicidade inválida.")
-                };
-                dataVencimento = ultimaData.AddMonths(meses);
-            }
-            else // Recorrente
-            {
-                var meses = Periodicidade switch
-                {
-                    Enums.Periodicidade.Mensal     => 1,
-                    Enums.Periodicidade.Trimestral => 3,
-                    Enums.Periodicidade.Semestral  => 6,
-                    Enums.Periodicidade.Anual      => 12,
-                    _ => throw new DomainException("Periodicidade inválida.")
-                };
-                dataVencimento = ultimaData.AddMonths(meses);
-            }
+                Enums.Periodicidade.Mensal     => 1,
+                Enums.Periodicidade.Trimestral => 3,
+                Enums.Periodicidade.Semestral  => 6,
+                Enums.Periodicidade.Anual      => 12,
+                _ => throw new DomainException("Periodicidade inválida.")
+            };
+            dataVencimento = ultimaData.AddMonths(meses);
         }
 
         decimal valor;
