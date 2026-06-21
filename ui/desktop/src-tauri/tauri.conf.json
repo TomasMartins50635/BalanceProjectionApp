@@ -7,7 +7,7 @@
     "frontendDist": "../web/dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "cd ../web && npm run dev",
-    "beforeBuildCommand": "powershell -ExecutionPolicy Bypass -File ../scripts/prepare-sidecar.ps1 && cd ../web && npm run build"
+    "beforeBuildCommand": "powershell -ExecutionPolicy Bypass -File ./scripts/prepare-sidecar.ps1 && cd ../web && npm run build"
   },
   "app": {
     "windows": [
