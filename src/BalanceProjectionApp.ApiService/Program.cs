@@ -84,6 +84,7 @@ await db.Database.MigrateAsync();
 app.UseCors("tauri");
 app.MapControllers();
 
+
 app.Run();
 
 public partial class Program { }

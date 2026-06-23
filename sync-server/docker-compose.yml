@@ -1,0 +1,16 @@
+services:
+  sync:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      DataDir: /app/data
+      ApiKey: changeme
+    ports:
+      - "5536:8081"
+    volumes:
+      - sync_data:/app/data
+
+volumes:
+  sync_data:

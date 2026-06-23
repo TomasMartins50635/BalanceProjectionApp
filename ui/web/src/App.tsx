@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { LayoutDashboard, TrendingDown, TrendingUp, CreditCard, Sparkles, PieChart, Users, RefreshCw, Cloud } from 'lucide-react';
+import { LayoutDashboard, TrendingDown, TrendingUp, CreditCard, Sparkles, PieChart, Users, RefreshCw } from 'lucide-react';
 import { OverviewView } from '@/components/OverviewView';
 import { Dashboard } from '@/components/Dashboard';
 import { ReceitaView } from '@/components/ReceitaView';
@@ -9,7 +9,7 @@ import { SimulationView } from '@/components/SimulationView';
 import { ColaboradorView } from '@/components/ColaboradorView';
 import { UpdateBanner } from '@/components/UpdateBanner';
 import { SyncBanner } from '@/components/SyncBanner';
-import { SyncSettingsDialog } from '@/components/SyncSettingsDialog';
+import { SyncPanel } from '@/components/SyncPanel';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useUpdater } from '@/hooks/useUpdater';
 import { useSync } from '@/hooks/useSync';
@@ -32,8 +32,7 @@ export default function App() {
   const isSimulation = activeView === 'simulation';
 
   const { updateInfo, isDownloading, progress, installUpdate, checkForUpdates, dismiss } = useUpdater();
-  const { hasSyncNewer, isUploading, uploadError, closeDialogOpen, handleCloseDecision, getSyncSettings, saveSyncSettings } = useSync();
-  const [syncSettingsOpen, setSyncSettingsOpen] = useState(false);
+  const { hasSyncNewer, isUploading, isDownloading: isSyncDownloading, isChecking, uploadError, closeDialogOpen, handleCloseDecision, uploadDb, downloadDb, checkVersion, getSyncSettings, saveSyncSettings } = useSync();
   const [syncBannerDismissed, setSyncBannerDismissed] = useState(false);
 
   const handleNavigate = useCallback((view: View, id?: string) => {
@@ -49,6 +48,8 @@ export default function App() {
       {hasSyncNewer && !syncBannerDismissed && (
         <SyncBanner
           isUploading={isUploading}
+          isDownloading={isSyncDownloading}
+          onDownload={downloadDb}
           onDismiss={() => setSyncBannerDismissed(true)}
         />
       )}
@@ -64,13 +65,6 @@ export default function App() {
         />
       )}
 
-      {/* ── Sync settings dialog ────────────────────────────────────────── */}
-      <SyncSettingsDialog
-        open={syncSettingsOpen}
-        onOpenChange={setSyncSettingsOpen}
-        onLoad={getSyncSettings}
-        onSave={saveSyncSettings}
-      />
 
       {/* ── Close confirmation dialog ────────────────────────────────────── */}
       <ConfirmDialog
@@ -136,21 +130,29 @@ export default function App() {
             </button>
 
             {/* ── Sync & update buttons ─────────────────────────────────── */}
-            <div className="mt-auto px-4 pb-4 flex flex-col gap-1">
-              <button
-                onClick={() => setSyncSettingsOpen(true)}
-                className="w-full flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300 transition-colors py-1"
-              >
-                <Cloud className="w-3 h-3" />
-                Configurar sincronização
-              </button>
-              <button
-                onClick={checkForUpdates}
-                className="w-full flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300 transition-colors py-1"
-              >
-                <RefreshCw className="w-3 h-3" />
-                Verificar atualizações
-              </button>
+            <div className="mt-auto flex flex-col gap-1 pb-2">
+              <SyncPanel
+                getSyncSettings={getSyncSettings}
+                saveSyncSettings={saveSyncSettings}
+                onUpload={uploadDb}
+                onDownload={downloadDb}
+                onCheck={checkVersion}
+                isUploading={isUploading}
+                isDownloading={isSyncDownloading}
+                isChecking={isChecking}
+              />
+              <div className="px-4 flex items-center justify-between">
+                <span className="text-[10px] font-semibold tracking-widest text-slate-500 uppercase">
+                  Atualização de software
+                </span>
+                <button
+                  onClick={checkForUpdates}
+                  title="Verificar atualizações"
+                  className="flex items-center justify-center w-6 h-6 rounded text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </nav>
         </aside>

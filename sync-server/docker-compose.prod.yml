@@ -1,0 +1,6 @@
+services:
+  sync:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ApiKey: "${SYNC_API_KEY}"
+    restart: unless-stopped

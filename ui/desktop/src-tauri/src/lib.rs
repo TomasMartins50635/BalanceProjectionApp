@@ -35,10 +35,35 @@ fn settings_path() -> Result<std::path::PathBuf, String> {
     Ok(dir.join("sync_settings.json"))
 }
 
-fn db_path() -> Result<std::path::PathBuf, String> {
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let dir = exe.parent().ok_or("sem directório pai")?.to_path_buf();
-    Ok(dir.join("balance_projection.db"))
+async fn db_path() -> Result<std::path::PathBuf, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let res = client
+        .get("http://localhost:5535/system/db-path")
+        .send()
+        .await
+        .map_err(|e| format!("API inacessível — reinicia a aplicação: {e}"))?;
+
+    if !res.status().is_success() {
+        return Err(format!(
+            "API retornou {} em /db-path — reinicia a aplicação",
+            res.status()
+        ));
+    }
+
+    let body: serde_json::Value = res
+        .json()
+        .await
+        .map_err(|e| format!("Resposta inválida do API: {e}"))?;
+
+    let path = body["path"]
+        .as_str()
+        .ok_or("Campo 'path' em falta na resposta do API")?;
+
+    Ok(std::path::PathBuf::from(path))
 }
 
 fn load_settings() -> SyncSettings {
@@ -110,7 +135,7 @@ async fn upload_db() -> Result<String, String> {
         return Err("Servidor de sync não configurado.".into());
     }
 
-    let db = db_path()?;
+    let db = db_path().await?;
     if !db.exists() {
         return Err("Base de dados não encontrada.".into());
     }
@@ -146,7 +171,7 @@ async fn upload_db() -> Result<String, String> {
     let timestamp = body["timestamp"].as_str().unwrap_or("").to_string();
 
     // guardar mtime actual da DB como referência para deteção de alterações futuras
-    let mtime = std::fs::metadata(db_path()?)
+    let mtime = std::fs::metadata(db_path().await?)
         .ok()
         .and_then(|m| m.modified().ok())
         .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
@@ -161,14 +186,80 @@ async fn upload_db() -> Result<String, String> {
 }
 
 #[tauri::command]
-fn has_unsynced_changes() -> bool {
+async fn download_db(app: tauri::AppHandle) -> Result<(), String> {
+    let settings = load_settings();
+
+    if settings.url.is_empty() || settings.api_key.is_empty() {
+        return Err("Servidor de sync não configurado.".into());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let res = client
+        .get(format!("{}/download", settings.url.trim_end_matches('/')))
+        .header("X-Api-Key", &settings.api_key)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !res.status().is_success() {
+        return Err(format!("Erro do servidor: {}", res.status()));
+    }
+
+    let bytes = res.bytes().await.map_err(|e| e.to_string())?;
+    let db = db_path().await?;
+    let tmp = db.with_extension("db.tmp");
+
+    #[cfg(not(debug_assertions))]
+    {
+        if let Some(sidecar) = app.try_state::<SidecarHandle>() {
+            if let Ok(mut lock) = sidecar.0.lock() {
+                if let Some(child) = lock.take() {
+                    let _ = child.kill();
+                }
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+    #[cfg(debug_assertions)]
+    let _ = app;
+
+    tokio::fs::write(&tmp, &bytes).await.map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, &db).map_err(|e| e.to_string())?;
+
+    #[cfg(not(debug_assertions))]
+    {
+        use tauri_plugin_shell::ShellExt;
+        if let Some(sidecar) = app.try_state::<SidecarHandle>() {
+            let (_rx, child) = app
+                .shell()
+                .sidecar("api")
+                .map_err(|e| e.to_string())?
+                .env("ASPNETCORE_ENVIRONMENT", "Production")
+                .env("ASPNETCORE_URLS", "http://localhost:5535")
+                .spawn()
+                .map_err(|e| e.to_string())?;
+            if let Ok(mut lock) = sidecar.0.lock() {
+                *lock = Some(child);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn has_unsynced_changes() -> bool {
     let settings = load_settings();
 
     if settings.url.is_empty() || settings.api_key.is_empty() {
         return false;
     }
 
-    let db = match db_path() {
+    let db = match db_path().await {
         Ok(p) => p,
         Err(_) => return false,
     };
@@ -203,6 +294,7 @@ pub fn run() {
             save_sync_settings,
             check_sync_version,
             upload_db,
+            download_db,
             has_unsynced_changes,
         ])
         .setup(|app| {

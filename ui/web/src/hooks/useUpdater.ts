@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useToast } from './useToast';
 
 export interface UpdateInfo {
   version: string;
@@ -8,6 +9,7 @@ export interface UpdateInfo {
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 export function useUpdater() {
+  const toast = useToast();
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -52,15 +54,25 @@ export function useUpdater() {
   }, []);
 
   const checkForUpdates = useCallback(async (): Promise<boolean> => {
-    if (!isTauri) return false;
-    const { check } = await import('@tauri-apps/plugin-updater');
-    const update = await check();
-    if (update) {
-      setUpdateInfo({ version: update.version, body: update.body ?? '' });
-      return true;
+    if (!isTauri) {
+      toast('Atualização automática apenas disponível na app desktop.', 'error');
+      return false;
     }
-    return false;
-  }, []);
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater');
+      const update = await check();
+      if (update) {
+        setUpdateInfo({ version: update.version, body: update.body ?? '' });
+        toast('Versão de software mais recente.', 'error');
+        return true;
+      }
+      toast('Software atualizado.', 'success');
+      return false;
+    } catch (e) {
+      toast(`Erro ao verificar atualizações: ${e instanceof Error ? e.message : String(e)}`, 'error');
+      return false;
+    }
+  }, [toast]);
 
   const dismiss = useCallback(() => setUpdateInfo(null), []);
 

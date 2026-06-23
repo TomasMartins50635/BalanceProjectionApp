@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useToast } from './useToast';
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
@@ -10,8 +11,10 @@ export interface SyncSettings {
 }
 
 export function useSync() {
+  const toast = useToast();
   const [hasSyncNewer, setHasSyncNewer] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -43,7 +46,7 @@ export function useSync() {
             const { invoke } = await import('@tauri-apps/api/core');
             hasChanges = await invoke<boolean>('has_unsynced_changes');
           } catch {
-            return; // erro → fechar normalmente
+            return;
           }
 
           if (!hasChanges) return;
@@ -67,7 +70,7 @@ export function useSync() {
       } catch (e) {
         setIsUploading(false);
         setUploadError(e instanceof Error ? e.message : String(e));
-        return; // manter o dialog aberto para o utilizador decidir
+        return;
       }
       setIsUploading(false);
     }
@@ -82,10 +85,29 @@ export function useSync() {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('upload_db');
       setHasSyncNewer(false);
+      toast('Base de dados guardada no servidor.', 'success');
+    } catch (e) {
+      toast(`Erro ao guardar: ${e instanceof Error ? e.message : String(e)}`, 'error');
     } finally {
       setIsUploading(false);
     }
-  }, []);
+  }, [toast]);
+
+  const downloadDb = useCallback(async (): Promise<void> => {
+    setIsDownloading(true);
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('download_db');
+      toast('Base de dados obtida. A recarregar…', 'success');
+      setTimeout(() => window.location.reload(), 800);
+    } catch (e) {
+      toast(`Erro ao obter: ${e instanceof Error ? e.message : String(e)}`, 'error');
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [toast]);
+
+  const [isChecking, setIsChecking] = useState(false);
 
   const getSyncSettings = useCallback(async (): Promise<SyncSettings> => {
     const { invoke } = await import('@tauri-apps/api/core');
@@ -97,13 +119,36 @@ export function useSync() {
     await invoke('save_sync_settings', { settings });
   }, []);
 
+  const checkVersion = useCallback(async (): Promise<void> => {
+    setIsChecking(true);
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const result = await invoke<{ hasNewer: boolean }>('check_sync_version');
+      setHasSyncNewer(result.hasNewer);
+      toast(
+        result.hasNewer
+          ? 'Versão de dados mais recente.'
+          : 'Dados atualizados.',
+        result.hasNewer ? 'error' : 'success'
+      );
+    } catch (e) {
+      toast(`Não foi possível ligar ao servidor: ${e instanceof Error ? e.message : String(e)}`, 'error');
+    } finally {
+      setIsChecking(false);
+    }
+  }, [toast]);
+
   return {
     hasSyncNewer,
     isUploading,
+    isDownloading,
+    isChecking,
     uploadError,
     closeDialogOpen,
     handleCloseDecision,
     uploadDb,
+    downloadDb,
+    checkVersion,
     getSyncSettings,
     saveSyncSettings,
   };
