@@ -32,8 +32,11 @@ public class CriarReceitaHandlerTests
     [Fact]
     public async Task Handle_DadosValidos_AdicionaReceitaERetornaId()
     {
-        var command = new CriarReceitaCommand("Proj ABC", ContaId, null, null,
-            [new(1, Vencimento, 5_000m)]);
+        var command = new CriarReceitaCommand(
+            "Proj ABC",
+            ContaId,
+            null,
+            Parcelas: [new(1, Vencimento, 5_000m)]);
 
         var id = await _handler.Handle(command, CancellationToken.None);
 
@@ -49,7 +52,11 @@ public class CriarReceitaHandlerTests
             .Returns((Conta?)null);
 
         var act = async () => await _handler.Handle(
-            new CriarReceitaCommand("Proj", Guid.NewGuid(), null, null, [new(1, Vencimento, 1_000m)]),
+            new CriarReceitaCommand(
+                "Proj",
+                Guid.NewGuid(),
+                null,
+                Parcelas: [new(1, Vencimento, 1_000m)]),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<EntityNotFoundException>();
@@ -60,7 +67,7 @@ public class CriarReceitaHandlerTests
     public async Task Handle_ComColaborador_AssociaColaboradorNaReceita()
     {
         var colaboradorId = Guid.NewGuid();
-        var colaborador = Colaborador.Criar("Ana", 10m);
+        var colaborador = Colaborador.CriarServico("Ana", 10m);
         _colaboradorRepo.ObterPorIdAsync(colaboradorId, Arg.Any<CancellationToken>())
             .Returns(colaborador);
 
@@ -68,10 +75,16 @@ public class CriarReceitaHandlerTests
         await _receitaRepo.AdicionarAsync(Arg.Do<Receita>(r => receitaCriada = r), Arg.Any<CancellationToken>());
 
         await _handler.Handle(
-            new CriarReceitaCommand("Proj", ContaId, null, colaboradorId, [new(1, Vencimento, 10_000m)]),
+            new CriarReceitaCommand(
+                "Proj",
+                ContaId,
+                null,
+                Parcelas: [new(1, Vencimento, 10_000m)],
+                Comissoes: [new(colaboradorId, TipoComissao.Servico, 10m)]),
             CancellationToken.None);
 
-        receitaCriada!.Colaborador!.Percentagem.Should().Be(10m);
+        receitaCriada!.Comissoes.Should().HaveCount(1);
+        receitaCriada.Comissoes.Single().Percentagem.Should().Be(10m);
     }
 
     [Fact]
@@ -82,7 +95,12 @@ public class CriarReceitaHandlerTests
             .Returns((Colaborador?)null);
 
         var act = async () => await _handler.Handle(
-            new CriarReceitaCommand("Proj", ContaId, null, colaboradorId, [new(1, Vencimento, 5_000m)]),
+            new CriarReceitaCommand(
+                "Proj",
+                ContaId,
+                null,
+                Parcelas: [new(1, Vencimento, 5_000m)],
+                Comissoes: [new(colaboradorId, TipoComissao.Servico, 10m)]),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<EntityNotFoundException>();
@@ -95,11 +113,14 @@ public class CriarReceitaHandlerTests
         await _receitaRepo.AdicionarAsync(Arg.Do<Receita>(r => receitaCriada = r), Arg.Any<CancellationToken>());
 
         await _handler.Handle(
-            new CriarReceitaCommand("Proj", ContaId, null, null,
-            [
-                new(2, Vencimento.AddMonths(1), 6_000m),
-                new(1, Vencimento, 4_000m),
-            ]),
+            new CriarReceitaCommand(
+                "Proj",
+                ContaId,
+                null,
+                Parcelas: [
+                    new(2, Vencimento.AddMonths(1), 6_000m),
+                    new(1, Vencimento, 4_000m),
+                ]),
             CancellationToken.None);
 
         receitaCriada!.Parcelas.Should().HaveCount(2);
@@ -113,8 +134,12 @@ public class CriarReceitaHandlerTests
         await _despesaRepo.AdicionarAsync(Arg.Do<Despesa>(d => despesaIva = d), Arg.Any<CancellationToken>());
 
         await _handler.Handle(
-            new CriarReceitaCommand("Proj", ContaId, null, null,
-                [new(1, new DateOnly(2026, 5, 10), 1_000m)], TemIva: true),
+            new CriarReceitaCommand(
+                "Proj",
+                ContaId,
+                null,
+                Parcelas: [new(1, new DateOnly(2026, 5, 10), 1_000m)],
+                TemIva: true),
             CancellationToken.None);
 
         despesaIva.Should().NotBeNull();
@@ -131,8 +156,12 @@ public class CriarReceitaHandlerTests
         await _despesaRepo.AdicionarAsync(Arg.Do<Despesa>(d => despesaIva = d), Arg.Any<CancellationToken>());
 
         await _handler.Handle(
-            new CriarReceitaCommand("Proj", ContaId, null, null,
-                [new(1, new DateOnly(2026, 5, 25), 1_000m)], TemIva: true),
+            new CriarReceitaCommand(
+                "Proj",
+                ContaId,
+                null,
+                Parcelas: [new(1, new DateOnly(2026, 5, 25), 1_000m)],
+                TemIva: true),
             CancellationToken.None);
 
         despesaIva!.Parcelas.Single().DataVencimento.Should().Be(new DateOnly(2026, 6, 25));
@@ -145,11 +174,15 @@ public class CriarReceitaHandlerTests
         await _despesaRepo.AdicionarAsync(Arg.Do<Despesa>(d => despesaIva = d), Arg.Any<CancellationToken>());
 
         await _handler.Handle(
-            new CriarReceitaCommand("Proj", ContaId, null, null,
-            [
-                new(1, new DateOnly(2026, 5, 10), 1_000m),
-                new(2, new DateOnly(2026, 6, 10), 2_000m),
-            ], TemIva: true),
+            new CriarReceitaCommand(
+                "Proj",
+                ContaId,
+                null,
+                Parcelas: [
+                    new(1, new DateOnly(2026, 5, 10), 1_000m),
+                    new(2, new DateOnly(2026, 6, 10), 2_000m),
+                ],
+                TemIva: true),
             CancellationToken.None);
 
         despesaIva!.Parcelas.Should().HaveCount(2);

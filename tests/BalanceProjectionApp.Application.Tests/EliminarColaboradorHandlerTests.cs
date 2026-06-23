@@ -24,7 +24,7 @@ public class EliminarColaboradorHandlerTests
     public async Task Handle_ColaboradorAtivo_DesativaEGuarda()
     {
         var colaboradorId = Guid.NewGuid();
-        var colaborador = Colaborador.Criar("Ana", 10m);
+        var colaborador = Colaborador.CriarServico("Ana", 10m);
         _repo.ObterPorIdAsync(colaboradorId, Arg.Any<CancellationToken>()).Returns(colaborador);
 
         await _handler.Handle(new EliminarColaboradorCommand(colaboradorId), CancellationToken.None);
@@ -49,7 +49,7 @@ public class EliminarColaboradorHandlerTests
     public async Task Handle_ColaboradorJaDesativado_NaoLancaExcecaoEGuarda()
     {
         var colaboradorId = Guid.NewGuid();
-        var colaborador = Colaborador.Criar("Ana", 10m);
+        var colaborador = Colaborador.CriarServico("Ana", 10m);
         colaborador.Deletar(); // já desativado
         _repo.ObterPorIdAsync(colaboradorId, Arg.Any<CancellationToken>()).Returns(colaborador);
 

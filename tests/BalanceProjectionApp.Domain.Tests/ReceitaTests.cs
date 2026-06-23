@@ -65,8 +65,8 @@ public class ReceitaTests
     public void AdicionarParcela_ComComissao_ValorLiquidoDeduzido()
     {
         var receita = Receita.Criar("Projeto", ContaId);
-        var colaborador = Colaborador.Criar("Ana", 10m);
-        receita.AssociarColaborador(colaborador);
+        var colaborador = Colaborador.CriarServico("Ana", 10m);
+        receita.AdicionarComissao(colaborador, TipoComissao.Servico, 10m);
 
         var parcela = receita.AdicionarParcela(1, Vencimento, 10_000m);
 

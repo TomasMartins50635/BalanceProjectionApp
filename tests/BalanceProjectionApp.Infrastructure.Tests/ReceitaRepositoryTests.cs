@@ -1,4 +1,5 @@
 using BalanceProjectionApp.Domain.Entities;
+using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Infrastructure.Persistence.Repositories;
 using FluentAssertions;
 using Xunit;
@@ -61,9 +62,9 @@ public class ReceitaRepositoryTests(PostgresFixture db) : IAsyncLifetime
     public async Task ListarAsync_IncluiParcelasEPercentagemComissao()
     {
         var conta = await SeedContaAsync();
-        var colaborador = Colaborador.Criar("Ana", 10m);
+        var colaborador = Colaborador.CriarServico("Ana", 10m);
         var receita = Receita.Criar("Proj com Comissao", conta.Id);
-        receita.AssociarColaborador(colaborador);
+        receita.AdicionarComissao(colaborador, TipoComissao.Servico, 10m);
         receita.AdicionarParcela(1, Vencimento, 100m);
 
         await using (var ctx = db.CreateContext())
@@ -77,7 +78,8 @@ public class ReceitaRepositoryTests(PostgresFixture db) : IAsyncLifetime
         var lista = await new ReceitaRepository(readCtx).ListarAsync();
 
         var encontrada = lista.First(r => r.Id == receita.Id);
-        encontrada.Colaborador!.Percentagem.Should().Be(10m);
+        encontrada.Comissoes.Should().HaveCount(1);
+        encontrada.Comissoes.Single().Percentagem.Should().Be(10m);
         encontrada.Parcelas.Should().HaveCount(1);
         encontrada.Parcelas.Single().ValorLiquido.Should().Be(90m); // 100m - 10%
     }
