@@ -26,7 +26,7 @@ builder.Services.AddHealthChecks()
 
 builder.Services.AddCors(options =>
     options.AddPolicy("tauri", policy =>
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("tauri://localhost", "http://localhost:5173")
               .AllowAnyMethod()
               .AllowAnyHeader()));
 

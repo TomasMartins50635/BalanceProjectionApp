@@ -46,7 +46,7 @@ export function SyncSettingsDialog({ open, onOpenChange, onLoad, onSave }: Props
             <Label htmlFor="sync-url">URL do servidor</Label>
             <Input
               id="sync-url"
-              placeholder="http://servidor:5536"
+              placeholder="https://servidor:5536"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />

@@ -103,7 +103,7 @@ export function SyncPanel({
             autoFocus
             value={url}
             onChange={e => setUrl(e.target.value)}
-            placeholder="http://servidor..."
+            placeholder="https://servidor..."
             className="w-full bg-slate-800 text-slate-200 text-[11px] px-2 py-1 rounded border border-slate-700 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
           />
           <input

@@ -13,6 +13,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 
+RUN mkdir -p /app/data && chown -R app:app /app/data
+USER app
+
 ENV ASPNETCORE_URLS=http://+:8081
 EXPOSE 8081
 
