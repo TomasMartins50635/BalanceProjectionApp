@@ -12,6 +12,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Parcela> Parcelas => Set<Parcela>();
     public DbSet<Financiamento> Financiamentos => Set<Financiamento>();
     public DbSet<Colaborador> Colaboradores => Set<Colaborador>();
+    public DbSet<ReceitaComissao> ReceitaComissoes => Set<ReceitaComissao>();
     public DbSet<Previsao> Previsoes => Set<Previsao>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

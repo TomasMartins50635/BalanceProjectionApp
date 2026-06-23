@@ -1,4 +1,6 @@
 import type {
+  AdicionarComissaoRequest,
+  ColaboradorEstatisticasDto,
   AdicionarParcelaDespesaRequest,
   AtualizarDespesaRequest,
   AtualizarPrevisaoRequest,
@@ -46,6 +48,8 @@ export const api = {
       request<{ id: string }>('/colaboradores', { method: 'POST', body: JSON.stringify(body) }),
     eliminar: (id: string) =>
       request<void>(`/colaboradores/${id}`, { method: 'DELETE' }),
+    estatisticas: (id: string, inicio: string, fim: string) =>
+      request<ColaboradorEstatisticasDto>(`/colaboradores/${id}/estatisticas?inicio=${inicio}&fim=${fim}`),
   },
 
   contas: {
@@ -65,6 +69,10 @@ export const api = {
       request<void>(`/receitas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     remover: (id: string) =>
       request<void>(`/receitas/${id}`, { method: 'DELETE' }),
+    adicionarComissao: (id: string, body: AdicionarComissaoRequest) =>
+      request<{ id: string }>(`/receitas/${id}/comissoes`, { method: 'POST', body: JSON.stringify(body) }),
+    removerComissao: (id: string, comissaoId: string) =>
+      request<void>(`/receitas/${id}/comissoes/${comissaoId}`, { method: 'DELETE' }),
   },
 
   despesas: {

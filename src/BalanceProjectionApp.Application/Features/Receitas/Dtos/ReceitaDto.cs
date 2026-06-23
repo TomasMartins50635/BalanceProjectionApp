@@ -9,8 +9,13 @@ public record ReceitaDto(
     CategoriaReceita? Categoria,
     Guid ContaId,
     decimal ValorTotal,
-    Guid? ColaboradorId,
-    string? ColaboradorNome,
-    decimal? PercentagemComissao,
     DateTime UpdatedAt,
+    IEnumerable<ReceitaComissaoDto> Comissoes,
     IEnumerable<ParcelaDto> Parcelas);
+
+public record ReceitaComissaoDto(
+    Guid Id,
+    Guid ColaboradorId,
+    string ColaboradorNome,
+    TipoComissao TipoComissao,
+    decimal Percentagem);

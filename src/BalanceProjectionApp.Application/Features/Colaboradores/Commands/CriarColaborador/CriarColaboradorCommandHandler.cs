@@ -1,5 +1,6 @@
-﻿using BalanceProjectionApp.Application.Common.Interfaces;
+using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Domain.Entities;
+using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Interfaces;
 using MediatR;
 
@@ -11,7 +12,10 @@ public class CriarColaboradorCommandHandler(
 {
     public async Task<Guid> Handle(CriarColaboradorCommand request, CancellationToken cancellationToken)
     {
-        var colaborador = Colaborador.Criar(request.Nome, request.Percentagem);
+        var colaborador = request.Tipo == TipoColaborador.Comercial
+            ? Colaborador.CriarComercial(request.Nome, request.PercentagemVenda!.Value, request.PercentagemAngariacao!.Value)
+            : Colaborador.CriarServico(request.Nome, request.PercentagemServico!.Value);
+
         await colaboradorRepository.AdicionarAsync(colaborador, cancellationToken);
         await uow.SaveChangesAsync(cancellationToken);
         return colaborador.Id;

@@ -48,11 +48,38 @@ export const PERIODICIDADE_LABELS: Record<Periodicidade, string> = {
   Anual: 'Anual',
 };
 
+// ── Colaborador enums ──────────────────────────────────────────────────────────
+
+export type TipoColaborador = 'Comercial' | 'Servico';
+export type TipoComissao = 'Venda' | 'Angariacao' | 'Servico';
+
+export const TIPO_COLABORADOR_LABELS: Record<TipoColaborador, string> = {
+  Comercial: 'Comercial',
+  Servico: 'Serviço',
+};
+
+export const TIPO_COMISSAO_LABELS: Record<TipoComissao, string> = {
+  Venda: 'Venda',
+  Angariacao: 'Angariação',
+  Servico: 'Serviço',
+};
+
 // ── Response DTOs ──────────────────────────────────────────────────────────────
 
 export interface ColaboradorDto {
   id: string;
   nome: string;
+  tipo: TipoColaborador;
+  percentagemVenda: number | null;
+  percentagemAngariacao: number | null;
+  percentagemServico: number | null;
+}
+
+export interface ReceitaComissaoDto {
+  id: string;
+  colaboradorId: string;
+  colaboradorNome: string;
+  tipoComissao: TipoComissao;
   percentagem: number;
 }
 
@@ -85,12 +112,10 @@ export interface ReceitaDto {
   categoria: CategoriaReceita | null;
   contaId: string;
   valorTotal: number;
-  colaboradorId: string | null;
-  colaboradorNome: string | null;
-  percentagemComissao: number | null;
   /** ISO datetime string */
   updatedAt: string;
   parcelas: ParcelaDto[];
+  comissoes: ReceitaComissaoDto[];
 }
 
 export interface DespesaDto {
@@ -127,9 +152,24 @@ export interface FinanciamentoDto {
 
 // ── Request bodies ─────────────────────────────────────────────────────────────
 
+export interface ComissaoInputRequest {
+  colaboradorId: string;
+  tipoComissao: TipoComissao;
+  percentagem: number;
+}
+
+export interface AdicionarComissaoRequest {
+  colaboradorId: string;
+  tipoComissao: TipoComissao;
+  percentagem: number;
+}
+
 export interface CriarColaboradorRequest {
   nome: string;
-  percentagem: number;
+  tipo: TipoColaborador;
+  percentagemVenda?: number;
+  percentagemAngariacao?: number;
+  percentagemServico?: number;
 }
 
 export interface CriarContaRequest {
@@ -156,15 +196,14 @@ export interface CriarReceitaRequest {
   nome: string;
   contaId: string;
   categoria?: CategoriaReceita;
-  colaboradorId?: string;
-  parcelas: CriarReceitaParcelaRequest[];
   temIva?: boolean;
+  parcelas: CriarReceitaParcelaRequest[];
+  comissoes?: ComissaoInputRequest[];
 }
 
 export interface AtualizarReceitaRequest {
   nome: string;
   categoria?: CategoriaReceita;
-  colaboradorId?: string;
   parcelas: CriarReceitaParcelaRequest[];
 }
 
@@ -202,6 +241,53 @@ export interface CriarFinanciamentoRequest {
   periodicidade: Periodicidade;
   dataPrimeiraParcela: string;
   creditarConta?: boolean;
+}
+
+// ── Colaborador Estatísticas ───────────────────────────────────────────────────
+
+export interface ParcelaParticipacaoDto {
+  id: string;
+  numero: number;
+  dataVencimento: string;
+  dataPagamento: string | null;
+  valorBruto: number;
+  valorComissao: number;
+  isPaid: boolean;
+}
+
+export interface ReceitaParticipacaoDto {
+  receitaId: string;
+  receitaNome: string;
+  categoria: string | null;
+  tipoComissao: string;
+  percentagem: number;
+  recebidoPeriodo: number;
+  pendente: number;
+  parcelas: ParcelaParticipacaoDto[];
+}
+
+export interface EstatisticasTipoComissaoDto {
+  tipoComissao: string;
+  recebidoPeriodo: number;
+  pendente: number;
+  parcelasPagasPeriodo: number;
+  parcelasPendentes: number;
+}
+
+export interface ColaboradorEstatisticasDto {
+  id: string;
+  nome: string;
+  tipo: TipoColaborador;
+  dataInicio: string;
+  dataFim: string;
+  totalRecebidoPeriodo: number;
+  totalPendente: number;
+  totalRecebidoGlobal: number;
+  receitasCount: number;
+  parcelasPagasPeriodo: number;
+  parcelasPendentes: number;
+  porTipo: EstatisticasTipoComissaoDto[];
+  receitas: ReceitaParticipacaoDto[];
 }
 
 // ── Previsão ───────────────────────────────────────────────────────────────────

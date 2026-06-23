@@ -7,7 +7,6 @@ public record AtualizarReceitaCommand(
     Guid Id,
     string Nome,
     CategoriaReceita? Categoria,
-    Guid? ColaboradorId,
     IEnumerable<AtualizarParcelaDto> Parcelas) : IRequest;
 
 public record AtualizarParcelaDto(int Numero, DateOnly DataVencimento, decimal Valor);

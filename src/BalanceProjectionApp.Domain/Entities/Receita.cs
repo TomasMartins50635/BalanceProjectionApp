@@ -10,11 +10,12 @@ public class Receita : Entity
     public CategoriaReceita? Categoria { get; private set; }
     public Guid ContaId { get; private set; }
     public Conta Conta { get; private set; } = null!;
-    public Guid? ColaboradorId { get; private set; }
-    public Colaborador? Colaborador { get; private set; }
 
     private readonly List<Parcela> _parcelas = [];
     public IReadOnlyCollection<Parcela> Parcelas => _parcelas.AsReadOnly();
+
+    private readonly List<ReceitaComissao> _comissoes = [];
+    public IReadOnlyCollection<ReceitaComissao> Comissoes => _comissoes.AsReadOnly();
 
     private Receita() { }
 
@@ -35,16 +36,22 @@ public class Receita : Entity
         Categoria = categoria;
     }
 
-    public void AssociarColaborador(Colaborador colaborador)
+    public ReceitaComissao AdicionarComissao(Colaborador colaborador, TipoComissao tipo, decimal percentagem)
     {
-        ColaboradorId = colaborador.Id;
-        Colaborador = colaborador;
+        var somaActual = _comissoes.Where(c => !c.IsDeleted).Sum(c => c.Percentagem);
+        if (somaActual + percentagem > 100)
+            throw new DomainException($"A soma das comissões não pode ultrapassar 100%. Actual: {somaActual}%, a adicionar: {percentagem}%.");
+
+        var comissao = ReceitaComissao.Criar(Id, colaborador, tipo, percentagem);
+        _comissoes.Add(comissao);
+        return comissao;
     }
 
-    public void RemoverColaborador()
+    public void RemoverComissao(Guid comissaoId)
     {
-        ColaboradorId = null;
-        Colaborador = null;
+        var comissao = _comissoes.FirstOrDefault(c => c.Id == comissaoId && !c.IsDeleted)
+            ?? throw new DomainException("Comissão não encontrada.");
+        comissao.Deletar();
     }
 
     public Parcela AdicionarParcela(int numero, DateOnly dataVencimento, decimal valor)
@@ -55,14 +62,8 @@ public class Receita : Entity
         if (_parcelas.Any(p => p.Numero == numero && !p.IsDeleted))
             throw new DomainException($"Já existe uma parcela com o número {numero} nesta receita.");
 
-        decimal valorComissao = 0m;
-        if (ColaboradorId.HasValue)
-        {
-            if (Colaborador is null)
-                throw new InvalidOperationException("Colaborador navigation property must be loaded before adding parcelas.");
-            valorComissao = Math.Round(valor * Colaborador.Percentagem / 100m, 2);
-        }
-        var valorLiquido = valor - valorComissao;
+        var totalPercentagem = _comissoes.Where(c => !c.IsDeleted).Sum(c => c.Percentagem);
+        var valorLiquido = Math.Round(valor * (1 - totalPercentagem / 100m), 2);
 
         var parcela = Parcela.Criar(numero, dataVencimento, valor, valorLiquido, ContaId, Id, null);
         _parcelas.Add(parcela);

@@ -10,7 +10,10 @@ public class ColaboradorConfiguration : IEntityTypeConfiguration<Colaborador>
     {
         builder.HasKey(c => c.Id);
         builder.Property(c => c.Nome).IsRequired().HasMaxLength(200);
-        builder.Property(c => c.Percentagem).HasPrecision(5, 2);
+        builder.Property(c => c.Tipo).HasConversion<string>();
+        builder.Property(c => c.PercentagemVenda).HasPrecision(5, 2);
+        builder.Property(c => c.PercentagemAngariacao).HasPrecision(5, 2);
+        builder.Property(c => c.PercentagemServico).HasPrecision(5, 2);
         builder.HasQueryFilter(c => !c.IsDeleted);
     }
 }

@@ -14,4 +14,10 @@ public class ColaboradorRepository(AppDbContext context) : IColaboradorRepositor
 
     public async Task AdicionarAsync(Colaborador colaborador, CancellationToken cancellationToken = default)
         => await context.Colaboradores.AddAsync(colaborador, cancellationToken);
+
+    public async Task<IEnumerable<ReceitaComissao>> ListarComissoesAsync(Guid colaboradorId, CancellationToken cancellationToken = default)
+        => await context.ReceitaComissoes
+            .Where(c => c.ColaboradorId == colaboradorId)
+            .Include(c => c.Receita).ThenInclude(r => r.Parcelas)
+            .ToListAsync(cancellationToken);
 }

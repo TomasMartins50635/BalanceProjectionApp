@@ -1,5 +1,7 @@
-﻿using BalanceProjectionApp.Application.Features.Receitas.Commands.AtualizarReceita;
+using BalanceProjectionApp.Application.Features.Receitas.Commands.AdicionarComissao;
+using BalanceProjectionApp.Application.Features.Receitas.Commands.AtualizarReceita;
 using BalanceProjectionApp.Application.Features.Receitas.Commands.CriarReceita;
+using BalanceProjectionApp.Application.Features.Receitas.Commands.RemoverComissao;
 using BalanceProjectionApp.Application.Features.Receitas.Commands.RemoverReceita;
 using BalanceProjectionApp.Application.Features.Receitas.Queries.ListarReceitas;
 using MediatR;
@@ -33,6 +35,20 @@ public class ReceitasController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Remover(Guid id, CancellationToken cancellationToken)
     {
         await mediator.Send(new RemoverReceitaCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/comissoes")]
+    public async Task<IActionResult> AdicionarComissao(Guid id, AdicionarComissaoCommand command, CancellationToken cancellationToken)
+    {
+        var comissaoId = await mediator.Send(command with { ReceitaId = id }, cancellationToken);
+        return Created($"/receitas/{id}/comissoes/{comissaoId}", new { id = comissaoId });
+    }
+
+    [HttpDelete("{id:guid}/comissoes/{comissaoId:guid}")]
+    public async Task<IActionResult> RemoverComissao(Guid id, Guid comissaoId, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new RemoverComissaoCommand(id, comissaoId), cancellationToken);
         return NoContent();
     }
 }

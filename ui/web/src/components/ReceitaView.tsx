@@ -16,42 +16,45 @@ import { useToast } from '@/hooks/useToast';
 import { useAsync } from '@/hooks/useAsync';
 import { useParcelaActions } from '@/hooks/useParcelaActions';
 import { api } from '@/lib/api';
-import type { ColaboradorDto, ReceitaDto, CategoriaReceita } from '@/lib/types';
-import { CATEGORIAS_RECEITA, CATEGORIA_RECEITA_LABELS } from '@/lib/types';
+import type { ColaboradorDto, ReceitaDto, CategoriaReceita, TipoComissao } from '@/lib/types';
+import { CATEGORIAS_RECEITA, CATEGORIA_RECEITA_LABELS, TIPO_COMISSAO_LABELS } from '@/lib/types';
 
 // ── Form types ─────────────────────────────────────────────────────────────────
+
+interface ComissaoFormEntry {
+  colaboradorId: string;
+  tipoComissao: TipoComissao | '';
+  percentagem: string;
+}
 
 interface ReceitaForm {
   nome: string;
   contaId: string;
   categoria: string;
-  colaboradorId: string;
   temIva: boolean;
   parcelas: { dataVencimento: string; valor: string }[];
+  comissoes: ComissaoFormEntry[];
 }
 
 const emptyForm = (contaId = ''): ReceitaForm => ({
   nome: '',
   contaId,
   categoria: '',
-  colaboradorId: '',
   temIva: false,
   parcelas: [{ dataVencimento: '', valor: '' }],
+  comissoes: [],
 });
 
 const receitaToForm = (r: ReceitaDto): ReceitaForm => ({
   nome: r.nome,
   contaId: r.contaId,
   categoria: r.categoria ?? '',
-  colaboradorId: r.colaboradorId ?? '',
   temIva: false,
   parcelas: r.parcelas
     .filter(p => !p.isPaid)
     .sort((a, b) => a.numero - b.numero)
-    .map(p => ({
-      dataVencimento: p.dataVencimento,
-      valor: String(p.valorBruto),
-    })),
+    .map(p => ({ dataVencimento: p.dataVencimento, valor: String(p.valorBruto) })),
+  comissoes: [],
 });
 
 
@@ -105,6 +108,56 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<ReceitaForm>(emptyForm());
   const [saving, setSaving] = useState(false);
+
+  // Estado para adicionar comissão inline na expanded view
+  const [addComissaoReceitaId, setAddComissaoReceitaId] = useState<string | null>(null);
+  const [addComissaoForm, setAddComissaoForm] = useState<ComissaoFormEntry>({ colaboradorId: '', tipoComissao: '', percentagem: '' });
+  const [savingComissao, setSavingComissao] = useState(false);
+  const [removingComissaoId, setRemovingComissaoId] = useState<string | null>(null);
+
+  const derivePercentagem = (colId: string, tipo: TipoComissao | ''): string => {
+    const col = (colaboradores ?? []).find(x => x.id === colId);
+    if (!col || !tipo) return '';
+    if (tipo === 'Venda') return col.percentagemVenda?.toString() ?? '';
+    if (tipo === 'Angariacao') return col.percentagemAngariacao?.toString() ?? '';
+    if (tipo === 'Servico') return col.percentagemServico?.toString() ?? '';
+    return '';
+  };
+
+  const handleAdicionarComissao = async (receitaId: string) => {
+    if (!addComissaoForm.colaboradorId || !addComissaoForm.tipoComissao || !addComissaoForm.percentagem) {
+      toast('Preencha todos os campos da comissão', 'error'); return;
+    }
+    setSavingComissao(true);
+    try {
+      await api.receitas.adicionarComissao(receitaId, {
+        colaboradorId: addComissaoForm.colaboradorId,
+        tipoComissao: addComissaoForm.tipoComissao as TipoComissao,
+        percentagem: parseFloat(addComissaoForm.percentagem),
+      });
+      toast('Comissão adicionada');
+      setAddComissaoReceitaId(null);
+      setAddComissaoForm({ colaboradorId: '', tipoComissao: '', percentagem: '' });
+      reload();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setSavingComissao(false);
+    }
+  };
+
+  const handleRemoverComissao = async (receitaId: string, comissaoId: string) => {
+    setRemovingComissaoId(comissaoId);
+    try {
+      await api.receitas.removerComissao(receitaId, comissaoId);
+      toast('Comissão removida');
+      reload();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setRemovingComissaoId(null);
+    }
+  };
 
   const filtered = useMemo(() =>
     (receitas ?? [])
@@ -160,13 +213,19 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
         nome: form.nome.trim(),
         contaId: form.contaId,
         categoria: (form.categoria.trim() as CategoriaReceita) || undefined,
-        colaboradorId: form.colaboradorId || undefined,
         temIva: form.temIva,
         parcelas: form.parcelas.map((p, i) => ({
           numero: i + 1,
           dataVencimento: p.dataVencimento,
           valor: parseFloat(p.valor),
         })),
+        comissoes: form.comissoes
+          .filter(c => c.colaboradorId && c.tipoComissao && c.percentagem)
+          .map(c => ({
+            colaboradorId: c.colaboradorId,
+            tipoComissao: c.tipoComissao as TipoComissao,
+            percentagem: parseFloat(c.percentagem),
+          })),
       });
       toast('Receita criada com sucesso');
       setCreateOpen(false);
@@ -186,7 +245,6 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
       await api.receitas.atualizar(editingId, {
         nome: form.nome.trim(),
         categoria: (form.categoria.trim() as CategoriaReceita) || undefined,
-        colaboradorId: form.colaboradorId || undefined,
         parcelas: form.parcelas.map((p, i) => ({
           numero: i + 1,
           dataVencimento: p.dataVencimento,
@@ -266,17 +324,61 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="rf-col" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">COLABORADOR</Label>
-                <Select value={form.colaboradorId || '_none'} onValueChange={v => setForm(f => ({ ...f, colaboradorId: v === '_none' ? '' : v }))}>
-                  <SelectTrigger id="rf-col" className="mt-1.5"><SelectValue placeholder="Sem colaborador" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">Sem colaborador</SelectItem>
-                    {(colaboradores ?? []).map((c: ColaboradorDto) => (
-                      <SelectItem key={c.id} value={c.id}>{c.nome} ({c.percentagem}%)</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="col-span-2">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">COMISSÕES</Label>
+                  {form.comissoes.length > 0 && (
+                    <span className={`text-xs font-medium tabular-nums ${
+                      form.comissoes.reduce((s, c) => s + (parseFloat(c.percentagem) || 0), 0) > 100
+                        ? 'text-red-600' : 'text-slate-500'
+                    }`}>
+                      Total: {form.comissoes.reduce((s, c) => s + (parseFloat(c.percentagem) || 0), 0).toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {form.comissoes.map((c, i) => {
+                    const col = (colaboradores ?? []).find(x => x.id === c.colaboradorId);
+                    const tipos = col?.tipo === 'Comercial' ? ['Venda', 'Angariacao'] : col?.tipo === 'Servico' ? ['Servico'] : [];
+                    const handleColChange = (v: string) => {
+                      const colId = v === '_none' ? '' : v;
+                      const newCol = (colaboradores ?? []).find(x => x.id === colId);
+                      const newTipo: TipoComissao | '' = newCol?.tipo === 'Servico' ? 'Servico' : '';
+                      const newPct = newCol?.tipo === 'Servico' ? (newCol.percentagemServico?.toString() ?? '') : '';
+                      setForm(f => ({ ...f, comissoes: f.comissoes.map((x, idx) => idx === i ? { ...x, colaboradorId: colId, tipoComissao: newTipo, percentagem: newPct } : x) }));
+                    };
+                    const handleTipoChange = (v: string) => {
+                      const tipo = v === '_none' ? '' : v as TipoComissao;
+                      setForm(f => ({ ...f, comissoes: f.comissoes.map((x, idx) => idx === i ? { ...x, tipoComissao: tipo, percentagem: derivePercentagem(x.colaboradorId, tipo) } : x) }));
+                    };
+                    return (
+                      <div key={i} className="grid grid-cols-[1fr_120px_44px_auto] gap-2 items-center">
+                        <Select value={c.colaboradorId || '_none'} onValueChange={handleColChange}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Colaborador" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="_none">—</SelectItem>
+                            {(colaboradores ?? []).map((col: ColaboradorDto) => <SelectItem key={col.id} value={col.id}>{col.nome}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <Select value={c.tipoComissao || '_none'} onValueChange={handleTipoChange} disabled={tipos.length === 0}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Tipo" /></SelectTrigger>
+                          <SelectContent>
+                            {tipos.map(t => <SelectItem key={t} value={t}>{TIPO_COMISSAO_LABELS[t as TipoComissao]}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <span className={`text-xs font-semibold tabular-nums text-center ${c.percentagem ? 'text-indigo-600' : 'text-slate-300'}`}>
+                          {c.percentagem ? `${c.percentagem}%` : '—'}
+                        </span>
+                        <Button type="button" size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-400 hover:bg-red-50"
+                          onClick={() => setForm(f => ({ ...f, comissoes: f.comissoes.filter((_, idx) => idx !== i) }))}>✕</Button>
+                      </div>
+                    );
+                  })}
+                  <Button type="button" size="sm" variant="outline" className="w-full h-8 text-xs border-dashed"
+                    onClick={() => setForm(f => ({ ...f, comissoes: [...f.comissoes, { colaboradorId: '', tipoComissao: '', percentagem: '' }] }))}>
+                    <Plus className="w-3 h-3 mr-1" /> Adicionar comissão
+                  </Button>
+                </div>
               </div>
               {!isEdit && (
                 <div className="col-span-2">
@@ -410,9 +512,9 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                     >
                       <TableCell className="font-medium">
                         {r.nome}
-                        {r.colaboradorNome && (
+                        {r.comissoes.length > 0 && (
                           <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600">
-                            {r.colaboradorNome}
+                            {r.comissoes.reduce((s, c) => s + c.percentagem, 0).toFixed(1)}% comissão
                           </span>
                         )}
                       </TableCell>
@@ -452,21 +554,100 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                     {expandedId === r.id && (
                       <TableRow className="hidden sm:table-row">
                         <TableCell colSpan={5} className="p-0">
-                          <div className="px-4 md:px-8 py-4 bg-slate-50/60 border-t border-slate-100">
-                            <p className="text-[11px] font-semibold text-slate-400 tracking-wider uppercase mb-3">
-                              Parcelas ({r.parcelas.length})
-                            </p>
-                            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                              <ParcelasTable
-                                parcelas={r.parcelas}
-                                variant="receita"
-                                parcelaSort={parcelaSort}
-                                toggleSort={toggleSort}
-                                liquidando={liquidando}
-                                estornando={estornando}
-                                onLiquidar={(id, isRecorrente, contaId) => openLiquidarDialog(id, isRecorrente, contaId)}
-                                onEstornar={setEstornarConfirmId}
-                              />
+                          <div className="px-4 md:px-8 py-4 bg-slate-50/60 border-t border-slate-100 space-y-4">
+                            {/* Comissões */}
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
+                                  Comissões ({r.comissoes.length})
+                                  {r.comissoes.length > 0 && (
+                                    <span className="ml-2 normal-case font-normal">
+                                      — total {r.comissoes.reduce((s, c) => s + c.percentagem, 0).toFixed(1)}%
+                                    </span>
+                                  )}
+                                </p>
+                                {addComissaoReceitaId !== r.id && (
+                                  <Button size="sm" variant="outline" className="h-6 text-xs px-2"
+                                    onClick={() => { setAddComissaoReceitaId(r.id); setAddComissaoForm({ colaboradorId: '', tipoComissao: '', percentagem: '' }); }}>
+                                    <Plus className="w-3 h-3 mr-1" /> Adicionar
+                                  </Button>
+                                )}
+                              </div>
+
+                              {r.comissoes.length > 0 && (
+                                <div className="space-y-1 mb-2">
+                                  {r.comissoes.map(c => (
+                                    <div key={c.id} className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5">
+                                      <span className="text-sm font-medium text-slate-700 flex-1">{c.colaboradorNome}</span>
+                                      <span className="text-xs text-slate-500">{TIPO_COMISSAO_LABELS[c.tipoComissao]}</span>
+                                      <span className="text-xs font-semibold text-indigo-600 tabular-nums w-12 text-right">{c.percentagem}%</span>
+                                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-300 hover:text-red-500 hover:bg-red-50"
+                                        disabled={removingComissaoId === c.id}
+                                        onClick={() => handleRemoverComissao(r.id, c.id)}>
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {addComissaoReceitaId === r.id && (() => {
+                                const col = (colaboradores ?? []).find(x => x.id === addComissaoForm.colaboradorId);
+                                const tipos = col?.tipo === 'Comercial' ? ['Venda', 'Angariacao'] : col?.tipo === 'Servico' ? ['Servico'] : [];
+                                const handleColChange = (v: string) => {
+                                  const colId = v === '_none' ? '' : v;
+                                  const newCol = (colaboradores ?? []).find(x => x.id === colId);
+                                  const newTipo: TipoComissao | '' = newCol?.tipo === 'Servico' ? 'Servico' : '';
+                                  const newPct = newCol?.tipo === 'Servico' ? (newCol.percentagemServico?.toString() ?? '') : '';
+                                  setAddComissaoForm({ colaboradorId: colId, tipoComissao: newTipo, percentagem: newPct });
+                                };
+                                const handleTipoChange = (v: string) => {
+                                  const tipo = v === '_none' ? '' : v as TipoComissao;
+                                  setAddComissaoForm(f => ({ ...f, tipoComissao: tipo, percentagem: derivePercentagem(f.colaboradorId, tipo) }));
+                                };
+                                return (
+                                  <div className="flex gap-2 items-center bg-white border border-indigo-200 rounded-lg p-2">
+                                    <Select value={addComissaoForm.colaboradorId || '_none'} onValueChange={handleColChange}>
+                                      <SelectTrigger className="h-8 text-sm flex-1"><SelectValue placeholder="Colaborador" /></SelectTrigger>
+                                      <SelectContent>
+                                        {(colaboradores ?? []).map((c: ColaboradorDto) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                    <Select value={addComissaoForm.tipoComissao || '_none'} onValueChange={handleTipoChange} disabled={tipos.length === 0}>
+                                      <SelectTrigger className="h-8 text-sm w-32"><SelectValue placeholder="Tipo" /></SelectTrigger>
+                                      <SelectContent>
+                                        {tipos.map(t => <SelectItem key={t} value={t}>{TIPO_COMISSAO_LABELS[t as TipoComissao]}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                    <span className={`text-xs font-semibold tabular-nums w-10 text-center ${addComissaoForm.percentagem ? 'text-indigo-600' : 'text-slate-300'}`}>
+                                      {addComissaoForm.percentagem ? `${addComissaoForm.percentagem}%` : '—'}
+                                    </span>
+                                    <Button size="sm" className="h-8 bg-indigo-600 hover:bg-indigo-700 text-white" disabled={savingComissao} onClick={() => handleAdicionarComissao(r.id)}>
+                                      {savingComissao ? '…' : 'Adicionar'}
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setAddComissaoReceitaId(null)}>✕</Button>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+
+                            {/* Parcelas */}
+                            <div>
+                              <p className="text-[11px] font-semibold text-slate-400 tracking-wider uppercase mb-2">
+                                Parcelas ({r.parcelas.length})
+                              </p>
+                              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                                <ParcelasTable
+                                  parcelas={r.parcelas}
+                                  variant="receita"
+                                  parcelaSort={parcelaSort}
+                                  toggleSort={toggleSort}
+                                  liquidando={liquidando}
+                                  estornando={estornando}
+                                  onLiquidar={(id, isRecorrente, contaId) => openLiquidarDialog(id, isRecorrente, contaId)}
+                                  onEstornar={setEstornarConfirmId}
+                                />
+                              </div>
                             </div>
                           </div>
                         </TableCell>
@@ -503,9 +684,9 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                   {r.categoria && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{r.categoria}</span>
                   )}
-                  {r.colaboradorNome && (
+                  {r.comissoes.length > 0 && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600">
-                      {r.colaboradorNome}{r.percentagemComissao != null ? ` · ${r.percentagemComissao}%` : ''}
+                      {r.comissoes.reduce((s, c) => s + c.percentagem, 0).toFixed(1)}% comissão
                     </span>
                   )}
                 </div>

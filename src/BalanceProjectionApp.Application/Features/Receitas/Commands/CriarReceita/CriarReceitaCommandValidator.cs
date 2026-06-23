@@ -14,5 +14,10 @@ public class CriarReceitaCommandValidator : AbstractValidator<CriarReceitaComman
             p.RuleFor(x => x.Numero).GreaterThan(0);
             p.RuleFor(x => x.Valor).GreaterThan(0);
         });
+        RuleForEach(x => x.Comissoes).ChildRules(c =>
+        {
+            c.RuleFor(x => x.ColaboradorId).NotEmpty();
+            c.RuleFor(x => x.Percentagem).GreaterThan(0).LessThanOrEqualTo(100);
+        }).When(x => x.Comissoes != null);
     }
 }

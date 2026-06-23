@@ -21,11 +21,11 @@ public class CriarReceitaCommandHandler(
 
         var receita = Receita.Criar(request.Nome, conta.Id, request.Categoria);
 
-        if (request.ColaboradorId.HasValue)
+        foreach (var c in request.Comissoes ?? [])
         {
-            var colaborador = await colaboradorRepository.ObterPorIdAsync(request.ColaboradorId.Value, cancellationToken)
-                ?? throw new EntityNotFoundException(nameof(Colaborador), request.ColaboradorId.Value);
-            receita.AssociarColaborador(colaborador);
+            var colaborador = await colaboradorRepository.ObterPorIdAsync(c.ColaboradorId, cancellationToken)
+                ?? throw new EntityNotFoundException(nameof(Colaborador), c.ColaboradorId);
+            receita.AdicionarComissao(colaborador, c.TipoComissao, c.Percentagem);
         }
 
         foreach (var p in request.Parcelas.OrderBy(p => p.Numero))

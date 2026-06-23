@@ -17,12 +17,6 @@ public class ReceitaConfiguration : IEntityTypeConfiguration<Receita>
             .HasForeignKey(r => r.ContaId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(r => r.Colaborador)
-            .WithMany()
-            .HasForeignKey(r => r.ColaboradorId)
-            .IsRequired(false)
-            .OnDelete(DeleteBehavior.SetNull);
-
         builder.HasMany(r => r.Parcelas)
             .WithOne(p => p.Receita)
             .HasForeignKey(p => p.ReceitaId)

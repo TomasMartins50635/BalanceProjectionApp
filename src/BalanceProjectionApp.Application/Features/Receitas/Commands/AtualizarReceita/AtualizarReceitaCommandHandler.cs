@@ -8,7 +8,6 @@ namespace BalanceProjectionApp.Application.Features.Receitas.Commands.AtualizarR
 
 public class AtualizarReceitaCommandHandler(
     IReceitaRepository receitaRepository,
-    IColaboradorRepository colaboradorRepository,
     IUnitOfWork uow) : IRequestHandler<AtualizarReceitaCommand>
 {
     public async Task Handle(AtualizarReceitaCommand request, CancellationToken cancellationToken)
@@ -17,21 +16,6 @@ public class AtualizarReceitaCommandHandler(
             ?? throw new EntityNotFoundException(nameof(Receita), request.Id);
 
         receita.Atualizar(request.Nome, request.Categoria);
-
-        if (request.ColaboradorId != receita.ColaboradorId)
-        {
-            if (request.ColaboradorId.HasValue)
-            {
-                var colaborador = await colaboradorRepository.ObterPorIdAsync(request.ColaboradorId.Value, cancellationToken)
-                    ?? throw new EntityNotFoundException(nameof(Colaborador), request.ColaboradorId.Value);
-                receita.AssociarColaborador(colaborador);
-            }
-            else
-            {
-                receita.RemoverColaborador();
-            }
-        }
-
         receita.RemoverParcelasNaoPagas();
 
         foreach (var p in request.Parcelas.OrderBy(p => p.Numero))

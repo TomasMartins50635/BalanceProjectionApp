@@ -17,10 +17,13 @@ public class ListarReceitasQueryHandler(IReceitaRepository repository)
             r.Categoria,
             r.ContaId,
             r.Parcelas.Where(p => !p.IsDeleted).Sum(p => p.ValorBruto),
-            r.ColaboradorId,
-            r.Colaborador?.Nome,
-            r.Colaborador?.Percentagem,
             r.UpdatedAt,
+            r.Comissoes.Where(c => !c.IsDeleted).Select(c => new ReceitaComissaoDto(
+                c.Id,
+                c.ColaboradorId,
+                c.Colaborador.Nome,
+                c.TipoComissao,
+                c.Percentagem)),
             r.Parcelas.Select(p => new ParcelaDto(
                 p.Id, p.Numero, p.DataVencimento,
                 p.ValorBruto, p.ValorLiquido,
