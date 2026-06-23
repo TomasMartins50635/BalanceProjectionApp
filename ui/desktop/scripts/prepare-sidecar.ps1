@@ -12,6 +12,7 @@ Write-Host "→ Publishing .NET API (single-file, win-x64)..."
 dotnet publish $apiProj `
     -c Release -r win-x64 --self-contained true `
     /p:PublishSingleFile=true `
+    /p:IncludeNativeLibrariesForSelfExtract=true `
     /p:DebugType=None /p:DebugSymbols=false `
     --output $publishOut `
     --nologo

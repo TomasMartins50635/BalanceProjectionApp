@@ -173,7 +173,7 @@ cd ui/desktop && npm run build
 # Installer output: ui/desktop/src-tauri/target/release/bundle/
 ```
 
-At runtime the Tauri app spawns `binaries/api` on startup (production builds only) listening on `http://localhost:5535`, and kills it when the window closes. The SQLite database is stored at `%LOCALAPPDATA%\BalanceProjectionApp\balance_projection.db`.
+At runtime the Tauri app spawns `binaries/api` on startup (production builds only) listening on `http://localhost:5535`, and kills it when the window closes. The SQLite database is stored at `%LOCALAPPDATA%\Gestão Tesouraria\balance_projection.db`.
 
 **To prepare the sidecar binary manually (without a full Tauri build):**
 ```bash

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { LayoutDashboard, TrendingDown, TrendingUp, CreditCard, Sparkles, PieChart, Users, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, TrendingDown, TrendingUp, CreditCard, Sparkles, PieChart, Users, RefreshCw, Cloud } from 'lucide-react';
 import { OverviewView } from '@/components/OverviewView';
 import { Dashboard } from '@/components/Dashboard';
 import { ReceitaView } from '@/components/ReceitaView';
@@ -8,7 +8,11 @@ import { FinanciamentoView } from '@/components/FinanciamentoView';
 import { SimulationView } from '@/components/SimulationView';
 import { ColaboradorView } from '@/components/ColaboradorView';
 import { UpdateBanner } from '@/components/UpdateBanner';
+import { SyncBanner } from '@/components/SyncBanner';
+import { SyncSettingsDialog } from '@/components/SyncSettingsDialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useUpdater } from '@/hooks/useUpdater';
+import { useSync } from '@/hooks/useSync';
 
 type View = 'overview' | 'dashboard' | 'receitas' | 'despesas' | 'financiamentos' | 'colaboradores' | 'simulation';
 
@@ -28,6 +32,9 @@ export default function App() {
   const isSimulation = activeView === 'simulation';
 
   const { updateInfo, isDownloading, progress, installUpdate, checkForUpdates, dismiss } = useUpdater();
+  const { hasSyncNewer, isUploading, uploadError, closeDialogOpen, handleCloseDecision, getSyncSettings, saveSyncSettings } = useSync();
+  const [syncSettingsOpen, setSyncSettingsOpen] = useState(false);
+  const [syncBannerDismissed, setSyncBannerDismissed] = useState(false);
 
   const handleNavigate = useCallback((view: View, id?: string) => {
     setHighlightId(id);
@@ -37,6 +44,14 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-full">
+
+      {/* ── Sync banner ─────────────────────────────────────────────────── */}
+      {hasSyncNewer && !syncBannerDismissed && (
+        <SyncBanner
+          isUploading={isUploading}
+          onDismiss={() => setSyncBannerDismissed(true)}
+        />
+      )}
 
       {/* ── Update banner ───────────────────────────────────────────────── */}
       {updateInfo && (
@@ -48,6 +63,31 @@ export default function App() {
           onDismiss={dismiss}
         />
       )}
+
+      {/* ── Sync settings dialog ────────────────────────────────────────── */}
+      <SyncSettingsDialog
+        open={syncSettingsOpen}
+        onOpenChange={setSyncSettingsOpen}
+        onLoad={getSyncSettings}
+        onSave={saveSyncSettings}
+      />
+
+      {/* ── Close confirmation dialog ────────────────────────────────────── */}
+      <ConfirmDialog
+        open={closeDialogOpen}
+        onOpenChange={() => {}}
+        title="Alterações não sincronizadas"
+        description={
+          uploadError
+            ? `Erro ao guardar no servidor: ${uploadError}\n\nQueres tentar novamente ou fechar sem guardar?`
+            : 'Tens alterações que não foram guardadas no servidor. Queres guardar antes de fechar?'
+        }
+        confirmLabel={isUploading ? 'A guardar…' : uploadError ? 'Tentar novamente' : 'Guardar e fechar'}
+        cancelLabel="Fechar sem guardar"
+        onConfirm={() => handleCloseDecision(true)}
+        onCancel={() => handleCloseDecision(false)}
+        hideCancel={isUploading}
+      />
 
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
 
@@ -95,8 +135,15 @@ export default function App() {
               <span className="font-medium">{isSimulation ? 'Sair da Simulação' : 'Modo Simulação'}</span>
             </button>
 
-            {/* ── Manual update check ───────────────────────────────────── */}
-            <div className="mt-auto px-4 pb-4">
+            {/* ── Sync & update buttons ─────────────────────────────────── */}
+            <div className="mt-auto px-4 pb-4 flex flex-col gap-1">
+              <button
+                onClick={() => setSyncSettingsOpen(true)}
+                className="w-full flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300 transition-colors py-1"
+              >
+                <Cloud className="w-3 h-3" />
+                Configurar sincronização
+              </button>
               <button
                 onClick={checkForUpdates}
                 className="w-full flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300 transition-colors py-1"

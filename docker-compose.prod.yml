@@ -6,3 +6,9 @@ services:
       GitHub__Owner: ""
       GitHub__Repo: ""
     restart: unless-stopped
+
+  sync:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      MasterKey: "${SYNC_MASTER_KEY}"
+    restart: unless-stopped

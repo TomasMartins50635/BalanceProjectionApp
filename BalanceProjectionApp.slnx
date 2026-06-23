@@ -4,6 +4,7 @@
     <Project Path="src/BalanceProjectionApp.Application/BalanceProjectionApp.Application.csproj" />
     <Project Path="src/BalanceProjectionApp.Domain/BalanceProjectionApp.Domain.csproj" />
     <Project Path="src/BalanceProjectionApp.Infrastructure/BalanceProjectionApp.Infrastructure.csproj" />
+    <Project Path="src/BalanceProjectionApp.SyncServer/BalanceProjectionApp.SyncServer.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BalanceProjectionApp.Domain.Tests/BalanceProjectionApp.Domain.Tests.csproj" />

@@ -11,5 +11,19 @@ services:
     volumes:
       - sqlite_data:/app/data
 
+  sync:
+    build:
+      context: .
+      dockerfile: Dockerfile.sync
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      DataDir: /app/data
+      MasterKey: changeme
+    ports:
+      - "5536:8081"
+    volumes:
+      - sync_data:/app/data
+
 volumes:
   sqlite_data:
+  sync_data:
