@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Gestão Tesouraria",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "identifier": "com.balanceprojection.app",
   "build": {
     "frontendDist": "../../web/dist",
@@ -27,7 +27,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc2QkEzMTM0M0QzMTRDOUIKUldTYlRERTlOREc2ZHFOM2x6ZXdzemtxMXF0dXhDdlNRdmlSVUs1SUJ5QTNQRlBhNXE5d3A2REEK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcxRDBBQkI5MzEwNUE4OTkKUldTWnFBVXh1YXZRY1o5bHZMNFk4NUc3V28zU1VqZmYwSkdTSzk5RDcwT1o4bTdXUUFhSVo0a20K",
       "endpoints": [
         "https://github.com/TomasMartins50635/BalanceProjectionApp/releases/latest/download/latest.json"
       ]

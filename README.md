@@ -3,7 +3,23 @@
 [![CI](https://github.com/TomasMartins50635/BalanceProjectionApp/actions/workflows/build.yml/badge.svg)](https://github.com/TomasMartins50635/BalanceProjectionApp/actions/workflows/build.yml)
 [![Sonar](https://github.com/TomasMartins50635/BalanceProjectionApp/actions/workflows/Sonar.yml/badge.svg)](https://github.com/TomasMartins50635/BalanceProjectionApp/actions/workflows/Sonar.yml)
 
-Sistema de gestão financeira focado no controlo de **saldo bancário real e previsto**, faturação e despesas. O saldo é calculado **parcela a parcela** — nunca pelo valor total dos contratos.
+**Gestão Tesouraria** é uma ferramenta de gestão financeira desenhada para empresas no mercado imobiliário. Permite controlar receitas, despesas, financiamentos e o saldo bancário real e previsto — com suporte a comissões de colaboradores, simulação de fluxo de caixa e instalador desktop com atualização automática.
+
+O diferencial central é que o saldo é calculado **parcela a parcela**, nunca pelo valor total dos contratos. Apenas parcelas efetivamente liquidadas afetam o saldo da conta.
+
+---
+
+## Funcionalidades
+
+- **Contas bancárias** — gestão de múltiplas contas com saldo em tempo real
+- **Receitas e Despesas** — pontual, fixa ou recorrente; suporte a IVA automático (23%)
+- **Parcelas** — liquidação individual com data de pagamento; estorno disponível
+- **Colaboradores** — tipo Comercial (comissões de Venda e Angariação) ou Serviço; múltiplas comissões por receita com soma máxima de 100%
+- **Estatísticas de colaborador** — totais recebidos e pendentes por período, breakdown por tipo de comissão, lista de receitas com parcelas
+- **Financiamentos** — credita a conta imediatamente e cria despesa fixa associada com controlo do teto de pagamento
+- **Simulação / Previsão** — projeção de saldo futuro com base em cadências e valores médios configuráveis
+- **Sincronização remota** — servidor de sync opcional para partilha da base de dados entre dispositivos
+- **App desktop** — installer Windows com a API .NET bundled; sem servidor externo necessário; auto-update integrado
 
 ---
 
@@ -83,19 +99,6 @@ A base de dados SQLite é criada automaticamente em `bin/.../data/balance_projec
 cd ui/desktop && npm install && npm run dev
 ```
 
-### Docker (stack completa)
-
-```bash
-docker compose up --build
-# API em http://localhost:5535
-```
-
-### Popular a base de dados
-
-```bash
-sqlite3 src/BalanceProjectionApp.ApiService/bin/Debug/net10.0/data/balance_projection.db < seed.sql
-```
-
 ---
 
 ## Testes
@@ -118,12 +121,41 @@ dotnet test tests/BalanceProjectionApp.Api.Tests
 
 ---
 
-## Migrações
+## Sincronização remota (Sync Server)
 
-```bash
-dotnet ef migrations add NomeDaMigracao \
-  --project src/BalanceProjectionApp.Infrastructure \
-  --startup-project src/BalanceProjectionApp.ApiService
+O sync server permite partilhar a base de dados entre múltiplos dispositivos. É opcional — a app desktop funciona sem ele.
+
+### Instalação no Windows Server
+
+1. Vai à página de **[Releases](https://github.com/TomasMartins50635/BalanceProjectionApp/releases)** e descarrega `install.ps1`
+2. Clique direito no ficheiro → **"Executar com PowerShell como Administrador"**
+3. Segue as instruções — no final o script mostra a URL e a chave de API
+
+O script trata de tudo automaticamente:
+- Descarrega o binário do servidor
+- Instala como serviço Windows (inicia automaticamente com o servidor)
+- Abre o firewall na porta 5536
+- Gera uma chave de API aleatória
+
+### Configuração na app desktop
+
+Após a instalação do servidor, abre a app desktop e vai a **Definições → Sincronização**:
+- **URL:** `http://<ip-do-servidor>:5536`
+- **Chave de API:** valor apresentado no final da instalação
+
+### Gerir o serviço
+
+```powershell
+Start-Service GestaoTesouraria-Sync   # iniciar
+Stop-Service  GestaoTesouraria-Sync   # parar
+```
+
+Os logs ficam no **Event Viewer → Windows Logs → Application**.
+
+### Parâmetros avançados
+
+```powershell
+.\install.ps1 -ApiKey "chave-personalizada" -Port 5536 -InstallDir "D:\Sync"
 ```
 
 ---
@@ -134,8 +166,8 @@ O workflow `.github/workflows/release.yml` automatiza o build e publicação ao 
 
 ```bash
 # Actualizar a versão em ui/desktop/src-tauri/tauri.conf.json, depois:
-git tag v1.0.0
-git push origin v1.0.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 O GitHub Actions (~10-15 min):
@@ -147,16 +179,6 @@ O installer está disponível em **Releases**. Os clientes com a app instalada r
 
 ---
 
-## Conceitos de domínio
-
-- **Parcela** — unidade central; apenas parcelas `IsPaid = true` afectam o saldo.
-- **Comissão** — deduzida na criação da parcela via `Colaborador.Percentagem`: `ValorLiquido = ValorBruto × (1 − Percentagem / 100)`.
-- **IVA** — ao criar uma `Receita` com `temIva: true`, é gerada automaticamente uma despesa pontual `"IVA de {nome}"` com 23% do valor, com vencimento no dia 20 do mês corrente.
-- **Liquidar** — liquida uma parcela e credita/debita atomicamente a conta.
-- **Financiamento** — credita a conta imediatamente e cria uma despesa fixa associada; o total pago nunca pode exceder `Financiamento.Valor`.
-
----
-
 ## API Endpoints
 
 | Method | Path | Descrição |
@@ -165,15 +187,22 @@ O installer está disponível em **Releases**. Os clientes com a app instalada r
 | `GET/DELETE` | `/contas/{id}` | Obter / eliminar conta |
 | `GET/POST` | `/receitas` | Listar / criar receitas |
 | `PUT/DELETE` | `/receitas/{id}` | Editar / eliminar receita |
+| `POST` | `/receitas/{id}/comissoes` | Adicionar comissão a uma receita |
+| `DELETE` | `/receitas/{id}/comissoes/{comissaoId}` | Remover comissão de uma receita |
 | `GET/POST` | `/despesas` | Listar / criar despesas |
 | `PUT/DELETE` | `/despesas/{id}` | Editar / eliminar despesa |
 | `PATCH` | `/despesas/{id}/estado` | Activar / desactivar despesa fixa |
+| `POST` | `/despesas/{id}/parcelas` | Adicionar parcela a despesa |
 | `GET` | `/parcelas/conta/{contaId}` | Listar parcelas (`?apenasPendentes=true`) |
 | `POST` | `/parcelas/{id}/liquidar` | Liquidar parcela |
 | `POST` | `/parcelas/{id}/estornar` | Estornar parcela |
+| `PATCH` | `/parcelas/{id}/conta` | Mover parcela para outra conta |
 | `DELETE` | `/parcelas/{id}` | Eliminar parcela pendente |
 | `GET/POST` | `/colaboradores` | Listar / criar colaboradores |
+| `PUT` | `/colaboradores/{id}` | Atualizar colaborador |
 | `DELETE` | `/colaboradores/{id}` | Eliminar colaborador |
+| `GET` | `/colaboradores/{id}/estatisticas` | Estatísticas num período (`?inicio=&fim=`) |
 | `GET` | `/financiamentos/conta/{contaId}` | Listar financiamentos |
 | `POST` | `/financiamentos` | Registar financiamento |
-| `GET/POST/PUT/DELETE` | `/previsoes` | Gestão de previsões (modo simulação) |
+| `DELETE` | `/financiamentos/{id}` | Eliminar financiamento |
+| `GET/POST/PUT/DELETE` | `/previsoes` | Gestão de previsões (simulação) |
