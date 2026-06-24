@@ -50,6 +50,12 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      - name: Publish sync server
+        run: |
+          dotnet publish sync-server -c Release -r win-x64 --self-contained -o publish/sync-server
+          Compress-Archive -Path publish/sync-server/* -DestinationPath publish/sync-server-win-x64.zip
+        shell: pwsh
+
       - name: Extract version
         id: version
         shell: pwsh
@@ -94,3 +100,5 @@ jobs:
             ui/desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip
             ui/desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
             latest.json
+            publish/sync-server-win-x64.zip
+            sync-server/install.ps1

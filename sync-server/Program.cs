@@ -1,4 +1,5 @@
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseWindowsService();
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
