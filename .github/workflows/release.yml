@@ -66,12 +66,21 @@ jobs:
       - name: Generate latest.json
         shell: pwsh
         run: |
-          $version  = "${{ steps.version.outputs.VERSION }}"
-          $nsisDir  = "ui/desktop/src-tauri/target/release/bundle/nsis"
-          $sigFile  = Get-ChildItem "$nsisDir/*.nsis.zip.sig" | Select-Object -First 1
-          $zipFile  = Get-ChildItem "$nsisDir/*.nsis.zip" |
-                        Where-Object { $_.Name -notlike "*.sig" } |
-                        Select-Object -First 1
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $nsisDir = "ui/desktop/src-tauri/target/release/bundle/nsis"
+
+          Write-Host "=== Ficheiros em $nsisDir ==="
+          Get-ChildItem $nsisDir | ForEach-Object { Write-Host "  $($_.Name)" }
+
+          $sigFile = Get-ChildItem "$nsisDir/*.nsis.zip.sig" | Select-Object -First 1
+          $zipFile = Get-ChildItem "$nsisDir/*.nsis.zip" |
+                       Where-Object { $_.Name -notlike "*.sig" } |
+                       Select-Object -First 1
+
+          if (-not $sigFile) {
+            Write-Error "ERRO: Ficheiro .nsis.zip.sig nao encontrado. A assinatura do Tauri falhou — verifica TAURI_SIGNING_PRIVATE_KEY e TAURI_SIGNING_PRIVATE_KEY_PASSWORD."
+            exit 1
+          }
 
           $payload = [ordered]@{
             version  = $version
