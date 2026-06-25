@@ -21,7 +21,7 @@ public class ListarReceitasQueryHandler(IReceitaRepository repository)
             r.Comissoes.Where(c => !c.IsDeleted).Select(c => new ReceitaComissaoDto(
                 c.Id,
                 c.ColaboradorId,
-                c.Colaborador.Nome,
+                c.Colaborador?.Nome ?? string.Empty,
                 c.TipoComissao,
                 c.Percentagem)),
             r.Parcelas.Select(p => new ParcelaDto(

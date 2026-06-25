@@ -286,6 +286,8 @@ export interface ColaboradorEstatisticasDto {
   receitasCount: number;
   parcelasPagasPeriodo: number;
   parcelasPendentes: number;
+  numeroVendas: number;
+  numeroArrendamentos: number;
   porTipo: EstatisticasTipoComissaoDto[];
   receitas: ReceitaParticipacaoDto[];
 }

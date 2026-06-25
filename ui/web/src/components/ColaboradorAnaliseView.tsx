@@ -157,7 +157,7 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
           {data && (
             <>
               {/* Summary cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <StatCard
                   label="Recebido no período"
                   value={fmt(data.totalRecebidoPeriodo)}
@@ -175,10 +175,22 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
                   sub={`${data.parcelasPendentes} parcela(s) por receber`}
                   color="amber"
                 />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
                 <StatCard
                   label="Receitas"
                   value={String(data.receitasCount)}
                   sub="com comissão"
+                />
+                <StatCard
+                  label="Vendas"
+                  value={String(data.numeroVendas)}
+                  sub="nº de vendas"
+                />
+                <StatCard
+                  label="Arrendamentos"
+                  value={String(data.numeroArrendamentos)}
+                  sub="nº de arrendamentos"
                 />
               </div>
 

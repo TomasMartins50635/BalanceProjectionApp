@@ -26,7 +26,11 @@ builder.Services.AddHealthChecks()
 
 builder.Services.AddCors(options =>
     options.AddPolicy("tauri", policy =>
-        policy.WithOrigins("tauri://localhost", "http://localhost:5173")
+        policy.SetIsOriginAllowed(origin =>
+              {
+                  if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+                  return uri.Host is "localhost" or "127.0.0.1" or "tauri.localhost";
+              })
               .AllowAnyMethod()
               .AllowAnyHeader()));
 
@@ -71,11 +75,12 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapHealthChecks("/health");
-    app.MapHealthChecks("/alive", new HealthCheckOptions
-    {
-        Predicate = r => r.Tags.Contains("live")
-    });
 }
+
+app.MapHealthChecks("/alive", new HealthCheckOptions
+{
+    Predicate = r => r.Tags.Contains("live")
+});
 
 using var scope = app.Services.CreateScope();
 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

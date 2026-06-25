@@ -14,6 +14,8 @@ public record ColaboradorEstatisticasDto(
     int ReceitasCount,
     int ParcelasPagasPeriodo,
     int ParcelasPendentes,
+    int NumeroVendas,
+    int NumeroArrendamentos,
     IEnumerable<EstatisticasTipoComissaoDto> PorTipo,
     IEnumerable<ReceitaParticipacaoDto> Receitas
 );

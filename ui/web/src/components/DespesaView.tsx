@@ -22,9 +22,7 @@ import {
   PERIODICIDADE_LABELS,
 } from '@/lib/types';
 
-const CATEGORIAS_MANUAIS = CATEGORIAS.filter(
-  c => c !== 'IVA' && c !== 'Financiamento'
-);
+const CATEGORIAS_MANUAIS = CATEGORIAS.filter(c => c !== 'Financiamento');
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 

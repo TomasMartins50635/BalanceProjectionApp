@@ -308,13 +308,74 @@ pub fn run() {
 
             #[cfg(not(debug_assertions))]
             {
-                let (_rx, child) = app
+                let log_path = std::path::PathBuf::from(
+                    std::env::var("LOCALAPPDATA").unwrap_or_else(|_| ".".to_string()),
+                )
+                .join("BalanceProjectionApp")
+                .join("sidecar.log");
+                std::fs::create_dir_all(log_path.parent().unwrap()).ok();
+                // Truncate log on each launch so it stays readable
+                std::fs::write(&log_path, b"").ok();
+
+                let (rx, child) = app
                     .shell()
                     .sidecar("api")?
                     .env("ASPNETCORE_ENVIRONMENT", "Production")
                     .env("ASPNETCORE_URLS", "http://localhost:5535")
                     .spawn()?;
                 app.manage(SidecarHandle(Mutex::new(Some(child))));
+
+                // Forward sidecar stdout/stderr to log file
+                let log_path_log = log_path.clone();
+                tauri::async_runtime::spawn(async move {
+                    use std::io::Write as _;
+                    use tauri_plugin_shell::process::CommandEvent;
+                    let mut rx = rx;
+                    while let Some(event) = rx.recv().await {
+                        let line = match &event {
+                            CommandEvent::Stdout(b) => format!("[OUT] {}", String::from_utf8_lossy(b)),
+                            CommandEvent::Stderr(b) => format!("[ERR] {}", String::from_utf8_lossy(b)),
+                            CommandEvent::Error(e) => format!("[FAIL] {e}"),
+                            CommandEvent::Terminated(t) => format!("[EXIT] code={:?}", t.code),
+                            _ => continue,
+                        };
+                        if let Ok(mut f) = std::fs::OpenOptions::new().append(true).open(&log_path_log) {
+                            let _ = writeln!(f, "{}", line.trim_end());
+                        }
+                    }
+                });
+
+                // Show window only after sidecar API is ready (max 30s)
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let client = reqwest::Client::builder()
+                        .timeout(std::time::Duration::from_secs(2))
+                        .build()
+                        .unwrap_or_else(|_| reqwest::Client::new());
+
+                    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+                    loop {
+                        if std::time::Instant::now() >= deadline {
+                            break;
+                        }
+                        if let Ok(r) = client.get("http://localhost:5535/alive").send().await {
+                            if r.status().is_success() {
+                                break;
+                            }
+                        }
+                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    }
+
+                    if let Some(w) = handle.get_webview_window("main") {
+                        let _ = w.show();
+                    }
+                });
+            }
+
+            // In debug mode show the window immediately (API runs separately)
+            #[cfg(debug_assertions)]
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
             }
 
             let handle = app.handle().clone();
@@ -335,8 +396,8 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|_window, _event| {
-            #[cfg(not(debug_assertions))]
-            if let tauri::WindowEvent::Destroyed = _event {
+            if let tauri::WindowEvent::CloseRequested { .. } = _event {
+                #[cfg(not(debug_assertions))]
                 if let Some(sidecar) = _window.app_handle().try_state::<SidecarHandle>() {
                     if let Ok(mut lock) = sidecar.0.lock() {
                         if let Some(child) = lock.take() {
@@ -344,6 +405,7 @@ pub fn run() {
                         }
                     }
                 }
+                std::process::exit(0);
             }
         })
         .run(tauri::generate_context!())

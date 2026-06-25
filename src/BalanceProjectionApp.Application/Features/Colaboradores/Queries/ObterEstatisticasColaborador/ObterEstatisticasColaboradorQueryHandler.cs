@@ -89,6 +89,8 @@ public class ObterEstatisticasColaboradorQueryHandler(IColaboradorRepository rep
                 && p.DataPagamento >= request.DataInicio
                 && p.DataPagamento <= request.DataFim),
             allParcelas.Count(p => !p.IsPaid),
+            receitaDetalhes.Where(r => r.Categoria == "Vendas").Select(r => r.ReceitaId).Distinct().Count(),
+            receitaDetalhes.Where(r => r.Categoria == "Arrendamentos").Select(r => r.ReceitaId).Distinct().Count(),
             porTipo,
             receitaDetalhes);
     }
