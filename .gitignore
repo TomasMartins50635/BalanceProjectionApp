@@ -375,3 +375,8 @@ tauri.key.pub
 # Capacitor — generated native projects (run `npx cap add android/ios` to regenerate)
 ui/mobile/android/
 ui/mobile/ios/.superpowers/
+
+# Runtime SQLite databases — never commit (contain local/user data)
+*.db
+*.db-shm
+*.db-wal
