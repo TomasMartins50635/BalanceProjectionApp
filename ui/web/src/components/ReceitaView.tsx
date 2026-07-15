@@ -246,11 +246,18 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
     if (!editingId || !validateForm()) return;
     setSaving(true);
     try {
+      // As parcelas já liquidadas mantêm o seu número original e não vêm no formulário
+      // (só mostra as pendentes) — a numeração das novas tem de continuar a partir daí,
+      // senão colide com o número de uma parcela paga já existente na receita.
+      const numeroInicial = Math.max(0, ...(editingReceita?.parcelas ?? [])
+        .filter(p => p.isPaid)
+        .map(p => p.numero)) + 1;
+
       await api.receitas.atualizar(editingId, {
         nome: form.nome.trim(),
         categoria: (form.categoria.trim() as CategoriaReceita) || undefined,
         parcelas: form.parcelas.map((p, i) => ({
-          numero: i + 1,
+          numero: numeroInicial + i,
           dataVencimento: p.dataVencimento,
           valor: parseFloat(p.valor),
         })),
