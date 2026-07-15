@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAsync } from '@/hooks/useAsync';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/dates';
@@ -45,35 +44,6 @@ export function OverviewView() {
     .filter(p => p.dataPagamento?.startsWith(currentMonthPrefix))
     .reduce((s, p) => s + p.valorLiquido, 0);
   const currentMonthNet = currentMonthReceitas - currentMonthDespesas;
-
-  const receitaMap = useMemo(
-    () => Object.fromEntries((receitas ?? []).map(r => [r.id, r.nome])),
-    [receitas],
-  );
-  const despesaMap = useMemo(
-    () => Object.fromEntries((despesas ?? []).map(d => [d.id, d.nome])),
-    [despesas],
-  );
-
-  const recentActivity = useMemo(() => {
-    const items = [
-      ...allPaidReceitasParcelas.map(p => ({
-        id: p.id,
-        type: 'receita' as const,
-        descricao: p.receitaId ? (receitaMap[p.receitaId] ?? 'Receita') : 'Receita',
-        valor: p.valorLiquido,
-        data: p.dataPagamento ?? p.dataVencimento,
-      })),
-      ...allPaidDespesasParcelas.map(p => ({
-        id: p.id,
-        type: 'despesa' as const,
-        descricao: p.despesaId ? (despesaMap[p.despesaId] ?? 'Despesa') : 'Despesa',
-        valor: p.valorLiquido,
-        data: p.dataPagamento ?? p.dataVencimento,
-      })),
-    ];
-    return items.sort((a, b) => b.data.localeCompare(a.data)).slice(0, 10);
-  }, [allPaidReceitasParcelas, allPaidDespesasParcelas, receitaMap, despesaMap]);
 
   const parcelasReaisCalendario = useMemo((): ParcelaReal[] => {
     const deReceitas = (receitas ?? []).flatMap(r =>

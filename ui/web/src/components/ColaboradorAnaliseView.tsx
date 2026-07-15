@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, ChevronDown, ChevronRight, TrendingUp, Clock, Receipt, BarChart3 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAsync } from '@/hooks/useAsync';
 import { api } from '@/lib/api';
