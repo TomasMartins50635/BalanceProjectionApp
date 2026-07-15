@@ -139,7 +139,92 @@ public class ReceitasEndpointTests(ApiFactory factory) : IAsyncLifetime
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
+    // ── TemIva ───────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Post_TemIvaTrue_InflaValorBrutoECriaDespesaIva()
+    {
+        var contaId = await CriarContaAsync();
+
+        var response = await _client.PostAsJsonAsync("/receitas", new
+        {
+            nome = "Receita Com IVA",
+            contaId,
+            temIva = true,
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor = 1_000m } }
+        });
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var lista = await _client.GetFromJsonAsync<List<ReceitaResponse>>("/receitas");
+        var receita = lista!.First(r => r.Nome == "Receita Com IVA");
+        receita.TemIva.Should().BeTrue();
+        receita.Parcelas.Single().ValorBruto.Should().Be(1_230m);
+
+        var despesas = await _client.GetFromJsonAsync<List<DespesaResponse>>("/despesas");
+        despesas.Should().ContainSingle(d => d.Nome == "IVA de Receita Com IVA" && d.Categoria == "IVA");
+    }
+
+    [Fact]
+    public async Task Put_AlternaTemIvaFalseParaTrue_CriaDespesaIva()
+    {
+        var contaId = await CriarContaAsync();
+        var postResp = await _client.PostAsJsonAsync("/receitas", new
+        {
+            nome = "Receita Sem IVA",
+            contaId,
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor = 1_000m } }
+        });
+        var receita = await postResp.Content.ReadFromJsonAsync<IdResponse>();
+
+        var putResp = await _client.PutAsJsonAsync($"/receitas/{receita!.Id}", new
+        {
+            nome = "Receita Sem IVA",
+            temIva = true,
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor = 1_000m } }
+        });
+        putResp.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var lista = await _client.GetFromJsonAsync<List<ReceitaResponse>>("/receitas");
+        var atualizada = lista!.First(r => r.Id == receita.Id);
+        atualizada.TemIva.Should().BeTrue();
+        atualizada.Parcelas.Single().ValorBruto.Should().Be(1_230m);
+
+        var despesas = await _client.GetFromJsonAsync<List<DespesaResponse>>("/despesas");
+        despesas.Should().ContainSingle(d => d.Nome == "IVA de Receita Sem IVA" && d.Categoria == "IVA");
+    }
+
+    [Fact]
+    public async Task Put_AlternaTemIvaTrueParaFalse_RemoveDespesaIva()
+    {
+        var contaId = await CriarContaAsync();
+        var postResp = await _client.PostAsJsonAsync("/receitas", new
+        {
+            nome = "Receita Deixa IVA",
+            contaId,
+            temIva = true,
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor = 1_000m } }
+        });
+        var receita = await postResp.Content.ReadFromJsonAsync<IdResponse>();
+
+        var putResp = await _client.PutAsJsonAsync($"/receitas/{receita!.Id}", new
+        {
+            nome = "Receita Deixa IVA",
+            temIva = false,
+            parcelas = new[] { new { numero = 1, dataVencimento = "2026-06-01", valor = 1_000m } }
+        });
+        putResp.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var lista = await _client.GetFromJsonAsync<List<ReceitaResponse>>("/receitas");
+        var atualizada = lista!.First(r => r.Id == receita.Id);
+        atualizada.TemIva.Should().BeFalse();
+        atualizada.Parcelas.Single().ValorBruto.Should().Be(1_000m);
+
+        var despesas = await _client.GetFromJsonAsync<List<DespesaResponse>>("/despesas");
+        despesas.Should().NotContain(d => d.Nome == "IVA de Receita Deixa IVA");
+    }
+
     private record IdResponse(Guid Id);
-    private record ReceitaResponse(Guid Id, string Nome, List<ParcelaResponse> Parcelas);
+    private record ReceitaResponse(Guid Id, string Nome, List<ParcelaResponse> Parcelas, bool TemIva);
     private record ParcelaResponse(Guid Id, int Numero, decimal ValorBruto, decimal ValorLiquido);
+    private record DespesaResponse(Guid Id, string Nome, string? Categoria);
 }

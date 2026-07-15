@@ -107,4 +107,50 @@ public class ReceitaTests
         receita.Parcelas.Count(p => !p.IsDeleted).Should().Be(1);
         receita.Parcelas.Single(p => !p.IsDeleted).Numero.Should().Be(1);
     }
+
+    [Fact]
+    public void AdicionarParcela_ComTemIva_ValorBrutoInfladoValorLiquidoPreIva()
+    {
+        var receita = Receita.Criar("Projeto", ContaId, temIva: true);
+        var colaborador = Colaborador.CriarServico("Ana", 10m);
+        receita.AdicionarComissao(colaborador, TipoComissao.Servico, 10m);
+
+        var parcela = receita.AdicionarParcela(1, Vencimento, 10_000m);
+
+        parcela.ValorBruto.Should().Be(12_300m);
+        parcela.ValorLiquido.Should().Be(9_000m);
+    }
+
+    [Fact]
+    public void AdicionarParcela_SemTemIva_ValorBrutoIgualAoIndicado()
+    {
+        var receita = Receita.Criar("Projeto", ContaId, temIva: false);
+
+        var parcela = receita.AdicionarParcela(1, Vencimento, 1_000m);
+
+        parcela.ValorBruto.Should().Be(1_000m);
+    }
+
+    [Fact]
+    public void Atualizar_AlteraTemIva()
+    {
+        var receita = Receita.Criar("Projeto", ContaId, temIva: false);
+
+        receita.Atualizar("Projeto", null, true);
+
+        receita.TemIva.Should().BeTrue();
+    }
+
+    [Fact]
+    public void VincularDesvincularDespesaIva_DefineELimpaDespesaIvaId()
+    {
+        var receita = Receita.Criar("Projeto", ContaId, temIva: true);
+        var despesaId = Guid.NewGuid();
+
+        receita.VincularDespesaIva(despesaId);
+        receita.DespesaIvaId.Should().Be(despesaId);
+
+        receita.DesvincularDespesaIva();
+        receita.DespesaIvaId.Should().BeNull();
+    }
 }

@@ -1,6 +1,6 @@
 using BalanceProjectionApp.Application.Common.Interfaces;
+using BalanceProjectionApp.Application.Features.Receitas.Common;
 using BalanceProjectionApp.Domain.Entities;
-using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
 using MediatR;
@@ -19,7 +19,7 @@ public class CriarReceitaCommandHandler(
         var conta = await contaRepository.ObterPorIdAsync(request.ContaId, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Conta), request.ContaId);
 
-        var receita = Receita.Criar(request.Nome, conta.Id, request.Categoria);
+        var receita = Receita.Criar(request.Nome, conta.Id, request.Categoria, request.TemIva);
 
         foreach (var c in request.Comissoes ?? [])
         {
@@ -35,23 +35,13 @@ public class CriarReceitaCommandHandler(
 
         if (request.TemIva)
         {
-            var despesaIva = Despesa.Criar(
-                $"IVA de {request.Nome}",
+            var despesaIva = DespesaIvaFactory.Criar(
+                request.Nome,
                 conta.Id,
-                CategoriaContrato.IVA,
-                TipoDespesa.Pontual);
-
-            var numeroParcela = 1;
-            foreach (var p in request.Parcelas.OrderBy(x => x.Numero))
-            {
-                var valorIva = Math.Round(p.Valor * 0.23m, 2);
-                var vencimentoIva = p.DataVencimento.Day < 25
-                    ? new DateOnly(p.DataVencimento.Year, p.DataVencimento.Month, 25)
-                    : new DateOnly(p.DataVencimento.Year, p.DataVencimento.Month, 25).AddMonths(1);
-                despesaIva.AdicionarParcela(numeroParcela++, vencimentoIva, valorIva);
-            }
+                request.Parcelas.Select(p => (p.Numero, p.DataVencimento, p.Valor)).ToList());
 
             await despesaRepository.AdicionarAsync(despesaIva, cancellationToken);
+            receita.VincularDespesaIva(despesaIva.Id);
         }
 
         await uow.SaveChangesAsync(cancellationToken);

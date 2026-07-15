@@ -116,6 +116,7 @@ export interface ReceitaDto {
   updatedAt: string;
   parcelas: ParcelaDto[];
   comissoes: ReceitaComissaoDto[];
+  temIva: boolean;
 }
 
 export interface DespesaDto {
@@ -205,6 +206,7 @@ export interface AtualizarReceitaRequest {
   nome: string;
   categoria?: CategoriaReceita;
   parcelas: CriarReceitaParcelaRequest[];
+  temIva?: boolean;
 }
 
 export interface CriarDespesaRequest {

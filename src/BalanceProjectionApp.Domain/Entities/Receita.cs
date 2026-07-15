@@ -11,6 +11,12 @@ public class Receita : Entity
     public Guid ContaId { get; private set; }
     public Conta Conta { get; private set; } = null!;
 
+    public bool TemIva { get; private set; }
+
+    /// <summary>Despesa de IVA gerada automaticamente quando TemIva é true (nula se TemIva for false).</summary>
+    public Guid? DespesaIvaId { get; private set; }
+    public Despesa? DespesaIva { get; private set; }
+
     private readonly List<Parcela> _parcelas = [];
     public IReadOnlyCollection<Parcela> Parcelas => _parcelas.AsReadOnly();
 
@@ -19,22 +25,27 @@ public class Receita : Entity
 
     private Receita() { }
 
-    public static Receita Criar(string nome, Guid contaId, CategoriaReceita? categoria = null)
+    public static Receita Criar(string nome, Guid contaId, CategoriaReceita? categoria = null, bool temIva = false)
     {
         if (string.IsNullOrWhiteSpace(nome))
             throw new DomainException("O nome da receita não pode ser vazio.");
 
-        return new Receita { Nome = nome, ContaId = contaId, Categoria = categoria };
+        return new Receita { Nome = nome, ContaId = contaId, Categoria = categoria, TemIva = temIva };
     }
 
-    public void Atualizar(string nome, CategoriaReceita? categoria)
+    public void Atualizar(string nome, CategoriaReceita? categoria, bool temIva)
     {
         if (string.IsNullOrWhiteSpace(nome))
             throw new DomainException("O nome da receita não pode ser vazio.");
 
         Nome = nome;
         Categoria = categoria;
+        TemIva = temIva;
     }
+
+    public void VincularDespesaIva(Guid despesaId) => DespesaIvaId = despesaId;
+
+    public void DesvincularDespesaIva() => DespesaIvaId = null;
 
     public ReceitaComissao AdicionarComissao(Colaborador colaborador, TipoComissao tipo, decimal percentagem)
     {
@@ -64,8 +75,9 @@ public class Receita : Entity
 
         var totalPercentagem = _comissoes.Where(c => !c.IsDeleted).Sum(c => c.Percentagem);
         var valorLiquido = Math.Round(valor * (1 - totalPercentagem / 100m), 2);
+        var valorBruto = TemIva ? Math.Round(valor * 1.23m, 2) : valor;
 
-        var parcela = Parcela.Criar(numero, dataVencimento, valor, valorLiquido, ContaId, Id, null);
+        var parcela = Parcela.Criar(numero, dataVencimento, valorBruto, valorLiquido, ContaId, Id, null);
         _parcelas.Add(parcela);
         return parcela;
     }

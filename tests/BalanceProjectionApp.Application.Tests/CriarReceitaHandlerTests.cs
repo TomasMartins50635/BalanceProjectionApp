@@ -188,4 +188,44 @@ public class CriarReceitaHandlerTests
         despesaIva!.Parcelas.Should().HaveCount(2);
         despesaIva.Parcelas.Sum(p => p.ValorBruto).Should().Be(690m);
     }
+
+    [Fact]
+    public async Task Handle_TemIva_VinculaDespesaIvaNaReceitaEInflaValorBruto()
+    {
+        Receita? receitaCriada = null;
+        await _receitaRepo.AdicionarAsync(Arg.Do<Receita>(r => receitaCriada = r), Arg.Any<CancellationToken>());
+        Despesa? despesaIva = null;
+        await _despesaRepo.AdicionarAsync(Arg.Do<Despesa>(d => despesaIva = d), Arg.Any<CancellationToken>());
+
+        await _handler.Handle(
+            new CriarReceitaCommand(
+                "Proj",
+                ContaId,
+                null,
+                Parcelas: [new(1, Vencimento, 1_000m)],
+                TemIva: true),
+            CancellationToken.None);
+
+        receitaCriada!.TemIva.Should().BeTrue();
+        receitaCriada.DespesaIvaId.Should().Be(despesaIva!.Id);
+        receitaCriada.Parcelas.Single().ValorBruto.Should().Be(1_230m);
+    }
+
+    [Fact]
+    public async Task Handle_SemTemIva_NaoCriaDespesaNemVinculaId()
+    {
+        Receita? receitaCriada = null;
+        await _receitaRepo.AdicionarAsync(Arg.Do<Receita>(r => receitaCriada = r), Arg.Any<CancellationToken>());
+
+        await _handler.Handle(
+            new CriarReceitaCommand(
+                "Proj",
+                ContaId,
+                null,
+                Parcelas: [new(1, Vencimento, 1_000m)]),
+            CancellationToken.None);
+
+        receitaCriada!.DespesaIvaId.Should().BeNull();
+        await _despesaRepo.DidNotReceive().AdicionarAsync(Arg.Any<Despesa>(), Arg.Any<CancellationToken>());
+    }
 }

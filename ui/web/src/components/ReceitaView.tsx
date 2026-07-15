@@ -49,11 +49,15 @@ const receitaToForm = (r: ReceitaDto): ReceitaForm => ({
   nome: r.nome,
   contaId: r.contaId,
   categoria: r.categoria ?? '',
-  temIva: false,
+  temIva: r.temIva,
   parcelas: r.parcelas
     .filter(p => !p.isPaid)
     .sort((a, b) => a.numero - b.numero)
-    .map(p => ({ dataVencimento: p.dataVencimento, valor: String(p.valorBruto) })),
+    .map(p => ({
+      dataVencimento: p.dataVencimento,
+      // ValorBruto já inclui IVA quando temIva — reconstrói o valor pré-IVA indicado originalmente
+      valor: String(r.temIva ? Math.round((p.valorBruto / 1.23) * 100) / 100 : p.valorBruto),
+    })),
   comissoes: [],
 });
 
@@ -250,6 +254,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
           dataVencimento: p.dataVencimento,
           valor: parseFloat(p.valor),
         })),
+        temIva: form.temIva,
       });
       toast('Receita atualizada');
       setEditOpen(false);
@@ -380,26 +385,24 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                   </Button>
                 </div>
               </div>
-              {!isEdit && (
-                <div className="col-span-2">
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={form.temIva}
-                      onChange={e => setForm(f => ({ ...f, temIva: e.target.checked }))}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Sujeito a IVA (23%)
-                      {form.temIva && totalValor > 0 && (
-                        <span className="ml-2 text-xs text-gray-500">
-                          — despesa de IVA criada automaticamente: €{(totalValor * 0.23).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
-                        </span>
-                      )}
-                    </span>
-                  </label>
-                </div>
-              )}
+              <div className="col-span-2">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.temIva}
+                    onChange={e => setForm(f => ({ ...f, temIva: e.target.checked }))}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Sujeito a IVA (23%)
+                    {form.temIva && totalValor > 0 && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        — despesa de IVA criada automaticamente: €{(totalValor * 0.23).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+                      </span>
+                    )}
+                  </span>
+                </label>
+              </div>
             </div>
 
             <div>

@@ -11,7 +11,8 @@ public record ReceitaDto(
     decimal ValorTotal,
     DateTime UpdatedAt,
     IEnumerable<ReceitaComissaoDto> Comissoes,
-    IEnumerable<ParcelaDto> Parcelas);
+    IEnumerable<ParcelaDto> Parcelas,
+    bool TemIva);
 
 public record ReceitaComissaoDto(
     Guid Id,

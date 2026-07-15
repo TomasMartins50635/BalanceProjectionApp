@@ -28,10 +28,10 @@ Capital externo. Ao ser criado credita imediatamente a Conta e cria automaticame
 
 ### Regras de Negócio Invioláveis
 1. **Nunca calcular saldo pelo total do contrato** — apenas parcelas com `IsPaid = true` afetam o saldo.
-2. **Comissão deduzida no `AdicionarParcela`**, não na liquidação — `ValorLiquido = ValorBruto − (ValorBruto × Colaborador.Percentagem / 100)`. O `ValorLiquido` é fixo na criação.
+2. **Comissão deduzida no `AdicionarParcela`**, não na liquidação — `ValorLiquido = valor − (valor × Colaborador.Percentagem / 100)`, onde `valor` é o montante indicado pelo utilizador (pré-IVA). `ValorLiquido` é fixo na criação e **não** deriva de `ValorBruto` — quando a Receita tem `TemIva = true`, `ValorBruto` inclui o IVA (ver regra 5) mas `ValorLiquido`/comissão continuam a ser calculados sobre o valor pré-IVA.
 3. **Liquidar uma parcela de Receita → `Conta.Creditar(ValorLiquido)`**; de Despesa → `Conta.Debitar(ValorLiquido)`.
 4. **Relação One-to-Many** entre Receita/Despesa e Parcelas no modelo de dados.
-5. **IVA**: ao criar uma Receita com `TemIva = true`, é gerada automaticamente uma Despesa Pontual com nome `"IVA de {nome}"`, categoria `IVA`, mesma conta, com uma parcela de valor `ValorTotal × 23%` com vencimento no dia 20 do mês corrente.
+5. **IVA**: `Receita.TemIva` é um campo persistido e editável (não fixo na criação). Quando `true`: (a) `ValorBruto` de cada parcela da receita passa a ser `valor indicado × 1.23` (arredondado a 2 casas); (b) é gerada/sincronizada uma Despesa Pontual associada via FK (`Receita.DespesaIvaId`) com nome `"IVA de {nome}"`, categoria `IVA`, mesma conta, com uma parcela por parcela da receita de valor `valor pré-IVA × 23%` e vencimento no dia 25 do mês da parcela de origem (ou dia 25 do mês seguinte, se a parcela vencer depois do dia 25). Editar a receita sincroniza a despesa (recria parcelas não liquidadas); desligar `TemIva` ou eliminar a receita remove (soft-delete) a despesa e as suas parcelas, mesmo já liquidadas — ver `DespesaIvaFactory`.
 6. **Financiamento**: ao criar financiamento, a data é imediata (`DateOnly.FromDateTime(DateTime.UtcNow)`), é gerada uma Despesa Fixa ativa associada com mensalidade (`ValorFixo`) e a primeira parcela é criada automaticamente.
 7. **Teto de financiamento**: a soma do valor pago nas parcelas de uma despesa associada a financiamento nunca pode ultrapassar `Financiamento.Valor`; quando aplicável, a próxima parcela é ajustada ao valor restante.
 

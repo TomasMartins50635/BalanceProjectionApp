@@ -9,7 +9,11 @@ public class Parcela : Entity
     public DateOnly DataVencimento { get; private set; }
     public decimal ValorBruto { get; private set; }
 
-    /// <summary>ValorBruto menos a comissão (apenas aplicável a parcelas de Receita).</summary>
+    /// <summary>
+    /// Valor que efetivamente movimenta a Conta na liquidação. Para parcelas de Despesa, igual a ValorBruto.
+    /// Para parcelas de Receita, calculado a partir do valor indicado pelo utilizador (não de ValorBruto,
+    /// que pode incluir IVA quando a Receita tem TemIva) menos a comissão.
+    /// </summary>
     public decimal ValorLiquido { get; private set; }
 
     /// <summary>Percentagem do ValorTotal da Receita usada para calcular ValorBruto. Nulo em Despesas.</summary>

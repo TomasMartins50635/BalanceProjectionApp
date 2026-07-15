@@ -54,5 +54,7 @@ public class ReceitaRepository(AppDbContext context) : IReceitaRepository
             .Where(r => !r.IsDeleted)
             .Include(r => r.Comissoes.Where(c => !c.IsDeleted))
                 .ThenInclude(c => c.Colaborador)
-            .Include(r => r.Parcelas.Where(p => !p.IsDeleted));
+            .Include(r => r.Parcelas.Where(p => !p.IsDeleted))
+            .Include(r => r.DespesaIva)
+                .ThenInclude(d => d!.Parcelas.Where(p => !p.IsDeleted));
 }

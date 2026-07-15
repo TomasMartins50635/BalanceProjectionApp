@@ -114,4 +114,35 @@ public class ReceitaRepositoryTests(PostgresFixture db) : IAsyncLifetime
         lista.Should().Contain(r => r.Id == ativa.Id);
         lista.Should().NotContain(r => r.Id == removida.Id);
     }
+
+    // ── TemIva / DespesaIva ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ObterPorIdComParcelas_ReceitaComDespesaIva_CarregaDespesaIvaEParcelas()
+    {
+        var conta = await SeedContaAsync();
+        var receita = Receita.Criar("Proj com IVA", conta.Id, temIva: true);
+        receita.AdicionarParcela(1, Vencimento, 1_000m);
+        var despesaIva = Despesa.Criar("IVA de Proj com IVA", conta.Id, CategoriaContrato.IVA, TipoDespesa.Pontual);
+        despesaIva.AdicionarParcela(1, Vencimento.AddDays(24), 230m);
+
+        await using (var ctx = db.CreateContext())
+        {
+            await ctx.Despesas.AddAsync(despesaIva);
+            await ctx.SaveChangesAsync();
+            receita.VincularDespesaIva(despesaIva.Id);
+            await new ReceitaRepository(ctx).AdicionarAsync(receita);
+            await ctx.SaveChangesAsync();
+        }
+
+        await using var readCtx = db.CreateContext();
+        var resultado = await new ReceitaRepository(readCtx).ObterPorIdComParcelasAsync(receita.Id);
+
+        resultado.Should().NotBeNull();
+        resultado!.TemIva.Should().BeTrue();
+        resultado.Parcelas.Single().ValorBruto.Should().Be(1_230m);
+        resultado.DespesaIvaId.Should().Be(despesaIva.Id);
+        resultado.DespesaIva.Should().NotBeNull();
+        resultado.DespesaIva!.Parcelas.Should().ContainSingle(p => p.ValorBruto == 230m);
+    }
 }

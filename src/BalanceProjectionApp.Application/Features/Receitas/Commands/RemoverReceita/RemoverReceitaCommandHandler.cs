@@ -1,4 +1,5 @@
 ﻿using BalanceProjectionApp.Application.Common.Interfaces;
+using BalanceProjectionApp.Application.Features.Receitas.Common;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
@@ -12,8 +13,14 @@ public class RemoverReceitaCommandHandler(
 {
     public async Task Handle(RemoverReceitaCommand request, CancellationToken cancellationToken)
     {
-        var receita = await receitaRepository.ObterPorIdAsync(request.Id, cancellationToken)
+        var receita = await receitaRepository.ObterPorIdComParcelasAsync(request.Id, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Receita), request.Id);
+
+        if (receita.DespesaIva is not null && !receita.DespesaIva.IsDeleted)
+        {
+            DespesaIvaFactory.Remover(receita.DespesaIva);
+            receita.DesvincularDespesaIva();
+        }
 
         receita.Deletar();
         await uow.SaveChangesAsync(cancellationToken);

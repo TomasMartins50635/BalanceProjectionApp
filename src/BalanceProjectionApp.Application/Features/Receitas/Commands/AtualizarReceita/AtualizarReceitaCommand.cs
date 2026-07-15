@@ -7,6 +7,7 @@ public record AtualizarReceitaCommand(
     Guid Id,
     string Nome,
     CategoriaReceita? Categoria,
-    IEnumerable<AtualizarParcelaDto> Parcelas) : IRequest;
+    IEnumerable<AtualizarParcelaDto> Parcelas,
+    bool TemIva = false) : IRequest;
 
 public record AtualizarParcelaDto(int Numero, DateOnly DataVencimento, decimal Valor);

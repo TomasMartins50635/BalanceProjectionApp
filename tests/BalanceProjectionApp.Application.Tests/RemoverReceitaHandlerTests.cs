@@ -1,6 +1,7 @@
 using BalanceProjectionApp.Application.Common.Interfaces;
 using BalanceProjectionApp.Application.Features.Receitas.Commands.RemoverReceita;
 using BalanceProjectionApp.Domain.Entities;
+using BalanceProjectionApp.Domain.Enums;
 using BalanceProjectionApp.Domain.Exceptions;
 using BalanceProjectionApp.Domain.Interfaces;
 using FluentAssertions;
@@ -25,7 +26,7 @@ public class RemoverReceitaHandlerTests
     {
         var receitaId = Guid.NewGuid();
         var receita = Receita.Criar("Proj", Guid.NewGuid());
-        _repo.ObterPorIdAsync(receitaId, Arg.Any<CancellationToken>()).Returns(receita);
+        _repo.ObterPorIdComParcelasAsync(receitaId, Arg.Any<CancellationToken>()).Returns(receita);
 
         await _handler.Handle(new RemoverReceitaCommand(receitaId), CancellationToken.None);
 
@@ -36,7 +37,7 @@ public class RemoverReceitaHandlerTests
     [Fact]
     public async Task Handle_ReceitaNaoExiste_LancaEntityNotFoundException()
     {
-        _repo.ObterPorIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Receita?)null);
+        _repo.ObterPorIdComParcelasAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Receita?)null);
 
         var act = async () => await _handler.Handle(
             new RemoverReceitaCommand(Guid.NewGuid()), CancellationToken.None);
@@ -51,10 +52,37 @@ public class RemoverReceitaHandlerTests
         var receitaId = Guid.NewGuid();
         var receita = Receita.Criar("Proj", Guid.NewGuid());
         receita.Deletar(); // já removida
-        _repo.ObterPorIdAsync(receitaId, Arg.Any<CancellationToken>()).Returns(receita);
+        _repo.ObterPorIdComParcelasAsync(receitaId, Arg.Any<CancellationToken>()).Returns(receita);
 
         await _handler.Handle(new RemoverReceitaCommand(receitaId), CancellationToken.None);
 
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ReceitaComDespesaIvaAtiva_RemoveDespesaEDesvincula()
+    {
+        var receitaId = Guid.NewGuid();
+        var contaId = Guid.NewGuid();
+        var receita = Receita.Criar("Proj", contaId, temIva: true);
+        receita.AdicionarParcela(1, new DateOnly(2026, 6, 1), 1_000m);
+        var despesaIva = Despesa.Criar("IVA de Proj", contaId, CategoriaContrato.IVA, TipoDespesa.Pontual);
+        despesaIva.AdicionarParcela(1, new DateOnly(2026, 6, 25), 230m);
+        receita.VincularDespesaIva(despesaIva.Id);
+        SetDespesaIvaNav(receita, despesaIva);
+        _repo.ObterPorIdComParcelasAsync(receitaId, Arg.Any<CancellationToken>()).Returns(receita);
+
+        await _handler.Handle(new RemoverReceitaCommand(receitaId), CancellationToken.None);
+
+        despesaIva.IsDeleted.Should().BeTrue();
+        despesaIva.Parcelas.Should().OnlyContain(p => p.IsDeleted);
+        receita.DespesaIvaId.Should().BeNull();
+    }
+
+    // A navegação DespesaIva é privada (setter EF); reflexão simula o que o Include faria.
+    private static void SetDespesaIvaNav(Receita receita, Despesa despesaIva)
+    {
+        typeof(Receita).GetProperty(nameof(Receita.DespesaIva))!
+            .SetValue(receita, despesaIva);
     }
 }
