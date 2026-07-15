@@ -88,9 +88,7 @@ export default function App() {
         {/* ── Desktop sidebar ─────────────────────────────────────────────── */}
         <aside className={`hidden md:flex flex-col w-60 flex-shrink-0 border-r transition-colors ${isSimulation ? 'bg-blue-950 border-blue-900' : 'bg-slate-900 border-slate-800'} text-white`}>
           <div className={`flex items-center gap-3 px-4 py-4 border-b ${isSimulation ? 'border-blue-900' : 'border-slate-800'}`}>
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0">
-              <div className="w-3 h-3 rounded-sm bg-white" />
-            </div>
+            <img src="/app-icon.png" alt="" className="w-7 h-7 rounded-lg flex-shrink-0" />
             <div>
               <h1 className="text-sm font-semibold leading-tight">Gestão Financeira</h1>
               {isSimulation && <p className="text-[10px] text-blue-400 mt-0.5">Modo Simulação Ativo</p>}
@@ -159,9 +157,7 @@ export default function App() {
 
         {/* ── Mobile top header ───────────────────────────────────────────── */}
         <div className={`md:hidden flex items-center gap-3 px-4 py-3 flex-shrink-0 border-b ${isSimulation ? 'bg-blue-950 border-blue-900' : 'bg-slate-900 border-slate-800'} text-white`}>
-          <div className="w-6 h-6 rounded-md bg-indigo-600 flex items-center justify-center flex-shrink-0">
-            <div className="w-2.5 h-2.5 rounded-sm bg-white" />
-          </div>
+          <img src="/app-icon.png" alt="" className="w-6 h-6 rounded-md flex-shrink-0" />
           <h1 className="text-sm font-semibold flex-1">Gestão Financeira</h1>
           {isSimulation && <span className="text-[11px] text-amber-400 font-medium">Simulação ativa</span>}
           <button
