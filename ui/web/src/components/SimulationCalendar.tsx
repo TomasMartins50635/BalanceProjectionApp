@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export interface ParcelaGerada {
   id: string;
@@ -14,6 +15,7 @@ export interface ParcelaReal {
   dataVencimento: string;
   valorLiquido: number;
   nome: string | null;
+  categoria: string | null;
 }
 
 export interface DespesaProjetada {
@@ -21,6 +23,7 @@ export interface DespesaProjetada {
   nome: string;
   dataVencimento: string;
   valor: number;
+  categoria: string | null;
 }
 
 interface CalendarDay {
@@ -133,6 +136,15 @@ export function SimulationCalendar({ selectedDateStr, onSelect, parcelasGeradas,
     else setDisplayMonth(m => m + 1);
   }
 
+  const yearOptions = useMemo(() => {
+    const base = new Date().getFullYear();
+    const start = Math.min(base, displayYear) - 5;
+    const end = Math.max(base, displayYear) + 10;
+    const years: number[] = [];
+    for (let y = start; y <= end; y++) years.push(y);
+    return years;
+  }, [displayYear]);
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden select-none">
       {/* Navigation */}
@@ -140,9 +152,28 @@ export function SimulationCalendar({ selectedDateStr, onSelect, parcelasGeradas,
         <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" aria-label="Mês anterior">
           <ChevronLeft className="w-4 h-4 text-slate-600" />
         </button>
-        <span className="text-sm font-semibold text-slate-800">
-          {MONTHS[displayMonth]} {displayYear}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <Select value={String(displayMonth)} onValueChange={v => setDisplayMonth(Number(v))}>
+            <SelectTrigger className="h-7 w-auto gap-1 border-none shadow-none px-2 text-sm font-semibold text-slate-800 hover:bg-slate-100">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map((m, i) => (
+                <SelectItem key={m} value={String(i)}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={String(displayYear)} onValueChange={v => setDisplayYear(Number(v))}>
+            <SelectTrigger className="h-7 w-auto gap-1 border-none shadow-none px-2 text-sm font-semibold text-slate-800 hover:bg-slate-100">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {yearOptions.map(y => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" aria-label="Próximo mês">
           <ChevronRight className="w-4 h-4 text-slate-600" />
         </button>
@@ -209,30 +240,6 @@ export function SimulationCalendar({ selectedDateStr, onSelect, parcelasGeradas,
             </button>
           );
         })}
-      </div>
-
-      {/* Legend */}
-      <div className="px-4 py-2 border-t border-slate-100 bg-slate-50 flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-blue-600" />
-          <span className="text-[11px] text-slate-500">Receita pendente</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-red-500" />
-          <span className="text-[11px] text-slate-500">Despesa pendente</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full border border-indigo-400" />
-          <span className="text-[11px] text-slate-500">Venda prevista</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full border border-emerald-400" />
-          <span className="text-[11px] text-slate-500">Arrendamento previsto</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full border border-red-400" />
-          <span className="text-[11px] text-slate-500">Despesa recorrente/fixa</span>
-        </div>
       </div>
     </div>
   );

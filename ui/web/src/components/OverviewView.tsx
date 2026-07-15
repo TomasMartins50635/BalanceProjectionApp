@@ -1,16 +1,25 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-} from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAsync } from '@/hooks/useAsync';
 import { api } from '@/lib/api';
+import { formatDate } from '@/lib/dates';
+import { SimulationCalendar } from './SimulationCalendar';
+import type { ParcelaReal } from './SimulationCalendar';
+
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export function OverviewView() {
   const { data: contas, loading: contasLoading, error: contasError } = useAsync(() => api.contas.listar(), []);
   const { data: receitas } = useAsync(() => api.receitas.listar(), []);
   const { data: despesas } = useAsync(() => api.despesas.listar(), []);
+  const [selectedDateStr, setSelectedDateStr] = useState(todayStr);
+  const [filtroReceita, setFiltroReceita] = useState(false);
+  const [filtroDespesa, setFiltroDespesa] = useState(false);
+  const [modoMes, setModoMes] = useState(false);
 
   const totalSaldo = useMemo(
     () => (contas ?? []).reduce((s, c) => s + c.saldo, 0),
@@ -26,22 +35,6 @@ export function OverviewView() {
     () => (despesas ?? []).flatMap(d => d.parcelas.filter(p => p.isPaid)),
     [despesas],
   );
-
-  const chartData = useMemo(() => {
-    const now = new Date();
-    return Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
-      const monthPrefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = d.toLocaleString('pt-PT', { month: 'short', year: 'numeric' });
-      const receitasMes = allPaidReceitasParcelas
-        .filter(p => p.dataPagamento?.startsWith(monthPrefix))
-        .reduce((s, p) => s + p.valorLiquido, 0);
-      const despesasMes = allPaidDespesasParcelas
-        .filter(p => p.dataPagamento?.startsWith(monthPrefix))
-        .reduce((s, p) => s + p.valorLiquido, 0);
-      return { month: label, receitas: receitasMes, despesas: despesasMes };
-    });
-  }, [allPaidReceitasParcelas, allPaidDespesasParcelas]);
 
   const now = new Date();
   const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -81,6 +74,47 @@ export function OverviewView() {
     ];
     return items.sort((a, b) => b.data.localeCompare(a.data)).slice(0, 10);
   }, [allPaidReceitasParcelas, allPaidDespesasParcelas, receitaMap, despesaMap]);
+
+  const parcelasReaisCalendario = useMemo((): ParcelaReal[] => {
+    const deReceitas = (receitas ?? []).flatMap(r =>
+      r.parcelas.map((p): ParcelaReal => ({
+        id: p.id,
+        tipo: 'receita',
+        dataVencimento: p.dataPagamento ?? p.dataVencimento,
+        valorLiquido: p.valorLiquido,
+        nome: p.nome,
+        categoria: r.categoria,
+      })),
+    );
+    const deDespesas = (despesas ?? []).flatMap(d =>
+      d.parcelas.map((p): ParcelaReal => ({
+        id: p.id,
+        tipo: 'despesa',
+        dataVencimento: p.dataPagamento ?? p.dataVencimento,
+        valorLiquido: p.valorLiquido,
+        nome: p.nome,
+        categoria: d.categoria,
+      })),
+    );
+    return [...deReceitas, ...deDespesas];
+  }, [receitas, despesas]);
+
+  const atividadeDoDiaBruta = useMemo(
+    () => parcelasReaisCalendario.filter(p =>
+      modoMes ? p.dataVencimento.startsWith(currentMonthPrefix) : p.dataVencimento === selectedDateStr,
+    ),
+    [parcelasReaisCalendario, selectedDateStr, modoMes, currentMonthPrefix],
+  );
+
+  const semFiltroTipo = !filtroReceita && !filtroDespesa;
+  const atividadeDoDia = useMemo(
+    () => atividadeDoDiaBruta.filter(p =>
+      semFiltroTipo || (filtroReceita && p.tipo === 'receita') || (filtroDespesa && p.tipo === 'despesa'),
+    ),
+    [atividadeDoDiaBruta, semFiltroTipo, filtroReceita, filtroDespesa],
+  );
+
+  const fmtEur = (v: number) => `€${v.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`;
 
   if (contasError) {
     return (
@@ -155,26 +189,94 @@ export function OverviewView() {
         </div>
       </div>
 
-      {/* Chart */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-5">
-        <div className="mb-4">
-          <h3 className="text-base font-semibold text-slate-900">Evolução dos Últimos 6 Meses</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Receitas e despesas de parcelas liquidadas por mês</p>
+      {/* Calendário */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+        <div className="space-y-2">
+          <SimulationCalendar
+            selectedDateStr={selectedDateStr}
+            onSelect={d => { setSelectedDateStr(d); setModoMes(false); }}
+            parcelasGeradas={[]}
+            parcelasReais={parcelasReaisCalendario}
+            despesasProjetadas={[]}
+          />
+          <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-blue-600" />
+              <span className="text-[11px] text-slate-500">Receita</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-red-500" />
+              <span className="text-[11px] text-slate-500">Despesa</span>
+            </div>
+          </div>
         </div>
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
-            <Tooltip
-              contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-              formatter={(v) => typeof v === 'number' ? `€${v.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}` : ''}
-            />
-            <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} />
-            <Line type="monotone" dataKey="receitas" name="Receitas" stroke="#16a34a" strokeWidth={2} dot={{ fill: '#16a34a', r: 3 }} activeDot={{ r: 5 }} />
-            <Line type="monotone" dataKey="despesas" name="Despesas" stroke="#dc2626" strokeWidth={2} dot={{ fill: '#dc2626', r: 3 }} activeDot={{ r: 5 }} />
-          </LineChart>
-        </ResponsiveContainer>
+
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2">
+            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Atividade — {modoMes ? now.toLocaleString('pt-PT', { month: 'long', year: 'numeric' }) : formatDate(selectedDateStr)}
+            </h4>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setModoMes(v => !v)}
+                className={`px-2.5 h-6 rounded-full text-xs font-medium border transition-colors ${
+                  modoMes ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                Este mês
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltroReceita(v => !v)}
+                className={`px-2.5 h-6 rounded-full text-xs font-medium border transition-colors ${
+                  filtroReceita ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                Receita
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltroDespesa(v => !v)}
+                className={`px-2.5 h-6 rounded-full text-xs font-medium border transition-colors ${
+                  filtroDespesa ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                Despesa
+              </button>
+            </div>
+          </div>
+          {atividadeDoDia.length > 0 ? (
+            <>
+              {atividadeDoDia.map(p => (
+                <div key={p.id} className="flex items-center justify-between px-5 py-2.5 border-b border-slate-50 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${p.tipo === 'receita' ? 'bg-blue-600' : 'bg-red-500'}`} />
+                    <span className="text-sm text-slate-700">{p.nome ?? (p.tipo === 'receita' ? 'Receita' : 'Despesa')}</span>
+                  </div>
+                  <span className={`text-sm font-semibold tabular-nums ${p.tipo === 'receita' ? 'text-blue-700' : 'text-red-600'}`}>
+                    {p.tipo === 'receita' ? '+' : '−'}{fmtEur(p.valorLiquido)}
+                  </span>
+                </div>
+              ))}
+              {atividadeDoDia.length > 1 && (() => {
+                const totalDia = atividadeDoDia.reduce((s, p) => s + (p.tipo === 'receita' ? p.valorLiquido : -p.valorLiquido), 0);
+                return (
+                  <div className="flex items-center justify-between px-5 py-2 bg-slate-50 border-t border-slate-100">
+                    <span className="text-xs font-semibold text-slate-500">{modoMes ? 'Total do mês' : 'Total do dia'}</span>
+                    <span className={`text-sm font-bold tabular-nums ${totalDia >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {totalDia >= 0 ? '+' : ''}{fmtEur(totalDia)}
+                    </span>
+                  </div>
+                );
+              })()}
+            </>
+          ) : (
+            <p className="px-5 py-4 text-sm text-slate-400">
+              {atividadeDoDiaBruta.length > 0 ? 'Sem atividade a corresponder ao filtro' : `Sem atividade prevista ${modoMes ? 'neste mês' : 'neste dia'}`}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Bottom panels */}

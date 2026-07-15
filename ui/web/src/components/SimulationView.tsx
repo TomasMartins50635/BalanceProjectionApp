@@ -12,8 +12,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { formatDate } from '@/lib/dates';
 import { useToast } from '@/hooks/useToast';
 import { api } from '@/lib/api';
-import type { ContaDto, DespesaDto, ParcelaDto, PrevisaoDto } from '@/lib/types';
+import type { ContaDto, DespesaDto, ParcelaDto, PrevisaoDto, ReceitaDto } from '@/lib/types';
 import type { Periodicidade } from '@/lib/types';
+import { CATEGORIAS_RECEITA, CATEGORIA_RECEITA_LABELS, CATEGORIAS, CATEGORIA_LABELS } from '@/lib/types';
 import { SimulationCalendar } from './SimulationCalendar';
 import type { DespesaProjetada, ParcelaGerada, ParcelaReal } from './SimulationCalendar';
 
@@ -61,13 +62,23 @@ function gerarParcelas(
   return resultado.sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento));
 }
 
-function toParcelaReal(p: ParcelaDto): ParcelaReal {
+function toParcelaReal(
+  p: ParcelaDto,
+  categoriaPorReceitaId: Map<string, string | null>,
+  categoriaPorDespesaId: Map<string, string | null>,
+): ParcelaReal {
+  const categoria = p.receitaId
+    ? categoriaPorReceitaId.get(p.receitaId) ?? null
+    : p.despesaId
+    ? categoriaPorDespesaId.get(p.despesaId) ?? null
+    : null;
   return {
     id: p.id,
     tipo: p.receitaId ? 'receita' : 'despesa',
     dataVencimento: p.dataVencimento,
     valorLiquido: p.valorLiquido,
     nome: p.nome,
+    categoria,
   };
 }
 
@@ -153,6 +164,7 @@ function projetarDespesas(
           nome: despesa.nome,
           dataVencimento: cur,
           valor: valorMedio,
+          categoria: despesa.categoria,
         });
       cur = adicionarMesesStr(cur, meses);
     }
@@ -201,6 +213,9 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [parcelasReaisDto, setParcelasReaisDto] = useState<ParcelaDto[]>([]);
   const [despesas, setDespesas] = useState<DespesaDto[]>([]);
+  const [receitas, setReceitas] = useState<ReceitaDto[]>([]);
+  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'receita' | 'despesa'>('todos');
+  const [filtroCategoria, setFiltroCategoria] = useState<string>('todas');
 
   const [form, setForm] = useState<FormState>({
     nome: '', diasEntreVendas: '', valorMedioVenda: '', diasEntreArrendamentos: '', valorMedioArrendamento: '',
@@ -216,6 +231,7 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
     if (!isActive) return;
     api.contas.listar().then(setContas).catch(() => {});
     api.despesas.listar().then(setDespesas).catch(() => {});
+    api.receitas.listar().then(setReceitas).catch(() => {});
   }, [isActive]);
 
   // Carregar previsões quando a conta muda
@@ -330,9 +346,18 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
     horizonte,
   ), [form, horizonte]);
 
+  const categoriaPorReceitaId = useMemo(
+    () => new Map(receitas.map(r => [r.id, r.categoria] as const)),
+    [receitas],
+  );
+  const categoriaPorDespesaId = useMemo(
+    () => new Map(despesas.map(d => [d.id, d.categoria] as const)),
+    [despesas],
+  );
+
   const parcelasReais = useMemo(
-    () => parcelasReaisDto.map(toParcelaReal),
-    [parcelasReaisDto],
+    () => parcelasReaisDto.map(p => toParcelaReal(p, categoriaPorReceitaId, categoriaPorDespesaId)),
+    [parcelasReaisDto, categoriaPorReceitaId, categoriaPorDespesaId],
   );
 
   const despesasProjetadas = useMemo(
@@ -370,6 +395,32 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
   }), [parcelasGeradas, parcelasReais, despesasProjetadas, selectedDateStr]);
 
   const temAtividade = atividadeDoDia.geradas.length > 0 || atividadeDoDia.reais.length > 0 || atividadeDoDia.despesasProj.length > 0;
+
+  function handleFiltroTipoChange(v: string) {
+    setFiltroTipo(v as 'todos' | 'receita' | 'despesa');
+    setFiltroCategoria('todas');
+  }
+
+  const categoriasFiltro = filtroTipo === 'receita'
+    ? CATEGORIAS_RECEITA.map(c => ({ value: c, label: CATEGORIA_RECEITA_LABELS[c] }))
+    : filtroTipo === 'despesa'
+    ? CATEGORIAS.map(c => ({ value: c, label: CATEGORIA_LABELS[c] }))
+    : [];
+
+  function passaFiltro(tipo: 'receita' | 'despesa', categoria: string | null): boolean {
+    if (filtroTipo !== 'todos' && filtroTipo !== tipo) return false;
+    if (filtroCategoria !== 'todas' && categoria !== filtroCategoria) return false;
+    return true;
+  }
+
+  const atividadeFiltrada = useMemo(() => ({
+    geradas: atividadeDoDia.geradas.filter(p => passaFiltro('receita', p.tipo)),
+    reais: atividadeDoDia.reais.filter(p => passaFiltro(p.tipo, p.categoria)),
+    despesasProj: atividadeDoDia.despesasProj.filter(p => passaFiltro('despesa', p.categoria)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [atividadeDoDia, filtroTipo, filtroCategoria]);
+
+  const temAtividadeFiltrada = atividadeFiltrada.geradas.length > 0 || atividadeFiltrada.reais.length > 0 || atividadeFiltrada.despesasProj.length > 0;
 
   const chartData = useMemo(
     () => buildChartData(saldoAtual, parcelasGeradas, parcelasReais, despesasProjetadas, horizonte),
@@ -569,17 +620,66 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
               despesasProjetadas={despesasProjetadas}
             />
 
+            {/* Legenda do calendário */}
+            <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-600" />
+                <span className="text-[11px] text-slate-500">Receita pendente</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-red-500" />
+                <span className="text-[11px] text-slate-500">Despesa pendente</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full border border-indigo-400" />
+                <span className="text-[11px] text-slate-500">Venda prevista</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full border border-emerald-400" />
+                <span className="text-[11px] text-slate-500">Arrendamento previsto</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full border border-red-400" />
+                <span className="text-[11px] text-slate-500">Despesa recorrente/fixa</span>
+              </div>
+            </div>
+
             {/* Atividade do dia */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-              <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
+              <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 space-y-2">
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                   Atividade — {formatDate(selectedDateStr)}
                 </h4>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select value={filtroTipo} onValueChange={handleFiltroTipoChange}>
+                    <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs border-slate-200 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      <SelectItem value="receita">Receitas</SelectItem>
+                      <SelectItem value="despesa">Despesas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {filtroTipo !== 'todos' && (
+                    <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                      <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs border-slate-200 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas">Todas as categorias</SelectItem>
+                        {categoriasFiltro.map(c => (
+                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
               </div>
-              {temAtividade ? (
+              {temAtividadeFiltrada ? (
                 <>
                   {/* Receitas reais */}
-                  {atividadeDoDia.reais.filter(p => p.tipo === 'receita').map(p => (
+                  {atividadeFiltrada.reais.filter(p => p.tipo === 'receita').map(p => (
                     <div key={p.id} className="flex items-center justify-between px-5 py-2.5 border-b border-slate-50">
                       <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0" />
@@ -592,7 +692,7 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
                     </div>
                   ))}
                   {/* Despesas reais */}
-                  {atividadeDoDia.reais.filter(p => p.tipo === 'despesa').map(p => (
+                  {atividadeFiltrada.reais.filter(p => p.tipo === 'despesa').map(p => (
                     <div key={p.id} className="flex items-center justify-between px-5 py-2.5 border-b border-slate-50">
                       <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
@@ -605,7 +705,7 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
                     </div>
                   ))}
                   {/* Despesas recorrentes/fixas projetadas */}
-                  {atividadeDoDia.despesasProj.map(p => (
+                  {atividadeFiltrada.despesasProj.map(p => (
                     <div key={p.id} className="flex items-center justify-between px-5 py-2.5 border-b border-slate-50">
                       <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full border border-red-400 flex-shrink-0" />
@@ -618,7 +718,7 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
                     </div>
                   ))}
                   {/* Receitas geradas pela previsão */}
-                  {atividadeDoDia.geradas.map(p => (
+                  {atividadeFiltrada.geradas.map(p => (
                     <div key={p.id} className="flex items-center justify-between px-5 py-2.5 border-b border-slate-50 last:border-0">
                       <div className="flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full border flex-shrink-0 ${p.tipo === 'Vendas' ? 'border-indigo-400' : 'border-emerald-400'}`} />
@@ -631,12 +731,12 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
                     </div>
                   ))}
                   {/* Total do dia se > 1 item */}
-                  {(atividadeDoDia.reais.length + atividadeDoDia.geradas.length + atividadeDoDia.despesasProj.length) > 1 && (() => {
+                  {(atividadeFiltrada.reais.length + atividadeFiltrada.geradas.length + atividadeFiltrada.despesasProj.length) > 1 && (() => {
                     const totalDia =
-                      atividadeDoDia.reais.filter(p => p.tipo === 'receita').reduce((s, p) => s + p.valorLiquido, 0)
-                      - atividadeDoDia.reais.filter(p => p.tipo === 'despesa').reduce((s, p) => s + p.valorLiquido, 0)
-                      - atividadeDoDia.despesasProj.reduce((s, p) => s + p.valor, 0)
-                      + atividadeDoDia.geradas.reduce((s, p) => s + p.valor, 0);
+                      atividadeFiltrada.reais.filter(p => p.tipo === 'receita').reduce((s, p) => s + p.valorLiquido, 0)
+                      - atividadeFiltrada.reais.filter(p => p.tipo === 'despesa').reduce((s, p) => s + p.valorLiquido, 0)
+                      - atividadeFiltrada.despesasProj.reduce((s, p) => s + p.valor, 0)
+                      + atividadeFiltrada.geradas.reduce((s, p) => s + p.valor, 0);
                     return (
                       <div className="flex items-center justify-between px-5 py-2 bg-slate-50 border-t border-slate-100">
                         <span className="text-xs font-semibold text-slate-500">Total do dia</span>
@@ -648,7 +748,9 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
                   })()}
                 </>
               ) : (
-                <p className="px-5 py-4 text-sm text-slate-400">Sem atividade prevista neste dia</p>
+                <p className="px-5 py-4 text-sm text-slate-400">
+                  {temAtividade ? 'Sem atividade a corresponder ao filtro' : 'Sem atividade prevista neste dia'}
+                </p>
               )}
             </div>
 
