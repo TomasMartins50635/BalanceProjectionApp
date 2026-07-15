@@ -3,8 +3,11 @@ import { ArrowLeft, ChevronDown, ChevronRight, TrendingUp, Clock, Receipt, BarCh
 import { Button } from '@/components/ui/button';
 import { useAsync } from '@/hooks/useAsync';
 import { api } from '@/lib/api';
-import { TIPO_COLABORADOR_LABELS, TIPO_COMISSAO_LABELS } from '@/lib/types';
-import type { TipoComissao } from '@/lib/types';
+import { TIPO_COLABORADOR_LABELS, TIPO_COMISSAO_LABELS, CATEGORIA_RECEITA_LABELS, CATEGORIAS_RECEITA } from '@/lib/types';
+import type { TipoComissao, CategoriaReceita } from '@/lib/types';
+
+const TIPOS_COMISSAO_FILTRO = (Object.keys(TIPO_COMISSAO_LABELS) as TipoComissao[]).filter(t => t !== 'Servico');
+const CATEGORIAS_RECEITA_FILTRO = CATEGORIAS_RECEITA.filter(c => c !== 'Outros');
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -68,6 +71,8 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
   const [customInicio, setCustomInicio] = useState(() => presetRange('3m')[0]);
   const [customFim, setCustomFim] = useState(() => presetRange('3m')[1]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filtroTipoComissao, setFiltroTipoComissao] = useState<TipoComissao | 'todos'>('todos');
+  const [filtroCategoria, setFiltroCategoria] = useState<CategoriaReceita | 'todas'>('todas');
 
   const [inicio, fim] = useMemo<[string, string]>(() =>
     preset === 'custom' ? [customInicio, customFim] : presetRange(preset),
@@ -77,6 +82,26 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
     () => api.colaboradores.estatisticas(colaboradorId, inicio, fim),
     [colaboradorId, inicio, fim],
   );
+
+  const receitasFiltradas = useMemo(() => (data?.receitas ?? []).filter(r =>
+    (filtroTipoComissao === 'todos' || r.tipoComissao === filtroTipoComissao) &&
+    (filtroCategoria === 'todas' || r.categoria === filtroCategoria)
+  ), [data?.receitas, filtroTipoComissao, filtroCategoria]);
+
+  const totaisFiltrados = useMemo(() => {
+    const valorPorReceita = new Map<string, number>();
+    let valorComissoes = 0;
+    for (const r of receitasFiltradas) {
+      // Se participou mais que uma vez na mesma receita (ex: comissão de Venda + Angariação),
+      // o valor da receita só conta uma vez — mas cada comissão continua a somar.
+      if (!valorPorReceita.has(r.receitaId)) {
+        valorPorReceita.set(r.receitaId, r.parcelas.reduce((s, p) => s + p.valorBruto, 0));
+      }
+      valorComissoes += r.parcelas.reduce((s, p) => s + p.valorComissao, 0);
+    }
+    const valorReceitas = [...valorPorReceita.values()].reduce((s, v) => s + v, 0);
+    return { valorReceitas, valorComissoes, receitasDistintas: valorPorReceita.size };
+  }, [receitasFiltradas]);
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
@@ -194,62 +219,80 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
                 />
               </div>
 
-              {/* Breakdown por tipo */}
-              {data.porTipo.length > 0 && (
-                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                  <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-slate-400" />
-                    <p className="text-sm font-semibold text-slate-700">Por tipo de comissão</p>
-                  </div>
-                  <div className="divide-y divide-slate-100">
-                    {data.porTipo.map(t => (
-                      <div key={t.tipoComissao} className="px-4 py-3 grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center">
-                        <span className="text-sm font-medium text-slate-700">
-                          {TIPO_COMISSAO_LABELS[t.tipoComissao as TipoComissao] ?? t.tipoComissao}
-                        </span>
-                        <div className="text-right">
-                          <p className="text-xs text-slate-400">Recebido</p>
-                          <p className="text-sm font-semibold text-green-600 tabular-nums">{fmt(t.recebidoPeriodo)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-slate-400">Pendente</p>
-                          <p className="text-sm font-semibold text-amber-600 tabular-nums">{fmt(t.pendente)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-slate-400">Parcelas</p>
-                          <p className="text-xs text-slate-600 tabular-nums">
-                            {t.parcelasPagasPeriodo} pagas / {t.parcelasPendentes} pend.
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Receitas list */}
               <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-                  <Receipt className="w-4 h-4 text-slate-400" />
-                  <p className="text-sm font-semibold text-slate-700">Receitas com participação</p>
-                  <span className="ml-auto text-xs text-slate-400">{data.receitas.length} receita(s)</span>
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2 flex-wrap">
+                  <Receipt className="w-4 h-4 text-slate-400 shrink-0" />
+                  <p className="text-sm font-semibold text-slate-700 shrink-0">Receitas com participação  </p>
+                  <div className="inline-flex items-center rounded-full border border-slate-200 p-0.5 bg-slate-50 gap-0.5">
+                    <button
+                      onClick={() => setFiltroTipoComissao('todos')}
+                      className={`px-2.5 h-6 rounded-full text-xs font-medium transition-colors ${filtroTipoComissao === 'todos' ? 'bg-white shadow-sm text-slate-900 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      Todos
+                    </button>
+                    {TIPOS_COMISSAO_FILTRO.map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setFiltroTipoComissao(t)}
+                        className={`px-2.5 h-6 rounded-full text-xs font-medium transition-colors ${filtroTipoComissao === t ? 'bg-white shadow-sm text-slate-900 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        {TIPO_COMISSAO_LABELS[t]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="inline-flex items-center rounded-full border border-slate-200 p-0.5 bg-slate-50 gap-0.5">
+                    <button
+                      onClick={() => setFiltroCategoria('todas')}
+                      className={`px-2.5 h-6 rounded-full text-xs font-medium transition-colors ${filtroCategoria === 'todas' ? 'bg-white shadow-sm text-slate-900 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      Todas
+                    </button>
+                    {CATEGORIAS_RECEITA_FILTRO.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => setFiltroCategoria(c)}
+                        className={`px-2.5 h-6 rounded-full text-xs font-medium transition-colors ${filtroCategoria === c ? 'bg-white shadow-sm text-slate-900 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        {CATEGORIA_RECEITA_LABELS[c]}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="ml-auto text-xs text-slate-400 shrink-0">{totaisFiltrados.receitasDistintas} receita(s)</span>
                 </div>
 
-                {data.receitas.length === 0 ? (
+                <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/60 flex items-center gap-6">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400">Total das receitas participadas:</span>
+                    <span className="text-xs font-semibold text-slate-700 tabular-nums">{fmt(totaisFiltrados.valorReceitas)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400">Total de comissões:</span>
+                    <span className="text-xs font-semibold text-indigo-600 tabular-nums">{fmt(totaisFiltrados.valorComissoes)}</span>
+                  </div>
+                </div>
+
+                {receitasFiltradas.length === 0 ? (
                   <div className="px-4 py-10 text-center text-sm text-slate-400">
-                    Nenhuma receita encontrada para este período.
+                    {data.receitas.length > 0
+                      ? 'Nenhuma receita corresponde ao filtro.'
+                      : 'Nenhuma receita encontrada para este período.'}
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
-                    {data.receitas.map(r => {
-                      const isExpanded = expandedId === r.receitaId;
+                    {receitasFiltradas.map((r, i) => {
+                      // Chave composta: a mesma receita pode aparecer mais que uma vez se o
+                      // colaborador tiver mais que uma comissão nela (ex: Venda + Angariação).
+                      const rowKey = `${r.receitaId}-${r.tipoComissao}-${i}`;
+                      const isExpanded = expandedId === rowKey;
                       const pagas = r.parcelas.filter(p => p.isPaid);
                       const pendentes = r.parcelas.filter(p => !p.isPaid);
                       return (
-                        <div key={r.receitaId}>
+                        <div key={rowKey}>
                           <button
                             className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left"
-                            onClick={() => setExpandedId(isExpanded ? null : r.receitaId)}
+                            onClick={() => setExpandedId(isExpanded ? null : rowKey)}
                           >
                             {isExpanded
                               ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
@@ -341,20 +384,6 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
                     })}
                   </div>
                 )}
-              </div>
-
-              {/* Summary footer */}
-              <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex flex-wrap gap-4 items-center text-sm">
-                <div className="flex items-center gap-2 text-slate-500">
-                  <TrendingUp className="w-4 h-4 text-green-500" />
-                  <span>Total recebido no período:</span>
-                  <span className="font-bold text-green-600 tabular-nums">{fmt(data.totalRecebidoPeriodo)}</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-500">
-                  <Clock className="w-4 h-4 text-amber-500" />
-                  <span>Total pendente:</span>
-                  <span className="font-bold text-amber-600 tabular-nums">{fmt(data.totalPendente)}</span>
-                </div>
               </div>
             </>
           )}
