@@ -72,13 +72,13 @@ jobs:
           Write-Host "=== Ficheiros em $nsisDir ==="
           Get-ChildItem $nsisDir | ForEach-Object { Write-Host "  $($_.Name)" }
 
-          $sigFile = Get-ChildItem "$nsisDir/*.nsis.zip.sig" | Select-Object -First 1
-          $zipFile = Get-ChildItem "$nsisDir/*.nsis.zip" |
-                       Where-Object { $_.Name -notlike "*.sig" } |
-                       Select-Object -First 1
+          # createUpdaterArtifacts=true assina o instalador diretamente (.exe/.exe.sig),
+          # não produz .nsis.zip/.nsis.zip.sig (esse é o formato v1Compatible).
+          $sigFile = Get-ChildItem "$nsisDir/*.exe.sig" | Select-Object -First 1
+          $exeFile = Get-ChildItem "$nsisDir/*.exe" | Select-Object -First 1
 
           if (-not $sigFile) {
-            Write-Error "ERRO: Ficheiro .nsis.zip.sig nao encontrado. A assinatura do Tauri falhou — verifica TAURI_SIGNING_PRIVATE_KEY e TAURI_SIGNING_PRIVATE_KEY_PASSWORD."
+            Write-Error "ERRO: Ficheiro .exe.sig nao encontrado. A assinatura do Tauri falhou — verifica TAURI_SIGNING_PRIVATE_KEY e TAURI_SIGNING_PRIVATE_KEY_PASSWORD."
             exit 1
           }
 
@@ -89,7 +89,7 @@ jobs:
             platforms = [ordered]@{
               "windows-x86_64" = [ordered]@{
                 signature = (Get-Content $sigFile -Raw).Trim()
-                url = "https://github.com/${{ github.repository }}/releases/download/v${version}/$($zipFile.Name)"
+                url = "https://github.com/${{ github.repository }}/releases/download/v${version}/$($exeFile.Name)"
               }
             }
           }
@@ -106,8 +106,7 @@ jobs:
           generate_release_notes: true
           files: |
             ui/desktop/src-tauri/target/release/bundle/nsis/*.exe
-            ui/desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip
-            ui/desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
+            ui/desktop/src-tauri/target/release/bundle/nsis/*.exe.sig
             latest.json
             publish/sync-server-win-x64.zip
             sync-server/install.ps1
