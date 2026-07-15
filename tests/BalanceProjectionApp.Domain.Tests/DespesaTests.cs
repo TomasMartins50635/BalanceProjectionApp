@@ -125,4 +125,26 @@ public class DespesaTests
 
         act.Should().Throw<DomainException>();
     }
+
+    [Fact]
+    public void Criar_ComColaboradorEMesReferencia_DefineAmbos()
+    {
+        var colaboradorId = Guid.NewGuid();
+        var mesReferencia = new DateOnly(2026, 6, 1);
+
+        var despesa = Despesa.Criar("Comissão de Ana — Junho 2026", ContaId, CategoriaContrato.Comissao,
+            colaboradorId: colaboradorId, mesReferencia: mesReferencia);
+
+        despesa.ColaboradorId.Should().Be(colaboradorId);
+        despesa.MesReferencia.Should().Be(mesReferencia);
+    }
+
+    [Fact]
+    public void Criar_SemColaboradorNemMesReferencia_AmbosNulos()
+    {
+        var despesa = Despesa.Criar("Renda", ContaId);
+
+        despesa.ColaboradorId.Should().BeNull();
+        despesa.MesReferencia.Should().BeNull();
+    }
 }

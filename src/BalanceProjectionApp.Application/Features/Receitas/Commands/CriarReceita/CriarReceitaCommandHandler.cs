@@ -1,4 +1,5 @@
 using BalanceProjectionApp.Application.Common.Interfaces;
+using BalanceProjectionApp.Application.Features.Colaboradores.Common;
 using BalanceProjectionApp.Application.Features.Receitas.Common;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Exceptions;
@@ -12,6 +13,7 @@ public class CriarReceitaCommandHandler(
     IContaRepository contaRepository,
     IColaboradorRepository colaboradorRepository,
     IDespesaRepository despesaRepository,
+    IComissaoDespesaSincronizador comissaoDespesaSincronizador,
     IUnitOfWork uow) : IRequestHandler<CriarReceitaCommand, Guid>
 {
     public async Task<Guid> Handle(CriarReceitaCommand request, CancellationToken cancellationToken)
@@ -45,6 +47,12 @@ public class CriarReceitaCommandHandler(
         }
 
         await uow.SaveChangesAsync(cancellationToken);
+
+        var colaboradorIds = receita.Comissoes.Where(c => !c.IsDeleted).Select(c => c.ColaboradorId);
+        var pares = ComissaoMesHelper.CalcularPares(colaboradorIds, receita.Parcelas.Select(p => p.DataVencimento));
+        foreach (var par in pares)
+            await comissaoDespesaSincronizador.RecalcularAsync(par.ColaboradorId, par.Mes, cancellationToken);
+
         return receita.Id;
     }
 }

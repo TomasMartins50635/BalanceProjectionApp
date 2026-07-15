@@ -23,5 +23,13 @@ public class DespesaConfiguration : IEntityTypeConfiguration<Despesa>
             .WithOne(p => p.Despesa)
             .HasForeignKey(p => p.DespesaId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(d => new { d.ColaboradorId, d.MesReferencia });
+
+        builder.HasOne<Colaborador>()
+            .WithMany()
+            .HasForeignKey(d => d.ColaboradorId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

@@ -19,6 +19,12 @@ public class Despesa : Entity
     public DateOnly? DataInicio { get; private set; }
     public bool IsActive { get; private set; }
 
+    /// <summary>Colaborador desta despesa quando gerada automaticamente para pagar comissões (nulo caso contrário).</summary>
+    public Guid? ColaboradorId { get; private set; }
+
+    /// <summary>Mês (dia 1) a que a despesa de comissão se refere. Nulo exceto em despesas de comissão.</summary>
+    public DateOnly? MesReferencia { get; private set; }
+
     private readonly List<Parcela> _parcelas = [];
     public IReadOnlyCollection<Parcela> Parcelas => _parcelas.AsReadOnly();
 
@@ -26,7 +32,8 @@ public class Despesa : Entity
 
     public static Despesa Criar(string nome, Guid contaId, CategoriaContrato? categoria = null,
         TipoDespesa tipo = TipoDespesa.Pontual, decimal? valorFixo = null,
-        Periodicidade? periodicidade = null, DateOnly? dataInicio = null)
+        Periodicidade? periodicidade = null, DateOnly? dataInicio = null,
+        Guid? colaboradorId = null, DateOnly? mesReferencia = null)
     {
         if (string.IsNullOrWhiteSpace(nome))
             throw new DomainException("O nome da despesa não pode ser vazio.");
@@ -53,7 +60,9 @@ public class Despesa : Entity
             ValorFixo = valorFixo,
             Periodicidade = periodicidade,
             DataInicio = dataInicio,
-            IsActive = tipo != TipoDespesa.Pontual
+            IsActive = tipo != TipoDespesa.Pontual,
+            ColaboradorId = colaboradorId,
+            MesReferencia = mesReferencia
         };
     }
 

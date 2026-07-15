@@ -16,8 +16,8 @@ public class AtualizarDespesaCommandHandler(
         var despesa = await despesaRepository.ObterPorIdComParcelasAsync(request.Id, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Despesa), request.Id);
 
-        if (despesa.Categoria == CategoriaContrato.IVA)
-            throw new DomainException("Despesas de IVA não podem ser editadas.");
+        if (despesa.Categoria == CategoriaContrato.IVA || despesa.Categoria == CategoriaContrato.Comissao)
+            throw new DomainException("Despesas de IVA ou Comissão não podem ser editadas.");
 
         if (despesa.Categoria == CategoriaContrato.Financiamento)
         {

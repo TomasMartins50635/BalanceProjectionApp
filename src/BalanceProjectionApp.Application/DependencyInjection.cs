@@ -1,5 +1,6 @@
 using System.Reflection;
 using BalanceProjectionApp.Application.Common.Behaviours;
+using BalanceProjectionApp.Application.Features.Colaboradores.Common;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,7 @@ public static class DependencyInjection
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(assembly));
         services.AddValidatorsFromAssembly(assembly);
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
+        services.AddScoped<IComissaoDespesaSincronizador, ComissaoDespesaSincronizador>();
 
         return services;
     }

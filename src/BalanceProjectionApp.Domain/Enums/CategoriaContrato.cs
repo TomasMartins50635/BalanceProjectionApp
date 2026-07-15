@@ -8,5 +8,6 @@ public enum CategoriaContrato
     Impostos,
     IVA,
     Financiamento,
-    Outro
+    Outro,
+    Comissao
 }

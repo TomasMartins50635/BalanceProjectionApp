@@ -73,8 +73,7 @@ public class Receita : Entity
         if (_parcelas.Any(p => p.Numero == numero && !p.IsDeleted))
             throw new DomainException($"Já existe uma parcela com o número {numero} nesta receita.");
 
-        var totalPercentagem = _comissoes.Where(c => !c.IsDeleted).Sum(c => c.Percentagem);
-        var valorLiquido = Math.Round(valor * (1 - totalPercentagem / 100m), 2);
+        var valorLiquido = valor;
         var valorBruto = TemIva ? Math.Round(valor * 1.23m, 2) : valor;
 
         var parcela = Parcela.Criar(numero, dataVencimento, valorBruto, valorLiquido, ContaId, Id, null);

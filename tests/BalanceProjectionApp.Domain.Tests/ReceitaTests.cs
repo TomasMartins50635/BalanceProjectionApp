@@ -62,7 +62,7 @@ public class ReceitaTests
     }
 
     [Fact]
-    public void AdicionarParcela_ComComissao_ValorLiquidoDeduzido()
+    public void AdicionarParcela_ComComissao_ValorLiquidoIgualAoValorBruto()
     {
         var receita = Receita.Criar("Projeto", ContaId);
         var colaborador = Colaborador.CriarServico("Ana", 10m);
@@ -71,7 +71,7 @@ public class ReceitaTests
         var parcela = receita.AdicionarParcela(1, Vencimento, 10_000m);
 
         parcela.ValorBruto.Should().Be(10_000m);
-        parcela.ValorLiquido.Should().Be(9_000m);
+        parcela.ValorLiquido.Should().Be(10_000m);
     }
 
     [Theory]
@@ -109,7 +109,7 @@ public class ReceitaTests
     }
 
     [Fact]
-    public void AdicionarParcela_ComTemIva_ValorBrutoInfladoValorLiquidoPreIva()
+    public void AdicionarParcela_ComTemIvaEComissao_ValorBrutoInfladoValorLiquidoImuneAAmbos()
     {
         var receita = Receita.Criar("Projeto", ContaId, temIva: true);
         var colaborador = Colaborador.CriarServico("Ana", 10m);
@@ -118,7 +118,7 @@ public class ReceitaTests
         var parcela = receita.AdicionarParcela(1, Vencimento, 10_000m);
 
         parcela.ValorBruto.Should().Be(12_300m);
-        parcela.ValorLiquido.Should().Be(9_000m);
+        parcela.ValorLiquido.Should().Be(10_000m);
     }
 
     [Fact]

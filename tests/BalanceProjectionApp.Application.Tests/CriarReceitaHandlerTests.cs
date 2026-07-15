@@ -1,4 +1,5 @@
 using BalanceProjectionApp.Application.Common.Interfaces;
+using BalanceProjectionApp.Application.Features.Colaboradores.Common;
 using BalanceProjectionApp.Application.Features.Receitas.Commands.CriarReceita;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Enums;
@@ -16,6 +17,7 @@ public class CriarReceitaHandlerTests
     private readonly IContaRepository _contaRepo = Substitute.For<IContaRepository>();
     private readonly IColaboradorRepository _colaboradorRepo = Substitute.For<IColaboradorRepository>();
     private readonly IDespesaRepository _despesaRepo = Substitute.For<IDespesaRepository>();
+    private readonly IComissaoDespesaSincronizador _comissaoSincronizador = Substitute.For<IComissaoDespesaSincronizador>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly CriarReceitaCommandHandler _handler;
 
@@ -24,7 +26,7 @@ public class CriarReceitaHandlerTests
 
     public CriarReceitaHandlerTests()
     {
-        _handler = new CriarReceitaCommandHandler(_receitaRepo, _contaRepo, _colaboradorRepo, _despesaRepo, _uow);
+        _handler = new CriarReceitaCommandHandler(_receitaRepo, _contaRepo, _colaboradorRepo, _despesaRepo, _comissaoSincronizador, _uow);
         _contaRepo.ObterPorIdAsync(ContaId, Arg.Any<CancellationToken>())
             .Returns(Conta.Criar("Conta", 0m));
     }
@@ -227,5 +229,36 @@ public class CriarReceitaHandlerTests
 
         receitaCriada!.DespesaIvaId.Should().BeNull();
         await _despesaRepo.DidNotReceive().AdicionarAsync(Arg.Any<Despesa>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ComComissao_RecalculaDespesaDeComissaoParaOMesDaParcela()
+    {
+        var colaborador = Colaborador.CriarServico("Ana", 10m);
+        _colaboradorRepo.ObterPorIdAsync(colaborador.Id, Arg.Any<CancellationToken>())
+            .Returns(colaborador);
+
+        await _handler.Handle(
+            new CriarReceitaCommand(
+                "Proj",
+                ContaId,
+                null,
+                Parcelas: [new(1, new DateOnly(2026, 6, 15), 1_000m)],
+                Comissoes: [new(colaborador.Id, TipoComissao.Servico, 10m)]),
+            CancellationToken.None);
+
+        await _comissaoSincronizador.Received(1)
+            .RecalcularAsync(colaborador.Id, new DateOnly(2026, 6, 1), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_SemComissao_NaoChamaSincronizador()
+    {
+        await _handler.Handle(
+            new CriarReceitaCommand("Proj", ContaId, null, Parcelas: [new(1, Vencimento, 1_000m)]),
+            CancellationToken.None);
+
+        await _comissaoSincronizador.DidNotReceive()
+            .RecalcularAsync(Arg.Any<Guid>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>());
     }
 }

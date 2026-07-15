@@ -22,7 +22,9 @@ import {
   PERIODICIDADE_LABELS,
 } from '@/lib/types';
 
-const CATEGORIAS_MANUAIS = CATEGORIAS.filter(c => c !== 'Financiamento');
+const CATEGORIAS_MANUAIS = CATEGORIAS.filter(c => c !== 'Financiamento' && c !== 'Comissao');
+
+const isSistemaGerido = (categoria: CategoriaContrato | null) => categoria === 'IVA' || categoria === 'Comissao';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -459,7 +461,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1 justify-end">
-                          {d.categoria !== 'IVA' && (
+                          {!isSistemaGerido(d.categoria) && (
                             <Button
                               size="sm" variant="ghost"
                               className="h-7 w-7 p-0 text-gray-500 hover:text-gray-700"
@@ -503,7 +505,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                                     {d.isActive ? 'Desativar' : 'Ativar'}
                                   </Button>
                                 )}
-                                {d.categoria !== 'IVA' && (
+                                {!isSistemaGerido(d.categoria) && (
                                   <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setAddParcelaOpen(true)}>
                                     <Plus className="w-3.5 h-3.5 mr-1" />Parcela
                                   </Button>
@@ -578,7 +580,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
                 {expandedDespesa.isActive ? 'Desativar' : 'Ativar'}
               </Button>
             )}
-            {expandedDespesa.categoria !== 'IVA' && (
+            {!isSistemaGerido(expandedDespesa.categoria) && (
               <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400"
                 onClick={() => setAddParcelaOpen(true)}>
                 <Plus className="w-3.5 h-3.5" />

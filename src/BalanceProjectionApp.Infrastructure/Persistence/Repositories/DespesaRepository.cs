@@ -14,6 +14,13 @@ public class DespesaRepository(AppDbContext context) : IDespesaRepository
             .Include(d => d.Parcelas)
             .FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
 
+    public Task<Despesa?> ObterPorColaboradorEMesAsync(Guid colaboradorId, DateOnly mesReferencia, CancellationToken cancellationToken = default)
+        => context.Despesas
+            .IgnoreQueryFilters()
+            .Where(d => !d.IsDeleted)
+            .Include(d => d.Parcelas.Where(p => !p.IsDeleted))
+            .FirstOrDefaultAsync(d => d.ColaboradorId == colaboradorId && d.MesReferencia == mesReferencia, cancellationToken);
+
     public async Task<IEnumerable<Despesa>> ListarAsync(CancellationToken cancellationToken = default)
         => await context.Despesas
             .Include(d => d.Parcelas)

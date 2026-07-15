@@ -11,8 +11,9 @@ public class Parcela : Entity
 
     /// <summary>
     /// Valor que efetivamente movimenta a Conta na liquidação. Para parcelas de Despesa, igual a ValorBruto.
-    /// Para parcelas de Receita, calculado a partir do valor indicado pelo utilizador (não de ValorBruto,
-    /// que pode incluir IVA quando a Receita tem TemIva) menos a comissão.
+    /// Para parcelas de Receita, é o valor indicado pelo utilizador (não ValorBruto, que pode incluir IVA
+    /// quando a Receita tem TemIva). Comissões de colaboradores não são deduzidas aqui — são pagas à parte
+    /// via a Despesa de comissão mensal agregada (ver ComissaoDespesaSincronizador).
     /// </summary>
     public decimal ValorLiquido { get; private set; }
 

@@ -17,7 +17,8 @@ export type CategoriaContrato =
   | 'Impostos'
   | 'IVA'
   | 'Financiamento'
-  | 'Outro';
+  | 'Outro'
+  | 'Comissao';
 
 export const CATEGORIA_LABELS: Record<CategoriaContrato, string> = {
   Servicos: 'Serviços',
@@ -27,6 +28,7 @@ export const CATEGORIA_LABELS: Record<CategoriaContrato, string> = {
   IVA: 'IVA',
   Financiamento: 'Financiamento',
   Outro: 'Outro',
+  Comissao: 'Comissão',
 };
 
 export const CATEGORIAS = Object.keys(CATEGORIA_LABELS) as CategoriaContrato[];

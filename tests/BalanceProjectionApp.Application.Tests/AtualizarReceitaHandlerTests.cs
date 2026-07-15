@@ -1,4 +1,5 @@
 using BalanceProjectionApp.Application.Common.Interfaces;
+using BalanceProjectionApp.Application.Features.Colaboradores.Common;
 using BalanceProjectionApp.Application.Features.Receitas.Commands.AtualizarReceita;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Enums;
@@ -15,6 +16,7 @@ public class AtualizarReceitaHandlerTests
     private readonly IReceitaRepository _receitaRepo = Substitute.For<IReceitaRepository>();
     private readonly IDespesaRepository _despesaRepo = Substitute.For<IDespesaRepository>();
     private readonly IParcelaRepository _parcelaRepo = Substitute.For<IParcelaRepository>();
+    private readonly IComissaoDespesaSincronizador _comissaoSincronizador = Substitute.For<IComissaoDespesaSincronizador>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly AtualizarReceitaCommandHandler _handler;
 
@@ -23,7 +25,7 @@ public class AtualizarReceitaHandlerTests
 
     public AtualizarReceitaHandlerTests()
     {
-        _handler = new AtualizarReceitaCommandHandler(_receitaRepo, _despesaRepo, _parcelaRepo, _uow);
+        _handler = new AtualizarReceitaCommandHandler(_receitaRepo, _despesaRepo, _parcelaRepo, _comissaoSincronizador, _uow);
     }
 
     // A navegação DespesaIva é privada (setter EF); reflexão simula o que o Include faria.
@@ -144,5 +146,25 @@ public class AtualizarReceitaHandlerTests
         despesaIva.Parcelas.Should().HaveCount(2);
         despesaIva.Parcelas.Should().ContainSingle(p => p.IsPaid && p.ValorBruto == 230m);
         despesaIva.Parcelas.Should().ContainSingle(p => !p.IsDeleted && !p.IsPaid && p.ValorBruto == 460m);
+    }
+
+    [Fact]
+    public async Task Handle_ComComissaoMudaMesDaParcela_RecalculaMesAntigoEMesNovo()
+    {
+        var receitaId = Guid.NewGuid();
+        var colaborador = Colaborador.CriarServico("Ana", 10m);
+        var receita = Receita.Criar("Proj", ContaId);
+        receita.AdicionarComissao(colaborador, TipoComissao.Servico, 10m);
+        receita.AdicionarParcela(1, new DateOnly(2026, 6, 15), 1_000m);
+        _receitaRepo.ObterPorIdComParcelasAsync(receitaId, Arg.Any<CancellationToken>()).Returns(receita);
+
+        await _handler.Handle(
+            new AtualizarReceitaCommand(receitaId, "Proj", null, [new(1, new DateOnly(2026, 7, 15), 1_000m)]),
+            CancellationToken.None);
+
+        await _comissaoSincronizador.Received(1)
+            .RecalcularAsync(colaborador.Id, new DateOnly(2026, 6, 1), Arg.Any<CancellationToken>());
+        await _comissaoSincronizador.Received(1)
+            .RecalcularAsync(colaborador.Id, new DateOnly(2026, 7, 1), Arg.Any<CancellationToken>());
     }
 }

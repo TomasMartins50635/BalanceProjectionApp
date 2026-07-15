@@ -1,4 +1,5 @@
 using BalanceProjectionApp.Application.Common.Interfaces;
+using BalanceProjectionApp.Application.Features.Colaboradores.Common;
 using BalanceProjectionApp.Application.Features.Receitas.Common;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Exceptions;
@@ -11,12 +12,16 @@ public class AtualizarReceitaCommandHandler(
     IReceitaRepository receitaRepository,
     IDespesaRepository despesaRepository,
     IParcelaRepository parcelaRepository,
+    IComissaoDespesaSincronizador comissaoDespesaSincronizador,
     IUnitOfWork uow) : IRequestHandler<AtualizarReceitaCommand>
 {
     public async Task Handle(AtualizarReceitaCommand request, CancellationToken cancellationToken)
     {
         var receita = await receitaRepository.ObterPorIdComParcelasAsync(request.Id, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(Receita), request.Id);
+
+        var mesesAntigos = receita.Parcelas.Select(p => p.DataVencimento).ToList();
+        var colaboradorIds = receita.Comissoes.Where(c => !c.IsDeleted).Select(c => c.ColaboradorId).ToList();
 
         receita.Atualizar(request.Nome, request.Categoria, request.TemIva);
         receita.RemoverParcelasNaoPagas();
@@ -33,6 +38,11 @@ public class AtualizarReceitaCommandHandler(
         await SincronizarDespesaIvaAsync(receita, request, cancellationToken);
 
         await uow.SaveChangesAsync(cancellationToken);
+
+        var mesesNovos = request.Parcelas.Select(p => p.DataVencimento);
+        var pares = ComissaoMesHelper.CalcularPares(colaboradorIds, mesesAntigos.Concat(mesesNovos));
+        foreach (var par in pares)
+            await comissaoDespesaSincronizador.RecalcularAsync(par.ColaboradorId, par.Mes, cancellationToken);
     }
 
     private async Task SincronizarDespesaIvaAsync(Receita receita, AtualizarReceitaCommand request, CancellationToken cancellationToken)

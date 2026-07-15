@@ -1,4 +1,5 @@
 using BalanceProjectionApp.Application.Common.Interfaces;
+using BalanceProjectionApp.Application.Features.Colaboradores.Common;
 using BalanceProjectionApp.Application.Features.Receitas.Commands.RemoverReceita;
 using BalanceProjectionApp.Domain.Entities;
 using BalanceProjectionApp.Domain.Enums;
@@ -13,12 +14,13 @@ namespace BalanceProjectionApp.Application.Tests;
 public class RemoverReceitaHandlerTests
 {
     private readonly IReceitaRepository _repo = Substitute.For<IReceitaRepository>();
+    private readonly IComissaoDespesaSincronizador _comissaoSincronizador = Substitute.For<IComissaoDespesaSincronizador>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly RemoverReceitaCommandHandler _handler;
 
     public RemoverReceitaHandlerTests()
     {
-        _handler = new RemoverReceitaCommandHandler(_repo, _uow);
+        _handler = new RemoverReceitaCommandHandler(_repo, _comissaoSincronizador, _uow);
     }
 
     [Fact]
@@ -77,6 +79,22 @@ public class RemoverReceitaHandlerTests
         despesaIva.IsDeleted.Should().BeTrue();
         despesaIva.Parcelas.Should().OnlyContain(p => p.IsDeleted);
         receita.DespesaIvaId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_ReceitaComComissaoAtiva_RecalculaMesesDasParcelas()
+    {
+        var receitaId = Guid.NewGuid();
+        var colaborador = Colaborador.CriarServico("Ana", 10m);
+        var receita = Receita.Criar("Proj", Guid.NewGuid());
+        receita.AdicionarComissao(colaborador, TipoComissao.Servico, 10m);
+        receita.AdicionarParcela(1, new DateOnly(2026, 6, 15), 1_000m);
+        _repo.ObterPorIdComParcelasAsync(receitaId, Arg.Any<CancellationToken>()).Returns(receita);
+
+        await _handler.Handle(new RemoverReceitaCommand(receitaId), CancellationToken.None);
+
+        await _comissaoSincronizador.Received(1)
+            .RecalcularAsync(colaborador.Id, new DateOnly(2026, 6, 1), Arg.Any<CancellationToken>());
     }
 
     // A navegação DespesaIva é privada (setter EF); reflexão simula o que o Include faria.

@@ -81,7 +81,7 @@ public class ReceitaRepositoryTests(PostgresFixture db) : IAsyncLifetime
         encontrada.Comissoes.Should().HaveCount(1);
         encontrada.Comissoes.Single().Percentagem.Should().Be(10m);
         encontrada.Parcelas.Should().HaveCount(1);
-        encontrada.Parcelas.Single().ValorLiquido.Should().Be(90m); // 100m - 10%
+        encontrada.Parcelas.Single().ValorLiquido.Should().Be(100m); // comissão já não é deduzida do ValorLiquido
     }
 
     // ── Global query filter (soft delete) ────────────────────────────────────

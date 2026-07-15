@@ -11,9 +11,9 @@ public class CriarDespesaCommandValidator : AbstractValidator<CriarDespesaComman
         RuleFor(x => x.ContaId).NotEmpty();
 
         RuleFor(x => x.Categoria)
-            .Must(c => c != CategoriaContrato.IVA && c != CategoriaContrato.Financiamento)
+            .Must(c => c != CategoriaContrato.IVA && c != CategoriaContrato.Financiamento && c != CategoriaContrato.Comissao)
             .When(x => x.Categoria.HasValue)
-            .WithMessage("Não é possível criar manualmente despesas de IVA ou Financiamento.");
+            .WithMessage("Não é possível criar manualmente despesas de IVA, Financiamento ou Comissão.");
 
         When(x => x.TipoDespesa != TipoDespesa.Pontual, () =>
         {
