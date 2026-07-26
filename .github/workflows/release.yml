@@ -107,6 +107,18 @@ jobs:
           $payload | ConvertTo-Json -Depth 5 |
             Out-File -FilePath latest.json -Encoding utf8NoBOM
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-v${{ steps.version.outputs.VERSION }}
+          path: |
+            ui/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            ui/desktop/src-tauri/target/release/bundle/nsis/*.exe.sig
+            latest.json
+            publish/sync-server-win-x64.zip
+            sync-server/install.ps1
+          retention-days: 30
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
