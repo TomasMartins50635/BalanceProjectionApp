@@ -82,6 +82,16 @@ jobs:
             exit 1
           }
 
+          # O nome de build (a partir do productName "Gestão Tesouraria") tem acento e
+          # espaço. O GitHub sanitiza nomes de assets ao publicá-los (acento e espaço
+          # desaparecem), o que desalinhava o URL aqui gerado do URL real do asset,
+          # causando 404 no updater. Renomeia para um nome ASCII estável e usa-o em
+          # ambos os sítios — o rename não invalida a assinatura (é sobre o conteúdo).
+          $safeName = "GestaoTesouraria_${version}_x64-setup.exe"
+          Rename-Item -Path $exeFile.FullName -NewName $safeName
+          Rename-Item -Path $sigFile.FullName -NewName "$safeName.sig"
+          $sigFile = Get-Item "$nsisDir/$safeName.sig"
+
           $payload = [ordered]@{
             version  = $version
             notes    = ""
@@ -89,7 +99,7 @@ jobs:
             platforms = [ordered]@{
               "windows-x86_64" = [ordered]@{
                 signature = (Get-Content $sigFile -Raw).Trim()
-                url = "https://github.com/${{ github.repository }}/releases/download/v${version}/$($exeFile.Name)"
+                url = "https://github.com/${{ github.repository }}/releases/download/v${version}/$safeName"
               }
             }
           }
