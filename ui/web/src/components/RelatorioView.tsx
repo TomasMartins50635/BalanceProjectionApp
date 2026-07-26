@@ -149,7 +149,8 @@ export function RelatorioView() {
   }, [receitas, despesas]);
 
   const categoriasDisponiveis = useMemo(
-    () => [...new Set(todasParcelas.map(p => p.categoria).filter((c): c is string => c !== null))].sort(),
+    () => [...new Set(todasParcelas.map(p => p.categoria).filter((c): c is string => c !== null))]
+      .sort((a, b) => a.localeCompare(b)),
     [todasParcelas],
   );
 
