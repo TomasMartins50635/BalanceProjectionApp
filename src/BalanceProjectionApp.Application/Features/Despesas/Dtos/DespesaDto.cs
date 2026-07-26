@@ -13,5 +13,6 @@ public record DespesaDto(
     Periodicidade? Periodicidade,
     DateOnly? DataInicio,
     bool IsActive,
+    DateTime CreatedAt,
     DateTime UpdatedAt,
     IEnumerable<ParcelaDto> Parcelas);

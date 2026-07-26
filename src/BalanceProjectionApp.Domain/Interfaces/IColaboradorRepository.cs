@@ -8,4 +8,5 @@ public interface IColaboradorRepository
     Task<IEnumerable<Colaborador>> ListarAsync(CancellationToken cancellationToken = default);
     Task AdicionarAsync(Colaborador colaborador, CancellationToken cancellationToken = default);
     Task<IEnumerable<ReceitaComissao>> ListarComissoesAsync(Guid colaboradorId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<ReceitaComissao>> ListarTodasComissoesAsync(CancellationToken cancellationToken = default);
 }

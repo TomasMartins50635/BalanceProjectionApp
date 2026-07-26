@@ -334,7 +334,7 @@ export function Dashboard({ onNavigate }: Readonly<DashboardProps>) {
                   const d = new Date();
                   d.setDate(1);
                   d.setMonth(d.getMonth() + i);
-                  const value = d.toISOString().slice(0, 7);
+                  const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                   const label = d.toLocaleString('pt-PT', { month: 'long', year: 'numeric' });
                   return <SelectItem key={value} value={value}>{label}</SelectItem>;
                 })}

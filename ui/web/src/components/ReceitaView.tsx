@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/ui/pagination';
-import { Search, Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, ArrowLeft, SlidersHorizontal, ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,72 @@ import { useParcelaActions } from '@/hooks/useParcelaActions';
 import { api } from '@/lib/api';
 import type { ColaboradorDto, ReceitaDto, CategoriaReceita, TipoComissao } from '@/lib/types';
 import { CATEGORIAS_RECEITA, CATEGORIA_RECEITA_LABELS, TIPO_COMISSAO_LABELS } from '@/lib/types';
+
+interface ReceitaFiltros {
+  categoria: CategoriaReceita | 'todas';
+  contaId: string; // '' = todas
+  colaboradorIds: string[]; // [] = todos
+  iva: 'todas' | 'com' | 'sem';
+  pagamento: 'todas' | 'pendente' | 'paga';
+  valorMin: string;
+  valorMax: string;
+  vencimentoInicio: string;
+  vencimentoFim: string;
+}
+
+const FILTROS_VAZIOS: ReceitaFiltros = {
+  categoria: 'todas',
+  contaId: '',
+  colaboradorIds: [],
+  iva: 'todas',
+  pagamento: 'todas',
+  valorMin: '',
+  valorMax: '',
+  vencimentoInicio: '',
+  vencimentoFim: '',
+};
+
+function contarFiltrosAtivos(f: ReceitaFiltros): number {
+  let n = 0;
+  if (f.categoria !== 'todas') n++;
+  if (f.contaId) n++;
+  if (f.colaboradorIds.length > 0) n++;
+  if (f.iva !== 'todas') n++;
+  if (f.pagamento !== 'todas') n++;
+  if (f.valorMin) n++;
+  if (f.valorMax) n++;
+  if (f.vencimentoInicio) n++;
+  if (f.vencimentoFim) n++;
+  return n;
+}
+
+function toggleInArray<T>(arr: T[], value: T): T[] {
+  return arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value];
+}
+
+type SortField = 'nome' | 'valor' | 'criado' | 'atualizado';
+type SortDir = 'asc' | 'desc';
+
+function SortIcon({ field, sort }: { field: SortField; sort: { field: SortField | null; dir: SortDir } }) {
+  if (sort.field !== field) return <ChevronsUpDown className="inline w-3.5 h-3.5 ml-1 text-slate-400" />;
+  return sort.dir === 'asc'
+    ? <ArrowUp className="inline w-3.5 h-3.5 ml-1 text-indigo-500" />
+    : <ArrowDown className="inline w-3.5 h-3.5 ml-1 text-indigo-500" />;
+}
+
+function PillButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-2.5 h-7 rounded-full text-xs font-medium border transition-colors ${
+        active ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 // ── Form types ─────────────────────────────────────────────────────────────────
 
@@ -94,6 +160,12 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
   }, [highlightId, receitas]);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [filtros, setFiltros] = useState<ReceitaFiltros>(FILTROS_VAZIOS);
+  const [filtrosOpen, setFiltrosOpen] = useState(false);
+  const filtrosAtivos = useMemo(() => contarFiltrosAtivos(filtros), [filtros]);
+  const [listSort, setListSort] = useState<{ field: SortField | null; dir: SortDir }>({ field: null, dir: 'asc' });
+  const toggleListSort = (field: SortField) =>
+    setListSort(s => s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'asc' });
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isAtTop, setIsAtTop] = useState(true);
   const handleScroll = useCallback(() => {
@@ -163,20 +235,57 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
     }
   };
 
+  const valorTotal = (r: ReceitaDto) => r.parcelas.reduce((s, p) => s + p.valorBruto, 0);
+
   const filtered = useMemo(() =>
     (receitas ?? [])
       .filter(r => !removingIds.has(r.id))
       .filter(r =>
         r.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.categoria?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
-      ),
-    [receitas, searchTerm, removingIds],
+      )
+      .filter(r => filtros.categoria === 'todas' || r.categoria === filtros.categoria)
+      .filter(r => !filtros.contaId || r.contaId === filtros.contaId)
+      .filter(r => filtros.colaboradorIds.length === 0 || r.comissoes.some(c => filtros.colaboradorIds.includes(c.colaboradorId)))
+      .filter(r =>
+        filtros.iva === 'todas'
+        || (filtros.iva === 'com' && r.temIva)
+        || (filtros.iva === 'sem' && !r.temIva)
+      )
+      .filter(r => {
+        if (filtros.pagamento === 'todas') return true;
+        if (filtros.pagamento === 'pendente') return r.parcelas.some(p => !p.isPaid);
+        return r.parcelas.length > 0 && r.parcelas.every(p => p.isPaid);
+      })
+      .filter(r => {
+        const total = valorTotal(r);
+        if (filtros.valorMin && total < parseFloat(filtros.valorMin)) return false;
+        if (filtros.valorMax && total > parseFloat(filtros.valorMax)) return false;
+        return true;
+      })
+      .filter(r => {
+        if (!filtros.vencimentoInicio && !filtros.vencimentoFim) return true;
+        return r.parcelas.some(p =>
+          (!filtros.vencimentoInicio || p.dataVencimento >= filtros.vencimentoInicio)
+          && (!filtros.vencimentoFim || p.dataVencimento <= filtros.vencimentoFim)
+        );
+      }),
+    [receitas, searchTerm, removingIds, filtros],
   );
 
-  const { page, totalPages, pageItems, setPage, reset: resetPage } = usePagination(filtered, 15);
-  useEffect(() => { resetPage(); }, [searchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sorted = useMemo(() => {
+    if (!listSort.field) return filtered;
+    const mul = listSort.dir === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      if (listSort.field === 'nome') return a.nome.localeCompare(b.nome) * mul;
+      if (listSort.field === 'valor') return (valorTotal(a) - valorTotal(b)) * mul;
+      if (listSort.field === 'criado') return (a.createdAt ?? '').localeCompare(b.createdAt ?? '') * mul;
+      return (a.updatedAt ?? '').localeCompare(b.updatedAt ?? '') * mul;
+    });
+  }, [filtered, listSort]);
 
-  const valorTotal = (r: ReceitaDto) => r.parcelas.reduce((s, p) => s + p.valorBruto, 0);
+  const { page, totalPages, pageItems, setPage, reset: resetPage } = usePagination(sorted, 15);
+  useEffect(() => { resetPage(); }, [searchTerm, filtros]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addParcela = () =>
     setForm(f => ({ ...f, parcelas: [...f.parcelas, { dataVencimento: '', valor: '' }] }));
@@ -482,9 +591,20 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
           </Button>
         </div>
         <div className={`overflow-hidden transition-all duration-200 ${isAtTop ? 'max-h-16 opacity-100 pb-3.5' : 'max-h-0 opacity-0 pb-0'}`}>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" aria-hidden="true" />
-            <Input aria-label="Pesquisar receitas" placeholder="Pesquisar por nome ou categoria..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-9 border-slate-200" />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" aria-hidden="true" />
+              <Input aria-label="Pesquisar receitas" placeholder="Pesquisar por nome ou categoria..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-9 border-slate-200" />
+            </div>
+            <Button variant="outline" size="sm" className="h-9 shrink-0 relative" onClick={() => setFiltrosOpen(true)}>
+              <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
+              Filtros
+              {filtrosAtivos > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-indigo-600 text-white text-[10px] font-semibold">
+                  {filtrosAtivos}
+                </span>
+              )}
+            </Button>
           </div>
         </div>
       </div>
@@ -499,17 +619,26 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
           <Table>
             <TableHeader className="sticky top-0 bg-slate-50 z-10">
               <TableRow>
-                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nome</TableHead>
+                <TableHead className="cursor-pointer select-none text-xs font-semibold text-slate-500 uppercase tracking-wide" onClick={() => toggleListSort('nome')}>
+                  Nome<SortIcon field="nome" sort={listSort} />
+                </TableHead>
                 <TableHead className="w-36 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Categoria</TableHead>
-                <TableHead className="w-28 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Valor Total</TableHead>
-                <TableHead className="w-28 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Atualizado</TableHead>
+                <TableHead className="w-28 text-right cursor-pointer select-none text-xs font-semibold text-slate-500 uppercase tracking-wide" onClick={() => toggleListSort('valor')}>
+                  Valor Total<SortIcon field="valor" sort={listSort} />
+                </TableHead>
+                <TableHead className="w-28 cursor-pointer select-none text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell" onClick={() => toggleListSort('criado')}>
+                  Criado<SortIcon field="criado" sort={listSort} />
+                </TableHead>
+                <TableHead className="w-28 cursor-pointer select-none text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell" onClick={() => toggleListSort('atualizado')}>
+                  Atualizado<SortIcon field="atualizado" sort={listSort} />
+                </TableHead>
                 <TableHead className="w-20" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-8">
+                  <TableCell colSpan={6} className="text-center text-sm text-gray-500 py-8">
                     {(receitas ?? []).length === 0 ? 'Nenhuma receita registada' : 'Nenhum resultado'}
                   </TableCell>
                 </TableRow>
@@ -524,7 +653,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                         {r.nome}
                         {r.comissoes.length > 0 && (
                           <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600">
-                            {r.comissoes.reduce((s, c) => s + c.percentagem, 0).toFixed(1)}% comissão
+                            {[...new Set(r.comissoes.map(c => c.colaboradorNome))].join(', ')}
                           </span>
                         )}
                       </TableCell>
@@ -535,6 +664,9 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                       </TableCell>
                       <TableCell className="text-right font-semibold text-green-600 tabular-nums">
                         €{valorTotal(r).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500 hidden sm:table-cell">
+                        {formatDateTime(r.createdAt)}
                       </TableCell>
                       <TableCell className="text-sm text-gray-500 hidden sm:table-cell">
                         {formatDateTime(r.updatedAt)}
@@ -563,7 +695,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
 
                     {expandedId === r.id && (
                       <TableRow className="hidden sm:table-row">
-                        <TableCell colSpan={5} className="p-0">
+                        <TableCell colSpan={6} className="p-0">
                           <div className="px-4 md:px-8 py-4 bg-slate-50/60 border-t border-slate-100 space-y-4">
                             {/* Comissões */}
                             <div>
@@ -696,7 +828,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
                   )}
                   {r.comissoes.length > 0 && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600">
-                      {r.comissoes.reduce((s, c) => s + c.percentagem, 0).toFixed(1)}% comissão
+                      {[...new Set(r.comissoes.map(c => c.colaboradorNome))].join(', ')}
                     </span>
                   )}
                 </div>
@@ -731,6 +863,122 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
 
       {renderFormDialog('create')}
       {renderFormDialog('edit')}
+
+      {/* ── Filtros ── */}
+      <Dialog open={filtrosOpen} onOpenChange={setFiltrosOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Filtros</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-2">
+            <div>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Categoria</Label>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                <PillButton active={filtros.categoria === 'todas'} onClick={() => setFiltros(f => ({ ...f, categoria: 'todas' }))}>Todas</PillButton>
+                {CATEGORIAS_RECEITA.map(cat => (
+                  <PillButton key={cat} active={filtros.categoria === cat} onClick={() => setFiltros(f => ({ ...f, categoria: cat }))}>
+                    {CATEGORIA_RECEITA_LABELS[cat]}
+                  </PillButton>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="filtro-conta" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Conta</Label>
+              <Select value={filtros.contaId || '_todas'} onValueChange={v => setFiltros(f => ({ ...f, contaId: v === '_todas' ? '' : v }))}>
+                <SelectTrigger id="filtro-conta" className="mt-1.5"><SelectValue placeholder="Todas as contas" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_todas">Todas as contas</SelectItem>
+                  {(contas ?? []).map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Colaborador</Label>
+                {filtros.colaboradorIds.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-xs text-slate-400 hover:text-slate-600"
+                    onClick={() => setFiltros(f => ({ ...f, colaboradorIds: [] }))}
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {(colaboradores ?? []).length === 0 && (
+                  <p className="text-xs text-slate-400">Nenhum colaborador registado.</p>
+                )}
+                {(colaboradores ?? []).map(c => (
+                  <PillButton
+                    key={c.id}
+                    active={filtros.colaboradorIds.includes(c.id)}
+                    onClick={() => setFiltros(f => ({ ...f, colaboradorIds: toggleInArray(f.colaboradorIds, c.id) }))}
+                  >
+                    {c.nome}
+                  </PillButton>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">IVA</Label>
+              <div className="flex gap-1.5 mt-1.5">
+                <PillButton active={filtros.iva === 'todas'} onClick={() => setFiltros(f => ({ ...f, iva: 'todas' }))}>Todas</PillButton>
+                <PillButton active={filtros.iva === 'com'} onClick={() => setFiltros(f => ({ ...f, iva: 'com' }))}>Com IVA</PillButton>
+                <PillButton active={filtros.iva === 'sem'} onClick={() => setFiltros(f => ({ ...f, iva: 'sem' }))}>Sem IVA</PillButton>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Estado de pagamento</Label>
+              <div className="flex gap-1.5 mt-1.5">
+                <PillButton active={filtros.pagamento === 'todas'} onClick={() => setFiltros(f => ({ ...f, pagamento: 'todas' }))}>Todas</PillButton>
+                <PillButton active={filtros.pagamento === 'pendente'} onClick={() => setFiltros(f => ({ ...f, pagamento: 'pendente' }))}>Com pendentes</PillButton>
+                <PillButton active={filtros.pagamento === 'paga'} onClick={() => setFiltros(f => ({ ...f, pagamento: 'paga' }))}>Totalmente paga</PillButton>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="filtro-valor-min" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Valor mín. (€)</Label>
+                <Input id="filtro-valor-min" type="number" min="0" step="0.01" placeholder="0.00"
+                  value={filtros.valorMin} onChange={e => setFiltros(f => ({ ...f, valorMin: e.target.value }))} className="mt-1.5" />
+              </div>
+              <div>
+                <Label htmlFor="filtro-valor-max" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Valor máx. (€)</Label>
+                <Input id="filtro-valor-max" type="number" min="0" step="0.01" placeholder="0.00"
+                  value={filtros.valorMax} onChange={e => setFiltros(f => ({ ...f, valorMax: e.target.value }))} className="mt-1.5" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="filtro-venc-inicio" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Vencimento desde</Label>
+                <input id="filtro-venc-inicio" type="date" value={filtros.vencimentoInicio}
+                  onChange={e => setFiltros(f => ({ ...f, vencimentoInicio: e.target.value }))}
+                  className="mt-1.5 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" />
+              </div>
+              <div>
+                <Label htmlFor="filtro-venc-fim" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Vencimento até</Label>
+                <input id="filtro-venc-fim" type="date" value={filtros.vencimentoFim}
+                  onChange={e => setFiltros(f => ({ ...f, vencimentoFim: e.target.value }))}
+                  className="mt-1.5 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center pt-4 mt-2 border-t border-slate-100">
+            <Button variant="ghost" size="sm" onClick={() => setFiltros(FILTROS_VAZIOS)} disabled={filtrosAtivos === 0}>
+              Limpar filtros
+            </Button>
+            <Button size="sm" onClick={() => setFiltrosOpen(false)}>Aplicar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={removeId !== null}

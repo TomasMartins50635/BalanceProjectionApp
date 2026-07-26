@@ -18,10 +18,10 @@ const fmtDate = (s: string) =>
   new Date(s + (s.includes('T') ? '' : 'T00:00:00')).toLocaleDateString('pt-PT');
 
 function toIsoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-type Preset = '1m' | '3m' | '6m' | '1y' | 'ytd' | 'custom';
+type Preset = '1m' | '3m' | '6m' | '1y' | 'ytd' | 'month' | 'custom';
 
 function presetRange(p: Preset): [string, string] {
   const today = new Date();
@@ -34,12 +34,25 @@ function presetRange(p: Preset): [string, string] {
   return [toIsoDate(new Date(today.getFullYear(), today.getMonth() - 3, today.getDate())), fim];
 }
 
+function currentMonthValue() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function monthRange(mesAno: string): [string, string] {
+  const [ano, mes] = mesAno.split('-').map(Number);
+  const inicio = new Date(ano, mes - 1, 1);
+  const fim = new Date(ano, mes, 0);
+  return [toIsoDate(inicio), toIsoDate(fim)];
+}
+
 const PRESETS: { id: Preset; label: string }[] = [
   { id: '1m', label: '1 mês' },
   { id: '3m', label: '3 meses' },
   { id: '6m', label: '6 meses' },
   { id: '1y', label: '12 meses' },
   { id: 'ytd', label: 'Este ano' },
+  { id: 'month', label: 'Mês específico' },
   { id: 'custom', label: 'Personalizado' },
 ];
 
@@ -70,13 +83,16 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
   const [preset, setPreset] = useState<Preset>('3m');
   const [customInicio, setCustomInicio] = useState(() => presetRange('3m')[0]);
   const [customFim, setCustomFim] = useState(() => presetRange('3m')[1]);
+  const [mesEscolhido, setMesEscolhido] = useState(() => currentMonthValue());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filtroTipoComissao, setFiltroTipoComissao] = useState<TipoComissao | 'todos'>('todos');
   const [filtroCategoria, setFiltroCategoria] = useState<CategoriaReceita | 'todas'>('todas');
 
-  const [inicio, fim] = useMemo<[string, string]>(() =>
-    preset === 'custom' ? [customInicio, customFim] : presetRange(preset),
-    [preset, customInicio, customFim]);
+  const [inicio, fim] = useMemo<[string, string]>(() => {
+    if (preset === 'custom') return [customInicio, customFim];
+    if (preset === 'month') return monthRange(mesEscolhido);
+    return presetRange(preset);
+  }, [preset, customInicio, customFim, mesEscolhido]);
 
   const { data, loading, error } = useAsync(
     () => api.colaboradores.estatisticas(colaboradorId, inicio, fim),
@@ -90,17 +106,22 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
 
   const totaisFiltrados = useMemo(() => {
     const valorPorReceita = new Map<string, number>();
-    let valorComissoes = 0;
+    let valorComissaoPaga = 0;
+    let valorComissaoPendente = 0;
     for (const r of receitasFiltradas) {
       // Se participou mais que uma vez na mesma receita (ex: comissão de Venda + Angariação),
       // o valor da receita só conta uma vez — mas cada comissão continua a somar.
       if (!valorPorReceita.has(r.receitaId)) {
         valorPorReceita.set(r.receitaId, r.parcelas.reduce((s, p) => s + p.valorBruto, 0));
       }
-      valorComissoes += r.parcelas.reduce((s, p) => s + p.valorComissao, 0);
+      for (const p of r.parcelas) {
+        if (p.isPaid) valorComissaoPaga += p.valorComissao;
+        else valorComissaoPendente += p.valorComissao;
+      }
     }
     const valorReceitas = [...valorPorReceita.values()].reduce((s, v) => s + v, 0);
-    return { valorReceitas, valorComissoes, receitasDistintas: valorPorReceita.size };
+    const valorComissoes = valorComissaoPaga + valorComissaoPendente;
+    return { valorReceitas, valorComissoes, valorComissaoPaga, valorComissaoPendente, receitasDistintas: valorPorReceita.size };
   }, [receitasFiltradas]);
 
   return (
@@ -149,6 +170,16 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
                 </button>
               ))}
             </div>
+            {preset === 'month' && (
+              <div className="mt-3">
+                <label className="text-xs text-slate-500">Mês</label>
+                <input
+                  type="month" value={mesEscolhido}
+                  onChange={e => setMesEscolhido(e.target.value)}
+                  className="mt-1 block h-9 rounded-md border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+            )}
             {preset === 'custom' && (
               <div className="flex gap-3 mt-3">
                 <div>
@@ -184,15 +215,15 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
               {/* Summary cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <StatCard
+                  label="Total histórico"
+                  value={fmt(data.totalRecebidoGlobal)}
+                  color="indigo"
+                />
+                <StatCard
                   label="Recebido no período"
                   value={fmt(data.totalRecebidoPeriodo)}
                   sub={`${data.parcelasPagasPeriodo} parcela(s) paga(s)`}
                   color="green"
-                />
-                <StatCard
-                  label="Total histórico"
-                  value={fmt(data.totalRecebidoGlobal)}
-                  color="indigo"
                 />
                 <StatCard
                   label="Pendente"
@@ -262,7 +293,7 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
                   <span className="ml-auto text-xs text-slate-400 shrink-0">{totaisFiltrados.receitasDistintas} receita(s)</span>
                 </div>
 
-                <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/60 flex items-center gap-6">
+                <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/60 flex items-center gap-6 flex-wrap">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-slate-400">Total das receitas participadas:</span>
                     <span className="text-xs font-semibold text-slate-700 tabular-nums">{fmt(totaisFiltrados.valorReceitas)}</span>
@@ -270,6 +301,14 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-slate-400">Total de comissões:</span>
                     <span className="text-xs font-semibold text-indigo-600 tabular-nums">{fmt(totaisFiltrados.valorComissoes)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400">Total pago:</span>
+                    <span className="text-xs font-semibold text-green-600 tabular-nums">{fmt(totaisFiltrados.valorComissaoPaga)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400">Total pendente:</span>
+                    <span className="text-xs font-semibold text-amber-600 tabular-nums">{fmt(totaisFiltrados.valorComissaoPendente)}</span>
                   </div>
                 </div>
 

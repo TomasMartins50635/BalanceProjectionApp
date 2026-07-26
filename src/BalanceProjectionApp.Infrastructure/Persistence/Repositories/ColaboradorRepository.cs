@@ -20,4 +20,10 @@ public class ColaboradorRepository(AppDbContext context) : IColaboradorRepositor
             .Where(c => c.ColaboradorId == colaboradorId)
             .Include(c => c.Receita).ThenInclude(r => r.Parcelas)
             .ToListAsync(cancellationToken);
+
+    public async Task<IEnumerable<ReceitaComissao>> ListarTodasComissoesAsync(CancellationToken cancellationToken = default)
+        => await context.ReceitaComissoes
+            .Include(c => c.Colaborador)
+            .Include(c => c.Receita).ThenInclude(r => r.Parcelas)
+            .ToListAsync(cancellationToken);
 }

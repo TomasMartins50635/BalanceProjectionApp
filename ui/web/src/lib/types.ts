@@ -115,6 +115,8 @@ export interface ReceitaDto {
   contaId: string;
   valorTotal: number;
   /** ISO datetime string */
+  createdAt: string;
+  /** ISO datetime string */
   updatedAt: string;
   parcelas: ParcelaDto[];
   comissoes: ReceitaComissaoDto[];
@@ -131,6 +133,8 @@ export interface DespesaDto {
   periodicidade: Periodicidade | null;
   dataInicio: string | null;
   isActive: boolean;
+  /** ISO datetime string */
+  createdAt: string;
   /** ISO datetime string */
   updatedAt: string;
   parcelas: ParcelaDto[];
@@ -294,6 +298,53 @@ export interface ColaboradorEstatisticasDto {
   numeroArrendamentos: number;
   porTipo: EstatisticasTipoComissaoDto[];
   receitas: ReceitaParticipacaoDto[];
+}
+
+// ── Diagnóstico ────────────────────────────────────────────────────────────────
+
+export interface InconsistenciaIvaDto {
+  receitaId: string;
+  receitaNome: string;
+  despesaEmFalta: boolean;
+  valorEsperado: number;
+  valorAtual: number;
+}
+
+export interface InconsistenciaComissaoDto {
+  colaboradorId: string;
+  colaboradorNome: string;
+  mes: string;
+  despesaEmFalta: boolean;
+  valorEsperado: number;
+  valorAtual: number;
+}
+
+export interface InconsistenciaParcelaReceitaDto {
+  receitaId: string;
+  receitaNome: string;
+  parcelaId: string;
+  numero: number;
+  dataVencimento: string;
+  isPaid: boolean;
+  valorLiquido: number;
+  valorBrutoAtual: number;
+  valorBrutoEsperado: number;
+}
+
+export interface ConsistenciaDto {
+  inconsistenciasIva: InconsistenciaIvaDto[];
+  inconsistenciasComissao: InconsistenciaComissaoDto[];
+  inconsistenciasParcelaReceita: InconsistenciaParcelaReceitaDto[];
+}
+
+export interface ColaboradorMes {
+  colaboradorId: string;
+  mes: string;
+}
+
+export interface CorrigirInconsistenciasRequest {
+  receitaIds: string[];
+  comissoes: ColaboradorMes[];
 }
 
 // ── Previsão ───────────────────────────────────────────────────────────────────

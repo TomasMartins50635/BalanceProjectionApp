@@ -16,15 +16,22 @@ public class ObterEstatisticasColaboradorQueryHandler(IColaboradorRepository rep
 
         var comissoes = await repository.ListarComissoesAsync(request.ColaboradorId, cancellationToken);
 
-        var receitaDetalhes = comissoes
-            .Where(c => !c.IsDeleted && !c.Receita.IsDeleted)
+        var comissoesAtivas = comissoes.Where(c => !c.IsDeleted && !c.Receita.IsDeleted).ToList();
+
+        // Filtra pela data de vencimento da parcela — mostra pagas e não pagas dentro do período.
+        // Uma receita só aparece se tiver pelo menos uma parcela a vencer no intervalo pedido.
+        var receitaDetalhes = comissoesAtivas
             .Select(c =>
             {
                 var parcelas = c.Receita.Parcelas
-                    .Where(p => !p.IsDeleted)
+                    .Where(p => !p.IsDeleted
+                        && p.DataVencimento >= request.DataInicio
+                        && p.DataVencimento <= request.DataFim)
                     .Select(p =>
                     {
-                        var valorComissao = Math.Round(p.ValorBruto * c.Percentagem / 100, 2);
+                        // A comissão incide sobre ValorLiquido (valor pré-IVA), nunca sobre ValorBruto —
+                        // tem de bater certo com o que ComissaoDespesaSincronizador gera na despesa real.
+                        var valorComissao = Math.Round(p.ValorLiquido * c.Percentagem / 100, 2);
                         var dataPag = p.DataPagamento.HasValue
                             ? DateOnly.FromDateTime(p.DataPagamento.Value)
                             : (DateOnly?)null;
@@ -35,15 +42,8 @@ public class ObterEstatisticasColaboradorQueryHandler(IColaboradorRepository rep
                     .OrderBy(p => p.DataVencimento)
                     .ToList();
 
-                var recebidoPeriodo = parcelas
-                    .Where(p => p.IsPaid
-                        && p.DataPagamento >= request.DataInicio
-                        && p.DataPagamento <= request.DataFim)
-                    .Sum(p => p.ValorComissao);
-
-                var pendente = parcelas
-                    .Where(p => !p.IsPaid)
-                    .Sum(p => p.ValorComissao);
+                var recebidoPeriodo = parcelas.Where(p => p.IsPaid).Sum(p => p.ValorComissao);
+                var pendente = parcelas.Where(p => !p.IsPaid).Sum(p => p.ValorComissao);
 
                 return new ReceitaParticipacaoDto(
                     c.ReceitaId,
@@ -55,6 +55,7 @@ public class ObterEstatisticasColaboradorQueryHandler(IColaboradorRepository rep
                     pendente,
                     parcelas);
             })
+            .Where(r => r.Parcelas.Any())
             .ToList();
 
         var allParcelas = receitaDetalhes.SelectMany(r => r.Parcelas).ToList();
@@ -68,12 +69,17 @@ public class ObterEstatisticasColaboradorQueryHandler(IColaboradorRepository rep
                     g.Key,
                     g.Sum(r => r.RecebidoPeriodo),
                     g.Sum(r => r.Pendente),
-                    gParcelas.Count(p => p.IsPaid
-                        && p.DataPagamento >= request.DataInicio
-                        && p.DataPagamento <= request.DataFim),
+                    gParcelas.Count(p => p.IsPaid),
                     gParcelas.Count(p => !p.IsPaid));
             })
             .ToList();
+
+        // Total histórico (all-time) independente do período selecionado.
+        var totalRecebidoGlobal = comissoesAtivas
+            .SelectMany(c => c.Receita.Parcelas
+                .Where(p => !p.IsDeleted && p.IsPaid)
+                .Select(p => Math.Round(p.ValorLiquido * c.Percentagem / 100, 2)))
+            .Sum();
 
         return new ColaboradorEstatisticasDto(
             colaborador.Id,
@@ -83,11 +89,9 @@ public class ObterEstatisticasColaboradorQueryHandler(IColaboradorRepository rep
             request.DataFim,
             receitaDetalhes.Sum(r => r.RecebidoPeriodo),
             receitaDetalhes.Sum(r => r.Pendente),
-            allParcelas.Where(p => p.IsPaid).Sum(p => p.ValorComissao),
+            totalRecebidoGlobal,
             receitaDetalhes.Select(r => r.ReceitaId).Distinct().Count(),
-            allParcelas.Count(p => p.IsPaid
-                && p.DataPagamento >= request.DataInicio
-                && p.DataPagamento <= request.DataFim),
+            allParcelas.Count(p => p.IsPaid),
             allParcelas.Count(p => !p.IsPaid),
             receitaDetalhes.Where(r => r.Categoria == "Vendas").Select(r => r.ReceitaId).Distinct().Count(),
             receitaDetalhes.Where(r => r.Categoria == "Arrendamentos").Select(r => r.ReceitaId).Distinct().Count(),

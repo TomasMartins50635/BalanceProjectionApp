@@ -21,6 +21,7 @@ public class ListarDespesasQueryHandler(IDespesaRepository repository)
             d.Periodicidade,
             d.DataInicio,
             d.IsActive,
+            d.CreatedAt,
             d.UpdatedAt,
             d.Parcelas.Select(p => new ParcelaDto(
                 p.Id, p.Numero, p.DataVencimento,

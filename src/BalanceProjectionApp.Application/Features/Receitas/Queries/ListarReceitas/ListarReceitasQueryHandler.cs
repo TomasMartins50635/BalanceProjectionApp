@@ -17,6 +17,7 @@ public class ListarReceitasQueryHandler(IReceitaRepository repository)
             r.Categoria,
             r.ContaId,
             r.Parcelas.Where(p => !p.IsDeleted).Sum(p => p.ValorBruto),
+            r.CreatedAt,
             r.UpdatedAt,
             r.Comissoes.Where(c => !c.IsDeleted).Select(c => new ReceitaComissaoDto(
                 c.Id,

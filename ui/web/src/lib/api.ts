@@ -6,7 +6,9 @@ import type {
   AtualizarPrevisaoRequest,
   AtualizarReceitaRequest,
   ColaboradorDto,
+  ConsistenciaDto,
   ContaDto,
+  CorrigirInconsistenciasRequest,
   CriarColaboradorRequest,
   CriarContaRequest,
   CriarDespesaRequest,
@@ -118,6 +120,12 @@ export const api = {
       request<{ id: string }>('/financiamentos', { method: 'POST', body: JSON.stringify(body) }),
     eliminar: (id: string) =>
       request<void>(`/financiamentos/${id}`, { method: 'DELETE' }),
+  },
+
+  diagnostico: {
+    verificarConsistencia: () => request<ConsistenciaDto>('/diagnostico/consistencia'),
+    corrigir: (body: CorrigirInconsistenciasRequest) =>
+      request<void>('/diagnostico/corrigir', { method: 'POST', body: JSON.stringify(body) }),
   },
 
   previsoes: {

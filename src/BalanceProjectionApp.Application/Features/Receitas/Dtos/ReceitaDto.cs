@@ -9,6 +9,7 @@ public record ReceitaDto(
     CategoriaReceita? Categoria,
     Guid ContaId,
     decimal ValorTotal,
+    DateTime CreatedAt,
     DateTime UpdatedAt,
     IEnumerable<ReceitaComissaoDto> Comissoes,
     IEnumerable<ParcelaDto> Parcelas,

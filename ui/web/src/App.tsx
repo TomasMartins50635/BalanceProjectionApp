@@ -8,6 +8,7 @@ import { FinanciamentoView } from '@/components/FinanciamentoView';
 import { SimulationView } from '@/components/SimulationView';
 import { ColaboradorView } from '@/components/ColaboradorView';
 import { UpdateBanner } from '@/components/UpdateBanner';
+import { ConsistenciaDialog } from '@/components/ConsistenciaDialog';
 import { SyncBanner } from '@/components/SyncBanner';
 import { SyncPanel } from '@/components/SyncPanel';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -31,7 +32,10 @@ export default function App() {
   const [simulationEverVisited, setSimulationEverVisited] = useState(false);
   const isSimulation = activeView === 'simulation';
 
-  const { updateInfo, isDownloading, progress, installUpdate, checkForUpdates, dismiss } = useUpdater();
+  const {
+    updateInfo, isDownloading, progress, installUpdate, checkForUpdates, dismiss,
+    consistencia, isCorrigindo, corrigirEReiniciar, ignorarEReiniciar,
+  } = useUpdater();
   const { hasSyncNewer, isUploading, isDownloading: isSyncDownloading, isChecking, uploadError, closeDialogOpen, handleCloseDecision, uploadDb, downloadDb, checkVersion, getSyncSettings, saveSyncSettings } = useSync();
   const [syncBannerDismissed, setSyncBannerDismissed] = useState(false);
 
@@ -65,6 +69,16 @@ export default function App() {
         />
       )}
 
+
+      {/* ── Consistência de dados pós-atualização ──────────────────────────── */}
+      {consistencia && (
+        <ConsistenciaDialog
+          dados={consistencia}
+          isCorrigindo={isCorrigindo}
+          onCorrigir={corrigirEReiniciar}
+          onIgnorar={ignorarEReiniciar}
+        />
+      )}
 
       {/* ── Close confirmation dialog ────────────────────────────────────── */}
       <ConfirmDialog
