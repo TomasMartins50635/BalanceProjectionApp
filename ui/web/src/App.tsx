@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { LayoutDashboard, TrendingDown, TrendingUp, CreditCard, Sparkles, PieChart, Users, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, TrendingDown, TrendingUp, CreditCard, Sparkles, PieChart, Users, RefreshCw, FileText } from 'lucide-react';
 import { OverviewView } from '@/components/OverviewView';
 import { Dashboard } from '@/components/Dashboard';
 import { ReceitaView } from '@/components/ReceitaView';
@@ -7,6 +7,7 @@ import { DespesaView } from '@/components/DespesaView';
 import { FinanciamentoView } from '@/components/FinanciamentoView';
 import { SimulationView } from '@/components/SimulationView';
 import { ColaboradorView } from '@/components/ColaboradorView';
+import { RelatorioView } from '@/components/RelatorioView';
 import { UpdateBanner } from '@/components/UpdateBanner';
 import { ConsistenciaDialog } from '@/components/ConsistenciaDialog';
 import { SyncBanner } from '@/components/SyncBanner';
@@ -15,7 +16,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useUpdater } from '@/hooks/useUpdater';
 import { useSync } from '@/hooks/useSync';
 
-type View = 'overview' | 'dashboard' | 'receitas' | 'despesas' | 'financiamentos' | 'colaboradores' | 'simulation';
+type View = 'overview' | 'dashboard' | 'receitas' | 'despesas' | 'financiamentos' | 'colaboradores' | 'relatorio' | 'simulation';
 
 const navItems: { id: View; label: string; shortLabel: string; icon: React.ElementType }[] = [
   { id: 'overview',       label: 'Visão Geral',    shortLabel: 'Geral',      icon: PieChart },
@@ -24,6 +25,7 @@ const navItems: { id: View; label: string; shortLabel: string; icon: React.Eleme
   { id: 'despesas',       label: 'Despesas',        shortLabel: 'Despesas',   icon: TrendingDown },
   { id: 'financiamentos', label: 'Financiamentos',  shortLabel: 'Financ.',    icon: CreditCard },
   { id: 'colaboradores',  label: 'Colaboradores',   shortLabel: 'Colab.',     icon: Users },
+  { id: 'relatorio',      label: 'Relatório',       shortLabel: 'Relat.',     icon: FileText },
 ];
 
 export default function App() {
@@ -195,6 +197,7 @@ export default function App() {
           {activeView === 'despesas'       && <DespesaView highlightId={highlightId} onHighlightConsumed={() => setHighlightId(undefined)} />}
           {activeView === 'financiamentos' && <FinanciamentoView />}
           {activeView === 'colaboradores'  && <ColaboradorView />}
+          {activeView === 'relatorio'      && <RelatorioView />}
           {simulationEverVisited && (
             <div className={activeView === 'simulation' ? 'h-full' : 'hidden'}>
               <SimulationView isActive={activeView === 'simulation'} />
@@ -204,7 +207,7 @@ export default function App() {
 
         {/* ── Mobile bottom tab bar ───────────────────────────────────────── */}
         <nav className={`md:hidden fixed bottom-0 inset-x-0 z-50 border-t ${isSimulation ? 'bg-blue-950 border-blue-900' : 'bg-slate-900 border-slate-800'}`}>
-          <div className="grid grid-cols-6">
+          <div className="grid grid-cols-7">
             {navItems.map(({ id, shortLabel, icon: Icon }) => (
               <button
                 key={id}

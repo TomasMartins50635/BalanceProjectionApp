@@ -9,3 +9,25 @@ html, body, #root {
   margin: 0;
   padding: 0;
 }
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-report,
+  .print-report * {
+    visibility: visible;
+  }
+  .print-report {
+    position: static !important;
+  }
+  .print-report table {
+    break-inside: auto;
+  }
+  .print-report thead {
+    display: table-header-group;
+  }
+}

@@ -281,6 +281,11 @@ async fn has_unsynced_changes() -> bool {
     }
 }
 
+#[tauri::command]
+fn save_text_file(path: String, contents: String) -> Result<(), String> {
+    std::fs::write(&path, contents).map_err(|e| e.to_string())
+}
+
 // ── App setup ─────────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -289,6 +294,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_sync_settings,
             save_sync_settings,
@@ -296,6 +302,7 @@ pub fn run() {
             upload_db,
             download_db,
             has_unsynced_changes,
+            save_text_file,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

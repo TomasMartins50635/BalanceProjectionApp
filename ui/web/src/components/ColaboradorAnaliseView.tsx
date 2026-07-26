@@ -1,8 +1,11 @@
 import { useState, useMemo } from 'react';
 import { ArrowLeft, ChevronDown, ChevronRight, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ReportActionButtons } from '@/components/ReportActionButtons';
 import { useAsync } from '@/hooks/useAsync';
+import { useToast } from '@/hooks/useToast';
 import { api } from '@/lib/api';
+import { downloadCsv } from '@/lib/csv';
 import { TIPO_COLABORADOR_LABELS, TIPO_COMISSAO_LABELS, CATEGORIA_RECEITA_LABELS, CATEGORIAS_RECEITA } from '@/lib/types';
 import type { TipoComissao, CategoriaReceita } from '@/lib/types';
 
@@ -80,6 +83,7 @@ interface Props {
 }
 
 export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
+  const toast = useToast();
   const [preset, setPreset] = useState<Preset>('3m');
   const [customInicio, setCustomInicio] = useState(() => presetRange('3m')[0]);
   const [customFim, setCustomFim] = useState(() => presetRange('3m')[1]);
@@ -124,10 +128,42 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
     return { valorReceitas, valorComissoes, valorComissaoPaga, valorComissaoPendente, receitasDistintas: valorPorReceita.size };
   }, [receitasFiltradas]);
 
+  const relatorioSubtitulo = useMemo(() => {
+    if (!data) return '';
+    const partes = [`Colaborador: ${data.nome}`, `Período: ${fmtDate(inicio)} — ${fmtDate(fim)}`];
+    if (filtroTipoComissao !== 'todos') partes.push(`Tipo de comissão: ${TIPO_COMISSAO_LABELS[filtroTipoComissao]}`);
+    if (filtroCategoria !== 'todas') partes.push(`Categoria: ${CATEGORIA_RECEITA_LABELS[filtroCategoria]}`);
+    partes.push(`${receitasFiltradas.length} receita(s)`);
+    return partes.join(' · ');
+  }, [data, inicio, fim, filtroTipoComissao, filtroCategoria, receitasFiltradas.length]);
+
+  const handleExportCsv = async () => {
+    const headers = ['Receita', 'Tipo', 'Categoria', '%', 'Nº', 'Vencimento', 'Pagamento', 'Valor (€)', 'Comissão (€)', 'Estado'];
+    const rows = receitasFiltradas.flatMap(r => r.parcelas.map(p => [
+      r.receitaNome,
+      TIPO_COMISSAO_LABELS[r.tipoComissao as TipoComissao] ?? r.tipoComissao,
+      r.categoria ?? '—',
+      r.percentagem,
+      p.numero,
+      fmtDate(p.dataVencimento),
+      p.dataPagamento ? fmtDate(p.dataPagamento) : '—',
+      p.valorBruto,
+      p.valorComissao,
+      p.isPaid ? 'Pago' : 'Pendente',
+    ]));
+    rows.push(['Total pago', '', '', '', '', '', '', '', totaisFiltrados.valorComissaoPaga, '']);
+    rows.push(['Total pendente', '', '', '', '', '', '', '', totaisFiltrados.valorComissaoPendente, '']);
+    try {
+      await downloadCsv(`comissoes_${data?.nome ?? 'colaborador'}_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+    } catch (e) {
+      toast(`Erro ao exportar CSV: ${e instanceof Error ? e.message : String(e)}`, 'error');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-50">
       {/* Header */}
-      <div className="px-4 md:px-5 pt-3.5 pb-3 border-b border-slate-100 bg-white shrink-0">
+      <div className="px-4 md:px-5 pt-3.5 pb-3 border-b border-slate-100 bg-white shrink-0 print:hidden">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onBack}>
             <ArrowLeft className="w-4 h-4" />
@@ -149,7 +185,7 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto print:hidden">
         <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
 
           {/* Date range selector */}
@@ -291,6 +327,7 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
                     ))}
                   </div>
                   <span className="ml-auto text-xs text-slate-400 shrink-0">{totaisFiltrados.receitasDistintas} receita(s)</span>
+                  <ReportActionButtons onExportCsv={handleExportCsv} variant="compact" />
                 </div>
 
                 <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/60 flex items-center gap-6 flex-wrap">
@@ -427,6 +464,100 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
             </>
           )}
         </div>
+      </div>
+
+      {/* ── Documento de impressão — construído do zero, não é um snapshot da tabela ── */}
+      <div className="hidden print:block print-report px-8 py-6 text-black bg-white">
+        <div className="text-center mb-6 pb-4 border-b-2 border-black">
+          <h1 className="text-2xl font-bold tracking-wide">RELATÓRIO DE COMISSÕES</h1>
+          <p className="text-sm mt-1.5">{relatorioSubtitulo}</p>
+          <p className="text-xs text-gray-600 mt-1">Gerado em {new Date().toLocaleString('pt-PT')}</p>
+        </div>
+
+        <div className="grid grid-cols-4 gap-3 mb-6 pb-4 border-b border-gray-400">
+          <div>
+            <p className="text-[10px] uppercase text-gray-600">Total das receitas participadas</p>
+            <p className="text-sm font-bold">{fmt(totaisFiltrados.valorReceitas)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase text-gray-600">Total de comissões</p>
+            <p className="text-sm font-bold">{fmt(totaisFiltrados.valorComissoes)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase text-gray-600">Total pago</p>
+            <p className="text-sm font-bold">{fmt(totaisFiltrados.valorComissaoPaga)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase text-gray-600">Total pendente</p>
+            <p className="text-sm font-bold">{fmt(totaisFiltrados.valorComissaoPendente)}</p>
+          </div>
+        </div>
+
+        {receitasFiltradas.length === 0 ? (
+          <p className="text-center text-gray-500 py-8">Nenhuma receita corresponde aos filtros aplicados.</p>
+        ) : (
+          <>
+            {receitasFiltradas.map((r, i) => {
+              const subtotalValor = r.parcelas.reduce((s, p) => s + p.valorBruto, 0);
+              const subtotalComissao = r.parcelas.reduce((s, p) => s + p.valorComissao, 0);
+              return (
+                <div key={`${r.receitaId}-${r.tipoComissao}-${i}`} className="mb-6" style={{ breakInside: 'avoid' }}>
+                  <h2 className="text-sm font-bold border-b border-black pb-1 mb-2">
+                    {r.receitaNome} — {TIPO_COMISSAO_LABELS[r.tipoComissao as TipoComissao] ?? r.tipoComissao} · {r.percentagem}%
+                    {r.categoria ? ` · ${r.categoria}` : ''}
+                  </h2>
+                  <table className="w-full text-[11px] border-collapse">
+                    <thead>
+                      <tr>
+                        <th className="border border-gray-400 px-1.5 py-1 text-left">Nº</th>
+                        <th className="border border-gray-400 px-1.5 py-1 text-left">Vencimento</th>
+                        <th className="border border-gray-400 px-1.5 py-1 text-left">Pagamento</th>
+                        <th className="border border-gray-400 px-1.5 py-1 text-right">Valor</th>
+                        <th className="border border-gray-400 px-1.5 py-1 text-right">Comissão</th>
+                        <th className="border border-gray-400 px-1.5 py-1 text-center">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {r.parcelas.map(p => (
+                        <tr key={p.id} style={{ breakInside: 'avoid' }}>
+                          <td className="border border-gray-400 px-1.5 py-1">{p.numero}</td>
+                          <td className="border border-gray-400 px-1.5 py-1">{fmtDate(p.dataVencimento)}</td>
+                          <td className="border border-gray-400 px-1.5 py-1">{p.dataPagamento ? fmtDate(p.dataPagamento) : '—'}</td>
+                          <td className="border border-gray-400 px-1.5 py-1 text-right">{fmt(p.valorBruto)}</td>
+                          <td className="border border-gray-400 px-1.5 py-1 text-right">{fmt(p.valorComissao)}</td>
+                          <td className="border border-gray-400 px-1.5 py-1 text-center">{p.isPaid ? 'Pago' : 'Pendente'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="font-bold">
+                        <td colSpan={3} className="border border-gray-400 px-1.5 py-1 text-right">Subtotal</td>
+                        <td className="border border-gray-400 px-1.5 py-1 text-right">{fmt(subtotalValor)}</td>
+                        <td className="border border-gray-400 px-1.5 py-1 text-right">{fmt(subtotalComissao)}</td>
+                        <td className="border border-gray-400" />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              );
+            })}
+
+            <div className="pt-3 border-t-2 border-black text-sm space-y-1">
+              <div className="flex justify-between">
+                <span>Total pago</span>
+                <span className="font-bold">{fmt(totaisFiltrados.valorComissaoPaga)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total pendente</span>
+                <span className="font-bold">{fmt(totaisFiltrados.valorComissaoPendente)}</span>
+              </div>
+              <div className="flex justify-between font-bold pt-1 border-t border-gray-400">
+                <span>TOTAL GERAL</span>
+                <span>{fmt(totaisFiltrados.valorComissoes)}</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
