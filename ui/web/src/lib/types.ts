@@ -50,6 +50,13 @@ export const PERIODICIDADE_LABELS: Record<Periodicidade, string> = {
   Anual: 'Anual',
 };
 
+export const PERIODICIDADES_UNITS: Record<Periodicidade, string> = {
+  Mensal: 'meses',
+  Trimestral: 'trimestres',
+  Semestral: 'semestres',
+  Anual: 'anos',
+};
+
 // ── Colaborador enums ──────────────────────────────────────────────────────────
 
 export type TipoColaborador = 'Comercial' | 'Servico';

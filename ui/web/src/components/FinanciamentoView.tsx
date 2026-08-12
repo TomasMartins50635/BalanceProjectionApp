@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/useToast';
 import { useAsync } from '@/hooks/useAsync';
 import { api } from '@/lib/api';
 import type { FinanciamentoDto, Periodicidade } from '@/lib/types';
-import { PERIODICIDADE_LABELS } from '@/lib/types';
+import { PERIODICIDADE_LABELS, PERIODICIDADES_UNITS } from '@/lib/types';
 
 interface CreateForm {
   nome: string;
@@ -366,7 +366,7 @@ export function FinanciamentoView() {
 
             {form.valor && form.valorPrestacao && Number(form.valor) > 0 && Number(form.valorPrestacao) > 0 && (
               <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2.5 text-xs text-indigo-700">
-                Duração estimada: ~{Math.ceil(Number(form.valor) / Number(form.valorPrestacao))} {form.periodicidade ? PERIODICIDADE_LABELS[form.periodicidade].toLowerCase() + 's' : 'períodos'}
+                Duração estimada: ~{Math.ceil(Number(form.valor) / Number(form.valorPrestacao))} {form.periodicidade ? PERIODICIDADES_UNITS[form.periodicidade] : 'períodos'}
               </div>
             )}
 
