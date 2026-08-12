@@ -1,4 +1,5 @@
-﻿using BalanceProjectionApp.Application.Features.Contas.Commands.CriarConta;
+﻿using BalanceProjectionApp.Application.Features.Contas.Commands.AjustarSaldoConta;
+using BalanceProjectionApp.Application.Features.Contas.Commands.CriarConta;
 using BalanceProjectionApp.Application.Features.Contas.Commands.EliminarConta;
 using BalanceProjectionApp.Application.Features.Contas.Queries.ListarContas;
 using BalanceProjectionApp.Application.Features.Contas.Queries.ObterConta;
@@ -35,4 +36,13 @@ public class ContasController(IMediator mediator) : ControllerBase
         await mediator.Send(new EliminarContaCommand(id), cancellationToken);
         return NoContent();
     }
+
+    [HttpPatch("{id:guid}/saldo")]
+    public async Task<IActionResult> AjustarSaldo(Guid id, AjustarSaldoContaRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new AjustarSaldoContaCommand(id, request.NovoSaldo), cancellationToken);
+        return NoContent();
+    }
 }
+
+public record AjustarSaldoContaRequest(decimal NovoSaldo);

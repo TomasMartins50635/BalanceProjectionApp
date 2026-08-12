@@ -123,6 +123,29 @@ public class ContasEndpointTests(ApiFactory factory) : IAsyncLifetime
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
+    // ── PATCH /contas/{id}/saldo ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task PatchSaldo_ContaExistente_Retorna204EAtualizaSaldo()
+    {
+        var postResponse = await _client.PostAsJsonAsync("/contas", new { nome = "Conta Ajuste", saldoInicial = 100m });
+        var criada = await postResponse.Content.ReadFromJsonAsync<IdResponse>();
+
+        var response = await _client.PatchAsJsonAsync($"/contas/{criada!.Id}/saldo", new { novoSaldo = 999.99m });
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var conta = await (await _client.GetAsync($"/contas/{criada.Id}")).Content.ReadFromJsonAsync<ContaResponse>();
+        conta!.Saldo.Should().Be(999.99m);
+    }
+
+    [Fact]
+    public async Task PatchSaldo_IdInexistente_Retorna422()
+    {
+        var response = await _client.PatchAsJsonAsync($"/contas/{Guid.NewGuid()}/saldo", new { novoSaldo = 100m });
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
     private record IdResponse(Guid Id);
     private record ContaResponse(Guid Id, string Nome, decimal Saldo);
 }

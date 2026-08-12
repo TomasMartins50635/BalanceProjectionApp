@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, ArrowUp, ArrowDown, ChevronsUpDown, Search } from 'lucide-react';
+import { Plus, Trash2, Pencil, ArrowUp, ArrowDown, ChevronsUpDown, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/ui/pagination';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/dates';
-import type { ParcelaDto } from '@/lib/types';
+import type { ContaDto, ParcelaDto } from '@/lib/types';
 
 type SortField = 'nome' | 'vencimento' | 'valorBruto' | 'valorLiquido' | 'pagamento';
 type SortDir = 'asc' | 'desc';
@@ -44,6 +44,10 @@ export function Dashboard({ onNavigate }: Readonly<DashboardProps>) {
   const [formSaldo, setFormSaldo] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleteContaId, setDeleteContaId] = useState<string | null>(null);
+  const [editConta, setEditConta] = useState<ContaDto | null>(null);
+  const [editSaldoValue, setEditSaldoValue] = useState('');
+  const [confirmAjusteOpen, setConfirmAjusteOpen] = useState(false);
+  const [savingSaldo, setSavingSaldo] = useState(false);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('todas');
@@ -157,6 +161,24 @@ export function Dashboard({ onNavigate }: Readonly<DashboardProps>) {
     }
   };
 
+  const handleAjustarSaldo = async () => {
+    if (!editConta || editSaldoValue === '') return;
+    const novoSaldo = Number.parseFloat(editSaldoValue);
+    if (Number.isNaN(novoSaldo)) return;
+    setSavingSaldo(true);
+    try {
+      await api.contas.ajustarSaldo(editConta.id, { novoSaldo });
+      toast('Saldo atualizado');
+      setEditConta(null);
+      setEditSaldoValue('');
+      reloadContas();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setSavingSaldo(false);
+    }
+  };
+
   const navigateToParcela = (p: ParcelaDto) => {
     if (p.receitaId) onNavigate('receitas', p.receitaId);
     else if (p.despesaId) onNavigate('despesas', p.despesaId);
@@ -249,15 +271,26 @@ export function Dashboard({ onNavigate }: Readonly<DashboardProps>) {
                             {initial}
                           </span>
                           {isSelected && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 sm:h-7 sm:w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
-                              onClick={e => { e.stopPropagation(); setDeleteContaId(c.id); }}
-                              aria-label="Eliminar conta"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
+                            <div className="flex items-center gap-0.5">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 sm:h-7 sm:w-7 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                                onClick={e => { e.stopPropagation(); setEditConta(c); setEditSaldoValue(String(c.saldo)); }}
+                                aria-label="Editar saldo"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 sm:h-7 sm:w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                onClick={e => { e.stopPropagation(); setDeleteContaId(c.id); }}
+                                aria-label="Eliminar conta"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
                           )}
                         </div>
                         <p className="mt-2 text-sm sm:text-xl font-semibold text-slate-900 truncate">{c.nome}</p>
@@ -484,6 +517,48 @@ export function Dashboard({ onNavigate }: Readonly<DashboardProps>) {
         description="Tem a certeza que deseja eliminar esta conta? Esta ação é irreversível. Contas com receitas, despesas ou financiamentos associados não podem ser eliminadas."
         confirmLabel="Eliminar"
         onConfirm={handleEliminarConta}
+      />
+
+      {/* Edit saldo dialog */}
+      <Dialog open={editConta !== null} onOpenChange={open => { if (!open) { setEditConta(null); setEditSaldoValue(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Saldo</DialogTitle>
+            <DialogDescription>Ajuste manual do saldo da conta "{editConta?.nome}".</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <Label htmlFor="edit-saldo" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Novo Saldo (€)</Label>
+              <Input
+                id="edit-saldo"
+                type="number"
+                step="0.01"
+                value={editSaldoValue}
+                onChange={e => setEditSaldoValue(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setEditConta(null)} disabled={savingSaldo}>Cancelar</Button>
+              <Button
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                onClick={() => setConfirmAjusteOpen(true)}
+                disabled={savingSaldo || editSaldoValue === '' || Number.isNaN(Number.parseFloat(editSaldoValue))}
+              >
+                Guardar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={confirmAjusteOpen}
+        onOpenChange={setConfirmAjusteOpen}
+        title="Alterar saldo manualmente"
+        description={`Tem a certeza que deseja alterar manualmente o saldo de "${editConta?.nome}" para €${Number.isNaN(Number.parseFloat(editSaldoValue)) ? editSaldoValue : Number.parseFloat(editSaldoValue).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}?\nEsta ação não fica associada a nenhuma parcela e deve ser usada apenas para correções.`}
+        confirmLabel="Confirmar Alteração"
+        onConfirm={handleAjustarSaldo}
       />
     </div>
   );

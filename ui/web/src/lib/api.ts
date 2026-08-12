@@ -1,5 +1,6 @@
 import type {
   AdicionarComissaoRequest,
+  AjustarSaldoContaRequest,
   ColaboradorEstatisticasDto,
   AdicionarParcelaDespesaRequest,
   AtualizarDespesaRequest,
@@ -61,6 +62,8 @@ export const api = {
       request<{ id: string }>('/contas', { method: 'POST', body: JSON.stringify(body) }),
     eliminar: (id: string) =>
       request<void>(`/contas/${id}`, { method: 'DELETE' }),
+    ajustarSaldo: (id: string, body: AjustarSaldoContaRequest) =>
+      request<void>(`/contas/${id}/saldo`, { method: 'PATCH', body: JSON.stringify(body) }),
   },
 
   receitas: {

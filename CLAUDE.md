@@ -106,6 +106,7 @@ DependencyInjection.cs
 | `GET` | `/contas/{id}` | Obtém conta com saldo atual |
 | `POST` | `/contas` | Cria conta |
 | `DELETE` | `/contas/{id}` | Elimina conta (falha se tiver receitas/despesas/financiamentos associados) |
+| `PATCH` | `/contas/{id}/saldo` | Ajusta manualmente o saldo da conta (`novoSaldo`) — define `Saldo` diretamente, sem passar por `Creditar`/`Debitar`; não associado a nenhuma parcela |
 | `GET` | `/receitas` | Lista receitas com parcelas |
 | `POST` | `/receitas` | Cria receita (com parcelas, colaborador opcional e flag `temIva`) |
 | `GET` | `/despesas` | Lista despesas com parcelas |

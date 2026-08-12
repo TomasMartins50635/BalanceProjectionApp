@@ -184,6 +184,10 @@ export interface CriarContaRequest {
   saldoInicial?: number;
 }
 
+export interface AjustarSaldoContaRequest {
+  novoSaldo: number;
+}
+
 export interface CriarReceitaParcelaRequest {
   numero: number;
   /** YYYY-MM-DD */

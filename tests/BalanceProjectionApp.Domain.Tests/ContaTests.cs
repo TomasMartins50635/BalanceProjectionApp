@@ -94,4 +94,19 @@ public class ContaTests
 
         act.Should().Throw<DomainException>();
     }
+
+    // ── AjustarSaldo ───────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(1000)]
+    [InlineData(0)]
+    [InlineData(-250)]
+    public void AjustarSaldo_QualquerValor_DefineSaldoDiretamente(decimal novoSaldo)
+    {
+        var conta = Conta.Criar("Conta", 500m);
+
+        conta.AjustarSaldo(novoSaldo);
+
+        conta.Saldo.Should().Be(novoSaldo);
+    }
 }

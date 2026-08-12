@@ -33,4 +33,9 @@ public class Conta : Entity
 
         Saldo -= valor;
     }
+
+    public void AjustarSaldo(decimal novoSaldo)
+    {
+        Saldo = novoSaldo;
+    }
 }
