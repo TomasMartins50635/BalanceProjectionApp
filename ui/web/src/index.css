@@ -14,8 +14,14 @@ html, body, #root {
   @page {
     margin: 12mm;
   }
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+  }
   body * {
     visibility: hidden;
+    height: auto !important;
+    overflow: visible !important;
   }
   .print-report,
   .print-report * {
