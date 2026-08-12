@@ -20,8 +20,12 @@ import type { DespesaProjetada, ParcelaGerada, ParcelaReal } from './SimulationC
 
 const GLOBAL_ID = '_global';
 
-const HORIZONTES = [3, 6, 12, 24] as const;
+const HORIZONTES = [3, 6, 12, 24, 36, 48, 60] as const;
 type Horizonte = typeof HORIZONTES[number];
+
+function formatHorizonteLabel(h: Horizonte): string {
+  return h >= 12 && h % 12 === 0 ? `${h / 12}a` : `${h}m`;
+}
 
 interface FormState {
   nome: string;
@@ -567,7 +571,7 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
               <div className="flex gap-1">
                 {HORIZONTES.map(h => (
                   <button key={h} onClick={() => setHorizonte(h)} className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${horizonte === h ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                    {h}m
+                    {formatHorizonteLabel(h)}
                   </button>
                 ))}
               </div>
@@ -799,12 +803,12 @@ export function SimulationView({ isActive }: { isActive: boolean }) {
         <div className="bg-white border border-slate-200 rounded-xl p-4 md:p-6 shadow-sm">
           <h3 className="text-base font-semibold text-slate-900 mb-1">Evolução do Saldo</h3>
           <p className="text-xs text-slate-500 mb-4">
-            Próximos {horizonte} meses — orgânico inclui receitas/despesas pendentes; simulado adiciona previsão
+            Próximos {formatHorizonteLabel(horizonte)} — orgânico inclui receitas/despesas pendentes; simulado adiciona previsão
           </p>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="mes" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+              <XAxis dataKey="mes" tick={{ fontSize: 11 }} stroke="#94a3b8" interval={Math.max(0, Math.floor(horizonte / 12))} />
               <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" tickFormatter={v => `€${(v / 1000).toFixed(0)}k`} />
               <Tooltip
                 contentStyle={{ backgroundColor: 'rgba(255,255,255,0.97)', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '12px' }}
