@@ -286,6 +286,25 @@ fn save_text_file(path: String, contents: String) -> Result<(), String> {
     std::fs::write(&path, contents).map_err(|e| e.to_string())
 }
 
+// Kills the sidecar API process so the updater installer can overwrite api.exe —
+// otherwise the running process keeps the file locked and NSIS fails with
+// "Can't write: ...\api.exe".
+#[tauri::command]
+async fn kill_sidecar(_app: tauri::AppHandle) -> Result<(), String> {
+    #[cfg(not(debug_assertions))]
+    {
+        if let Some(sidecar) = _app.try_state::<SidecarHandle>() {
+            if let Ok(mut lock) = sidecar.0.lock() {
+                if let Some(child) = lock.take() {
+                    let _ = child.kill();
+                }
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    }
+    Ok(())
+}
+
 // ── App setup ─────────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -303,6 +322,7 @@ pub fn run() {
             download_db,
             has_unsynced_changes,
             save_text_file,
+            kill_sidecar,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

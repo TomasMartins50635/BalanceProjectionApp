@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import type { Update } from '@tauri-apps/plugin-updater';
 import { useToast } from './useToast';
 import { api } from '@/lib/api';
 import type { ConsistenciaDto } from '@/lib/types';
@@ -29,6 +30,7 @@ export function useUpdater() {
   const [progress, setProgress] = useState(0);
   const [consistencia, setConsistencia] = useState<ConsistenciaDto | null>(null);
   const [isCorrigindo, setIsCorrigindo] = useState(false);
+  const pendingUpdateRef = useRef<Update | null>(null);
 
   useEffect(() => {
     if (!isTauri) return;
@@ -44,6 +46,16 @@ export function useUpdater() {
     return () => cleanup?.();
   }, []);
 
+  // Mata o sidecar antes de instalar — caso contrário o processo api.exe em
+  // execução mantém o ficheiro bloqueado e o instalador falha com
+  // "Can't write: ...\api.exe".
+  const finalizeInstall = useCallback(async (update: Update) => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('kill_sidecar');
+    await update.install();
+    await doRelaunch();
+  }, []);
+
   const installUpdate = useCallback(async () => {
     if (!isTauri) return;
     setIsDownloading(true);
@@ -51,33 +63,34 @@ export function useUpdater() {
     try {
       const { check } = await import('@tauri-apps/plugin-updater');
       const update = await check();
-      if (update) {
-        let downloaded = 0;
-        let total = 0;
-        await update.downloadAndInstall((event) => {
-          if (event.event === 'Started') total = event.data.contentLength ?? 0;
-          if (event.event === 'Progress') {
-            downloaded += event.data.chunkLength;
-            if (total > 0) setProgress(Math.round((downloaded / total) * 100));
-          }
-        });
+      if (!update) return;
 
-        try {
-          const resultado = await api.diagnostico.verificarConsistencia();
-          if (temInconsistencias(resultado)) {
-            setConsistencia(resultado);
-          } else {
-            await doRelaunch();
-          }
-        } catch {
-          // Se a verificação falhar por algum motivo, não bloqueia a atualização instalada.
-          await doRelaunch();
+      let downloaded = 0;
+      let total = 0;
+      await update.download((event) => {
+        if (event.event === 'Started') total = event.data.contentLength ?? 0;
+        if (event.event === 'Progress') {
+          downloaded += event.data.chunkLength;
+          if (total > 0) setProgress(Math.round((downloaded / total) * 100));
         }
+      });
+
+      try {
+        const resultado = await api.diagnostico.verificarConsistencia();
+        if (temInconsistencias(resultado)) {
+          pendingUpdateRef.current = update;
+          setConsistencia(resultado);
+          return; // aguarda decisão do utilizador antes de instalar
+        }
+      } catch {
+        // Se a verificação falhar por algum motivo, não bloqueia a atualização.
       }
+
+      await finalizeInstall(update);
     } finally {
       setIsDownloading(false);
     }
-  }, []);
+  }, [finalizeInstall]);
 
   const corrigirEReiniciar = useCallback(async () => {
     if (!consistencia) return;
@@ -92,14 +105,20 @@ export function useUpdater() {
     } finally {
       setIsCorrigindo(false);
       setConsistencia(null);
-      await doRelaunch();
+      const update = pendingUpdateRef.current;
+      pendingUpdateRef.current = null;
+      if (update) await finalizeInstall(update);
+      else await doRelaunch();
     }
-  }, [consistencia, toast]);
+  }, [consistencia, toast, finalizeInstall]);
 
   const ignorarEReiniciar = useCallback(async () => {
     setConsistencia(null);
-    await doRelaunch();
-  }, []);
+    const update = pendingUpdateRef.current;
+    pendingUpdateRef.current = null;
+    if (update) await finalizeInstall(update);
+    else await doRelaunch();
+  }, [finalizeInstall]);
 
   const checkForUpdates = useCallback(async (): Promise<boolean> => {
     if (!isTauri) {
