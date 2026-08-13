@@ -48,7 +48,12 @@
     ],
     "externalBin": [
       "binaries/api"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installerHooks": "nsis/hooks.nsh"
+      }
+    }
   }
 }
 
