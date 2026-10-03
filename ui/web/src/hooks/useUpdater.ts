@@ -40,7 +40,9 @@ export function useUpdater() {
       const unlisten = listen<UpdateInfo>('update-available', (event) => {
         setUpdateInfo(event.payload);
       });
-      cleanup = () => { unlisten.then(fn => fn()); };
+      cleanup = () => { void unlisten.then(fn => fn()); };
+    }).catch(() => {
+      // Tauri indisponível — ignorar silenciosamente
     });
 
     return () => cleanup?.();

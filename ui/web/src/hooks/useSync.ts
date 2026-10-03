@@ -39,7 +39,7 @@ export function useSync() {
     let unlisten: (() => void) | undefined;
 
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-      getCurrentWindow()
+      return getCurrentWindow()
         .onCloseRequested(async (event) => {
           let hasChanges = false;
           try {
@@ -55,6 +55,8 @@ export function useSync() {
           setCloseDialogOpen(true);
         })
         .then((fn) => { unlisten = fn; });
+    }).catch(() => {
+      // Tauri indisponível — ignorar silenciosamente
     });
 
     return () => unlisten?.();

@@ -22,6 +22,8 @@ export function SyncSettingsDialog({ open, onOpenChange, onLoad, onSave }: Props
     onLoad().then((s) => {
       setUrl(s.url ?? '');
       setApiKey(s.apiKey ?? '');
+    }).catch(() => {
+      // definições inacessíveis — mantém os campos vazios
     });
   }, [open, onLoad]);
 
