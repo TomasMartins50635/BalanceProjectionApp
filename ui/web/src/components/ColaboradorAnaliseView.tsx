@@ -90,7 +90,7 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
   const [mesEscolhido, setMesEscolhido] = useState(() => currentMonthValue());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filtroTipoComissao, setFiltroTipoComissao] = useState<TipoComissao | 'todos'>('todos');
-  const [filtroCategoria, setFiltroCategoria] = useState<CategoriaReceita | 'todas'>('todas');
+  const [filtroCategoria, setFiltroCategoria] = useState<CategoriaReceita[]>([]);
 
   const [inicio, fim] = useMemo<[string, string]>(() => {
     if (preset === 'custom') return [customInicio, customFim];
@@ -105,7 +105,7 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
 
   const receitasFiltradas = useMemo(() => (data?.receitas ?? []).filter(r =>
     (filtroTipoComissao === 'todos' || r.tipoComissao === filtroTipoComissao) &&
-    (filtroCategoria === 'todas' || r.categoria === filtroCategoria)
+    (filtroCategoria.length === 0 || (r.categoria !== null && filtroCategoria.includes(r.categoria)))
   ), [data?.receitas, filtroTipoComissao, filtroCategoria]);
 
   const totaisFiltrados = useMemo(() => {
@@ -132,7 +132,7 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
     if (!data) return '';
     const partes = [`Colaborador: ${data.nome}`, `Período: ${fmtDate(inicio)} — ${fmtDate(fim)}`];
     if (filtroTipoComissao !== 'todos') partes.push(`Tipo de comissão: ${TIPO_COMISSAO_LABELS[filtroTipoComissao]}`);
-    if (filtroCategoria !== 'todas') partes.push(`Categoria: ${CATEGORIA_RECEITA_LABELS[filtroCategoria]}`);
+    if (filtroCategoria.length > 0) partes.push(`Categoria: ${filtroCategoria.map(c => CATEGORIA_RECEITA_LABELS[c]).join(', ')}`);
     partes.push(`${receitasFiltradas.length} receita(s)`);
     return partes.join(' · ');
   }, [data, inicio, fim, filtroTipoComissao, filtroCategoria, receitasFiltradas.length]);
@@ -311,16 +311,16 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
                   </div>
                   <div className="inline-flex items-center rounded-full border border-slate-200 p-0.5 bg-slate-50 gap-0.5">
                     <button
-                      onClick={() => setFiltroCategoria('todas')}
-                      className={`px-2.5 h-6 rounded-full text-xs font-medium transition-colors ${filtroCategoria === 'todas' ? 'bg-white shadow-sm text-slate-900 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                      onClick={() => setFiltroCategoria([])}
+                      className={`px-2.5 h-6 rounded-full text-xs font-medium transition-colors ${filtroCategoria.length === 0 ? 'bg-white shadow-sm text-slate-900 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                       Todas
                     </button>
                     {CATEGORIAS_RECEITA_FILTRO.map(c => (
                       <button
                         key={c}
-                        onClick={() => setFiltroCategoria(c)}
-                        className={`px-2.5 h-6 rounded-full text-xs font-medium transition-colors ${filtroCategoria === c ? 'bg-white shadow-sm text-slate-900 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                        onClick={() => setFiltroCategoria(f => f.includes(c) ? f.filter(x => x !== c) : [...f, c])}
+                        className={`px-2.5 h-6 rounded-full text-xs font-medium transition-colors ${filtroCategoria.includes(c) ? 'bg-white shadow-sm text-slate-900 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
                       >
                         {CATEGORIA_RECEITA_LABELS[c]}
                       </button>

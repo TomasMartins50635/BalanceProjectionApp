@@ -20,7 +20,7 @@ import type { ColaboradorDto, ReceitaDto, CategoriaReceita, TipoComissao } from 
 import { CATEGORIAS_RECEITA, CATEGORIA_RECEITA_LABELS, TIPO_COMISSAO_LABELS } from '@/lib/types';
 
 interface ReceitaFiltros {
-  categoria: CategoriaReceita | 'todas';
+  categoria: CategoriaReceita[];
   contaId: string; // '' = todas
   colaboradorIds: string[]; // [] = todos
   iva: 'todas' | 'com' | 'sem';
@@ -32,7 +32,7 @@ interface ReceitaFiltros {
 }
 
 const FILTROS_VAZIOS: ReceitaFiltros = {
-  categoria: 'todas',
+  categoria: [],
   contaId: '',
   colaboradorIds: [],
   iva: 'todas',
@@ -45,7 +45,7 @@ const FILTROS_VAZIOS: ReceitaFiltros = {
 
 function contarFiltrosAtivos(f: ReceitaFiltros): number {
   let n = 0;
-  if (f.categoria !== 'todas') n++;
+  if (f.categoria.length > 0) n++;
   if (f.contaId) n++;
   if (f.colaboradorIds.length > 0) n++;
   if (f.iva !== 'todas') n++;
@@ -244,7 +244,7 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
         r.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.categoria?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
       )
-      .filter(r => filtros.categoria === 'todas' || r.categoria === filtros.categoria)
+      .filter(r => filtros.categoria.length === 0 || (r.categoria !== null && filtros.categoria.includes(r.categoria)))
       .filter(r => !filtros.contaId || r.contaId === filtros.contaId)
       .filter(r => filtros.colaboradorIds.length === 0 || r.comissoes.some(c => filtros.colaboradorIds.includes(c.colaboradorId)))
       .filter(r =>
@@ -875,9 +875,13 @@ export function ReceitaView({ highlightId, onHighlightConsumed }: ReceitaViewPro
             <div>
               <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Categoria</Label>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
-                <PillButton active={filtros.categoria === 'todas'} onClick={() => setFiltros(f => ({ ...f, categoria: 'todas' }))}>Todas</PillButton>
+                <PillButton active={filtros.categoria.length === 0} onClick={() => setFiltros(f => ({ ...f, categoria: [] }))}>Todas</PillButton>
                 {CATEGORIAS_RECEITA.map(cat => (
-                  <PillButton key={cat} active={filtros.categoria === cat} onClick={() => setFiltros(f => ({ ...f, categoria: cat }))}>
+                  <PillButton
+                    key={cat}
+                    active={filtros.categoria.includes(cat)}
+                    onClick={() => setFiltros(f => ({ ...f, categoria: toggleInArray(f.categoria, cat) }))}
+                  >
                     {CATEGORIA_RECEITA_LABELS[cat]}
                   </PillButton>
                 ))}

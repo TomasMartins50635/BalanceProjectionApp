@@ -35,7 +35,7 @@ interface ParcelaRelatorio {
 
 interface Filtros {
   origem: 'todas' | Origem;
-  categoria: string; // '' = todas
+  categoria: string[]; // [] = todas
   contaId: string; // '' = todas
   pagamento: 'todas' | 'pago' | 'pendente';
   valorMin: string;
@@ -48,7 +48,7 @@ interface Filtros {
 
 const FILTROS_VAZIOS: Filtros = {
   origem: 'todas',
-  categoria: '',
+  categoria: [],
   contaId: '',
   pagamento: 'todas',
   valorMin: '',
@@ -62,7 +62,7 @@ const FILTROS_VAZIOS: Filtros = {
 function contarFiltrosAtivos(f: Filtros): number {
   let n = 0;
   if (f.origem !== 'todas') n++;
-  if (f.categoria) n++;
+  if (f.categoria.length > 0) n++;
   if (f.contaId) n++;
   if (f.pagamento !== 'todas') n++;
   if (f.valorMin) n++;
@@ -158,7 +158,7 @@ export function RelatorioView() {
     todasParcelas
       .filter(p => p.origemNome.toLowerCase().includes(searchTerm.toLowerCase()))
       .filter(p => filtros.origem === 'todas' || p.origem === filtros.origem)
-      .filter(p => !filtros.categoria || p.categoria === filtros.categoria)
+      .filter(p => filtros.categoria.length === 0 || (p.categoria !== null && filtros.categoria.includes(p.categoria)))
       .filter(p => !filtros.contaId || p.contaId === filtros.contaId)
       .filter(p => filtros.pagamento === 'todas' || (filtros.pagamento === 'pago' ? p.isPaid : !p.isPaid))
       .filter(p => !filtros.valorMin || p.valor >= parseFloat(filtros.valorMin))
@@ -192,7 +192,7 @@ export function RelatorioView() {
     const partes: string[] = [];
     if (searchTerm) partes.push(`Pesquisa: "${searchTerm}"`);
     if (filtros.origem !== 'todas') partes.push(`Tipo de parcela: ${filtros.origem}`);
-    if (filtros.categoria) partes.push(`Categoria: ${filtros.categoria}`);
+    if (filtros.categoria.length > 0) partes.push(`Categoria: ${filtros.categoria.join(', ')}`);
     if (filtros.contaId) partes.push(`Conta: ${contaNome(filtros.contaId)}`);
     if (filtros.pagamento !== 'todas') partes.push(`Estado de pagamento: ${filtros.pagamento === 'pago' ? 'Pago' : 'Pendente'}`);
     if (filtros.valorMin && filtros.valorMax) partes.push(`Valor entre: ${fmtEur(parseFloat(filtros.valorMin))} e ${fmtEur(parseFloat(filtros.valorMax))}`);
@@ -417,9 +417,18 @@ export function RelatorioView() {
             <div>
               <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Categoria</Label>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
-                <PillButton active={filtros.categoria === ''} onClick={() => setFiltros(f => ({ ...f, categoria: '' }))}>Todas</PillButton>
+                <PillButton active={filtros.categoria.length === 0} onClick={() => setFiltros(f => ({ ...f, categoria: [] }))}>Todas</PillButton>
                 {categoriasDisponiveis.map(cat => (
-                  <PillButton key={cat} active={filtros.categoria === cat} onClick={() => setFiltros(f => ({ ...f, categoria: cat }))}>
+                  <PillButton
+                    key={cat}
+                    active={filtros.categoria.includes(cat)}
+                    onClick={() => setFiltros(f => ({
+                      ...f,
+                      categoria: f.categoria.includes(cat)
+                        ? f.categoria.filter(c => c !== cat)
+                        : [...f.categoria, cat],
+                    }))}
+                  >
                     {cat}
                   </PillButton>
                 ))}

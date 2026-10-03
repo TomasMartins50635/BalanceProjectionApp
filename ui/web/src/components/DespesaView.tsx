@@ -27,7 +27,7 @@ const CATEGORIAS_MANUAIS = CATEGORIAS.filter(c => c !== 'Financiamento' && c !==
 const isSistemaGerido = (categoria: CategoriaContrato | null) => categoria === 'IVA' || categoria === 'Comissao';
 
 interface DespesaFiltros {
-  categoria: CategoriaContrato | 'todas';
+  categoria: CategoriaContrato[];
   tipo: TipoDespesa | 'todos';
   contaId: string; // '' = todas
   estado: 'todas' | 'ativa' | 'inativa';
@@ -39,7 +39,7 @@ interface DespesaFiltros {
 }
 
 const FILTROS_VAZIOS: DespesaFiltros = {
-  categoria: 'todas',
+  categoria: [],
   tipo: 'todos',
   contaId: '',
   estado: 'todas',
@@ -52,7 +52,7 @@ const FILTROS_VAZIOS: DespesaFiltros = {
 
 function contarFiltrosAtivos(f: DespesaFiltros): number {
   let n = 0;
-  if (f.categoria !== 'todas') n++;
+  if (f.categoria.length > 0) n++;
   if (f.tipo !== 'todos') n++;
   if (f.contaId) n++;
   if (f.estado !== 'todas') n++;
@@ -311,7 +311,7 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
         d.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (d.categoria && CATEGORIA_LABELS[d.categoria].toLowerCase().includes(searchTerm.toLowerCase()))
       )
-      .filter(d => filtros.categoria === 'todas' || d.categoria === filtros.categoria)
+      .filter(d => filtros.categoria.length === 0 || (d.categoria !== null && filtros.categoria.includes(d.categoria)))
       .filter(d => filtros.tipo === 'todos' || d.tipoDespesa === filtros.tipo)
       .filter(d => !filtros.contaId || d.contaId === filtros.contaId)
       .filter(d => {
@@ -962,9 +962,18 @@ export function DespesaView({ highlightId, onHighlightConsumed }: DespesaViewPro
             <div>
               <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Categoria</Label>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
-                <PillButton active={filtros.categoria === 'todas'} onClick={() => setFiltros(f => ({ ...f, categoria: 'todas' }))}>Todas</PillButton>
+                <PillButton active={filtros.categoria.length === 0} onClick={() => setFiltros(f => ({ ...f, categoria: [] }))}>Todas</PillButton>
                 {CATEGORIAS.map(cat => (
-                  <PillButton key={cat} active={filtros.categoria === cat} onClick={() => setFiltros(f => ({ ...f, categoria: cat }))}>
+                  <PillButton
+                    key={cat}
+                    active={filtros.categoria.includes(cat)}
+                    onClick={() => setFiltros(f => ({
+                      ...f,
+                      categoria: f.categoria.includes(cat)
+                        ? f.categoria.filter(c => c !== cat)
+                        : [...f.categoria, cat],
+                    }))}
+                  >
                     {CATEGORIA_LABELS[cat]}
                   </PillButton>
                 ))}
