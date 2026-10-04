@@ -105,7 +105,7 @@ export function ColaboradorAnaliseView({ colaboradorId, onBack }: Props) {
 
   const receitasFiltradas = useMemo(() => (data?.receitas ?? []).filter(r =>
     (filtroTipoComissao === 'todos' || r.tipoComissao === filtroTipoComissao) &&
-    (filtroCategoria.length === 0 || (r.categoria !== null && filtroCategoria.includes(r.categoria)))
+    (filtroCategoria.length === 0 || filtroCategoria.some(c => c === r.categoria))
   ), [data?.receitas, filtroTipoComissao, filtroCategoria]);
 
   const totaisFiltrados = useMemo(() => {
